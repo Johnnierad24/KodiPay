@@ -23,6 +23,11 @@ app.use('/api/units', authMiddleware, require('./routes/unit.routes'));
 app.use('/api/tenancies', authMiddleware, require('./routes/tenancy.routes'));
 app.use('/api/payments', authMiddleware, require('./routes/payment.routes'));
 app.use('/api/maintenance', authMiddleware, require('./routes/maintenance.routes'));
+app.use('/api/notifications', authMiddleware, require('./routes/notification.routes'));
+app.use('/api/invoices', authMiddleware, require('./routes/invoice.routes'));
+
+const setupCronJobs = require('./cron');
+setupCronJobs();
 
 app.use((err, req, res, next) => {
   console.error(err.stack);
