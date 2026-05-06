@@ -10,3 +10,8 @@ module.exports = {
   stkPushUrl: 'https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest',
   environment: process.env.MPESA_ENV || 'sandbox' // 'sandbox' or 'production'
 };
+
+// Helper function to check if M-Pesa is configured
+module.exports.isConfigured = function() {
+  return process.env.MPESA_CONSUMER_KEY && process.env.MPESA_CONSUMER_SECRET;
+};
