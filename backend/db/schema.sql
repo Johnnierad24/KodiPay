@@ -1,7 +1,7 @@
 -- KodiPay Database Schema
 -- Run this in PostgreSQL to create core tables
 
--- Users table (landlords, tenants, caretakers)
+-- Users table (landlords, tenants, caretakers, agents)
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
@@ -9,7 +9,8 @@ CREATE TABLE IF NOT EXISTS users (
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
     phone VARCHAR(20),
-    role VARCHAR(20) CHECK (role IN ('landlord', 'tenant', 'caretaker')) NOT NULL,
+    role VARCHAR(20) CHECK (role IN ('landlord', 'tenant', 'caretaker', 'agent')) NOT NULL,
+    fcm_token VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -46,6 +47,19 @@ CREATE TABLE IF NOT EXISTS tenancies (
     start_date DATE NOT NULL,
     end_date DATE,
     status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'ended', 'terminated')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Invoices table
+CREATE TABLE IF NOT EXISTS invoices (
+    id SERIAL PRIMARY KEY,
+    tenancy_id INTEGER REFERENCES tenancies(id) ON DELETE CASCADE,
+    month INTEGER NOT NULL,
+    year INTEGER NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    due_date DATE NOT NULL,
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'paid', 'overdue', 'cancelled')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -96,6 +110,17 @@ CREATE TABLE IF NOT EXISTS notifications (
     message TEXT NOT NULL,
     type VARCHAR(50),
     is_read BOOLEAN DEFAULT FALSE,
+    related_id INTEGER,
+    related_type VARCHAR(50),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Chatbot logs table
+CREATE TABLE IF NOT EXISTS chatbot_logs (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    message TEXT NOT NULL,
+    response TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -105,7 +130,9 @@ CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 CREATE INDEX IF NOT EXISTS idx_units_property ON units(property_id);
 CREATE INDEX IF NOT EXISTS idx_tenancies_tenant ON tenancies(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_tenancies_unit ON tenancies(unit_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_tenancy ON invoices(tenancy_id);
 CREATE INDEX IF NOT EXISTS idx_payments_tenancy ON payments(tenancy_id);
 CREATE INDEX IF NOT EXISTS idx_ledger_tenancy ON ledger_entries(tenancy_id);
 CREATE INDEX IF NOT EXISTS idx_maintenance_unit ON maintenance_requests(unit_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_chatbot_user ON chatbot_logs(user_id);
