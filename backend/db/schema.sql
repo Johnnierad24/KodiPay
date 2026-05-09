@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS payments (
     tenancy_id INTEGER REFERENCES tenancies(id) ON DELETE CASCADE,
     amount DECIMAL(10,2) NOT NULL,
     payment_method VARCHAR(50) NOT NULL,
-    transaction_ref VARCHAR(255),
+    transaction_ref VARCHAR(255) UNIQUE,
     status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'failed')),
     payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

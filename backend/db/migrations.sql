@@ -46,6 +46,10 @@ CREATE TABLE IF NOT EXISTS chatbot_logs (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Ensure transaction_ref is unique to prevent duplicate payments
+ALTER TABLE payments DROP CONSTRAINT IF EXISTS payments_transaction_ref_key;
+ALTER TABLE payments ADD CONSTRAINT payments_transaction_ref_key UNIQUE (transaction_ref);
+
 -- Create missing indexes
 CREATE INDEX IF NOT EXISTS idx_invoices_tenancy ON invoices(tenancy_id);
 CREATE INDEX IF NOT EXISTS idx_chatbot_user ON chatbot_logs(user_id);

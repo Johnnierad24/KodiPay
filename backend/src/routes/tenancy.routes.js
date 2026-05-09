@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const tenancyController = require('../controllers/tenancy.controller');
+const checkRole = require('../middleware/role.middleware');
 
-router.post('/', tenancyController.createTenancy);
-router.get('/', tenancyController.getTenancies);
+router.post('/', checkRole(['landlord', 'agent']), tenancyController.createTenancy);
+router.get('/', checkRole(['landlord', 'agent', 'caretaker']), tenancyController.getTenancies);
 router.get('/:id', tenancyController.getTenancy);
-router.put('/:id', tenancyController.updateTenancy);
-router.delete('/:id', tenancyController.endTenancy);
+router.put('/:id', checkRole(['landlord', 'agent']), tenancyController.updateTenancy);
+router.delete('/:id/end', checkRole(['landlord', 'agent']), tenancyController.endTenancy);
 
 module.exports = router;
