@@ -102,4 +102,28 @@ async function processCallback(callbackData) {
   }
 }
 
-module.exports = { initiateSTKPush, processCallback, getAccessToken };
+// Query Transaction Status
+async function queryTransactionStatus(checkoutRequestID) {
+  try {
+    const accessToken = await getAccessToken();
+    const { password, timestamp } = generatePassword();
+
+    const queryData = {
+      BusinessShortCode: mpesaConfig.businessShortCode,
+      Password: password,
+      Timestamp: timestamp,
+      CheckoutRequestID: checkoutRequestID
+    };
+
+    const queryUrl = 'https://sandbox.safaricom.co.ke/mpesa/stkpushquery/v1/query';
+    const response = await axios.post(queryUrl, queryData, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+
+    return response.data;
+  } catch (error) {
+    throw new Error(`Transaction query failed: ${error.message}`);
+  }
+}
+
+module.exports = { initiateSTKPush, processCallback, getAccessToken, queryTransactionStatus };
