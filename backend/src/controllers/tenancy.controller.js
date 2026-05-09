@@ -18,15 +18,18 @@ exports.createTenancy = async (req, res) => {
 
 exports.getTenancies = async (req, res) => {
   try {
-    const result = await pool.query(`
+    const isTenant = req.user.role === 'tenant';
+    const query = `
       SELECT t.*, u.unit_number, p.name as property_name, 
              us.first_name, us.last_name, us.email as tenant_email
       FROM tenancies t
       JOIN units u ON t.unit_id = u.id
       JOIN properties p ON u.property_id = p.id
       JOIN users us ON t.tenant_id = us.id
-      WHERE p.landlord_id = $1
-    `, [req.user?.id]);
+      WHERE ${isTenant ? 't.tenant_id = $1' : 'p.landlord_id = $1'}
+    `;
+
+    const result = await pool.query(query, [req.user.id]);
     res.json(result.rows);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch tenancies' });

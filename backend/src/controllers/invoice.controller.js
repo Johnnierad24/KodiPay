@@ -14,6 +14,7 @@ exports.createInvoice = async (req, res) => {
 
 exports.getInvoices = async (req, res) => {
   try {
+    const isTenant = req.user.role === 'tenant';
     const result = await pool.query(`
       SELECT i.*, t.tenant_id, u.first_name, u.last_name, u.email, un.unit_number, p.name as property_name
       FROM invoices i
@@ -21,7 +22,7 @@ exports.getInvoices = async (req, res) => {
       JOIN units un ON t.unit_id = un.id
       JOIN properties p ON un.property_id = p.id
       JOIN users u ON t.tenant_id = u.id
-      WHERE p.landlord_id = $1
+      WHERE ${isTenant ? 't.tenant_id = $1' : 'p.landlord_id = $1'}
       ORDER BY i.year DESC, i.month DESC
     `, [req.user.id]);
     res.json(result.rows);

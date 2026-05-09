@@ -17,7 +17,12 @@ exports.createProperty = async (req, res) => {
 
 exports.getProperties = async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM properties WHERE landlord_id = $1', [req.user?.id]);
+    const result = await pool.query(
+      `SELECT p.* FROM properties p
+       LEFT JOIN users u ON p.landlord_id = u.id
+       WHERE p.landlord_id = $1`,
+      [req.user?.id]
+    );
     res.json(result.rows);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch properties' });

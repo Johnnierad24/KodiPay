@@ -52,6 +52,26 @@ exports.recordPayment = async (req, res) => {
 
 exports.getPaymentsByTenancy = async (req, res) => {
   try {
+    // Security check: Ensure user owns the tenancy or is landlord/agent
+    const tenancyCheck = await pool.query(`
+      SELECT t.tenant_id, p.landlord_id
+      FROM tenancies t
+      JOIN units u ON t.unit_id = u.id
+      JOIN properties p ON u.property_id = p.id
+      WHERE t.id = $1
+    `, [req.params.tenancyId]);
+
+    if (tenancyCheck.rows.length === 0) return res.status(404).json({ error: 'Tenancy not found' });
+
+    const tenancy = tenancyCheck.rows[0];
+    if (req.user.role === 'tenant' && tenancy.tenant_id !== req.user.id) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    if ((req.user.role === 'landlord' || req.user.role === 'agent') && tenancy.landlord_id !== req.user.id) {
+      // In a real app, agents might have complex permissions, keeping it simple here
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
     const result = await pool.query('SELECT * FROM payments WHERE tenancy_id = $1 ORDER BY payment_date DESC', [req.params.tenancyId]);
     res.json(result.rows);
   } catch (error) {
