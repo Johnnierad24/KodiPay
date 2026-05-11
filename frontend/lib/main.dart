@@ -6,6 +6,7 @@ import 'screens/onboarding_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/tenant_dashboard.dart';
 import 'screens/landlord_dashboard.dart';
+import 'utils/constants.dart';
 
 void main() {
   runApp(
@@ -26,9 +27,23 @@ class KodiPayApp extends StatelessWidget {
     return MaterialApp(
       title: 'KodiPay',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
         useMaterial3: true,
-        textTheme: GoogleFonts.poppinsTextTheme(),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AppColors.kodiBlue,
+          primary: AppColors.kodiBlue,
+          secondary: AppColors.kodiOrange,
+          surface: AppColors.white,
+          background: AppColors.background,
+        ),
+        textTheme: GoogleFonts.poppinsTextTheme(Theme.of(context).textTheme),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.kodiBlue,
+            foregroundColor: AppColors.white,
+            textStyle: const TextStyle(fontWeight: FontWeight.bold),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
       ),
       home: const AuthWrapper(),
       routes: {
