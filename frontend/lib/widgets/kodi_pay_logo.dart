@@ -17,10 +17,46 @@ class KodiPayLogo extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(
-          Icons.home_work_rounded,
-          size: iconSize,
-          color: AppColors.kodiBlue,
+        SizedBox(
+          width: iconSize * 1.1,
+          height: iconSize,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Icon(
+                Icons.home_work_rounded,
+                size: iconSize,
+                color: AppColors.kodiNavy,
+              ),
+              Positioned(
+                right: -2,
+                bottom: 0,
+                child: Container(
+                  width: iconSize * 0.42,
+                  height: iconSize * 0.42,
+                  decoration: BoxDecoration(
+                    color: AppColors.kodiGreen,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.white, width: 2),
+                  ),
+                  alignment: Alignment.center,
+                  child: FittedBox(
+                    child: Padding(
+                      padding: const EdgeInsets.all(2),
+                      child: Text(
+                        'KSh',
+                        style: TextStyle(
+                          color: AppColors.white,
+                          fontSize: iconSize * 0.18,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
         const SizedBox(width: 8),
         RichText(
@@ -33,11 +69,11 @@ class KodiPayLogo extends StatelessWidget {
             children: const [
               TextSpan(
                 text: 'Kodi',
-                style: TextStyle(color: AppColors.kodiBlue),
+                style: TextStyle(color: AppColors.kodiNavy),
               ),
               TextSpan(
                 text: 'Pay',
-                style: TextStyle(color: AppColors.kodiOrange),
+                style: TextStyle(color: AppColors.kodiGreen),
               ),
             ],
           ),

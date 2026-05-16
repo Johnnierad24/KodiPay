@@ -3,7 +3,7 @@ const pool = require('../config/db');
 exports.createProperty = async (req, res) => {
   try {
     const { name, address, description } = req.body;
-    const landlord_id = req.user?.id; // From JWT middleware (to be added)
+    const landlord_id = req.user.id;
     
     const result = await pool.query(
       'INSERT INTO properties (landlord_id, name, address, description) VALUES ($1, $2, $3, $4) RETURNING *',

@@ -1,9 +1,15 @@
 const pool = require('../config/db');
 const { generateInvoice, generateMonthlyInvoices } = require('../services/invoice.service');
+const { getTenancyAccess, canReadTenancy, ownsProperty } = require('../utils/access-control');
 
 exports.createInvoice = async (req, res) => {
   try {
     const { tenancy_id, month, year } = req.body;
+    const tenancyAccess = await getTenancyAccess(pool, tenancy_id);
+
+    if (!tenancyAccess) return res.status(404).json({ error: 'Tenancy not found' });
+    if (!ownsProperty(req.user, tenancyAccess)) return res.status(403).json({ error: 'Access denied' });
+
     const result = await generateInvoice(tenancy_id, month, year);
     if (!result.success) return res.status(400).json({ error: result.error });
     res.status(201).json(result.invoice);
@@ -34,7 +40,7 @@ exports.getInvoices = async (req, res) => {
 exports.getInvoice = async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT i.*, t.tenant_id, u.first_name, u.last_name, u.email, un.unit_number, p.name as property_name
+      SELECT i.*, t.tenant_id, p.landlord_id, u.first_name, u.last_name, u.email, un.unit_number, p.name as property_name
       FROM invoices i
       JOIN tenancies t ON i.tenancy_id = t.id
       JOIN units un ON t.unit_id = un.id
@@ -42,7 +48,10 @@ exports.getInvoice = async (req, res) => {
       JOIN users u ON t.tenant_id = u.id
       WHERE i.id = $1
     `, [req.params.id]);
+
     if (result.rows.length === 0) return res.status(404).json({ error: 'Invoice not found' });
+    if (!canReadTenancy(req.user, result.rows[0])) return res.status(403).json({ error: 'Access denied' });
+
     res.json(result.rows[0]);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch invoice' });
@@ -52,6 +61,19 @@ exports.getInvoice = async (req, res) => {
 exports.updateInvoiceStatus = async (req, res) => {
   try {
     const { status } = req.body;
+    const invoiceAccess = await pool.query(
+      `SELECT t.tenant_id, p.landlord_id
+       FROM invoices i
+       JOIN tenancies t ON i.tenancy_id = t.id
+       JOIN units u ON t.unit_id = u.id
+       JOIN properties p ON u.property_id = p.id
+       WHERE i.id = $1`,
+      [req.params.id]
+    );
+
+    if (invoiceAccess.rows.length === 0) return res.status(404).json({ error: 'Invoice not found' });
+    if (!ownsProperty(req.user, invoiceAccess.rows[0])) return res.status(403).json({ error: 'Access denied' });
+
     const result = await pool.query(
       'UPDATE invoices SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
       [status, req.params.id]
@@ -65,7 +87,7 @@ exports.updateInvoiceStatus = async (req, res) => {
 
 exports.generateMonthly = async (req, res) => {
   try {
-    const result = await generateMonthlyInvoices();
+    const result = await generateMonthlyInvoices(req.user.id);
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: 'Failed to generate monthly invoices' });

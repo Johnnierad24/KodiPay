@@ -4,17 +4,20 @@ const { body } = require('express-validator');
 const paymentController = require('../controllers/payment.controller');
 const { processCallback } = require('../services/mpesa.service');
 const checkRole = require('../middleware/role.middleware');
+const authMiddleware = require('../middleware/auth.middleware');
 
 // M-Pesa callback/webhook endpoint (no auth required)
 router.post('/mpesa/callback', async (req, res) => {
   try {
-    const result = await processCallback(req.body);
+    await processCallback(req.body);
     res.json({ ResultCode: 0, ResultDesc: 'Success' });
   } catch (error) {
     console.error('M-Pesa callback error:', error);
     res.json({ ResultCode: 1, ResultDesc: 'Failed' });
   }
 });
+
+router.use(authMiddleware);
 
 router.post('/',
   body('tenancy_id').isInt(),

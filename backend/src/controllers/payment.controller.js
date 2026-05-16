@@ -1,9 +1,14 @@
 const pool = require('../config/db');
 const { initiateSTKPush } = require('../services/mpesa.service');
+const { getTenancyAccess, canReadTenancy, ownsProperty } = require('../utils/access-control');
 
 exports.recordPayment = async (req, res) => {
   try {
     const { tenancy_id, amount, payment_method, transaction_ref } = req.body;
+    const tenancyAccess = await getTenancyAccess(pool, tenancy_id);
+
+    if (!tenancyAccess) return res.status(404).json({ error: 'Tenancy not found' });
+    if (!canReadTenancy(req.user, tenancyAccess)) return res.status(403).json({ error: 'Access denied' });
     
     if (payment_method === 'mpesa') {
       // M-Pesa STK Push
@@ -81,8 +86,21 @@ exports.getPaymentsByTenancy = async (req, res) => {
 
 exports.getPayment = async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM payments WHERE id = $1', [req.params.id]);
+    const result = await pool.query(
+      `SELECT p.*, t.tenant_id, pr.landlord_id
+       FROM payments p
+       JOIN tenancies t ON p.tenancy_id = t.id
+       JOIN units u ON t.unit_id = u.id
+       JOIN properties pr ON u.property_id = pr.id
+       WHERE p.id = $1`,
+      [req.params.id]
+    );
+
     if (result.rows.length === 0) return res.status(404).json({ error: 'Payment not found' });
+
+    const payment = result.rows[0];
+    if (!canReadTenancy(req.user, payment)) return res.status(403).json({ error: 'Access denied' });
+
     res.json(result.rows[0]);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch payment' });
@@ -92,6 +110,19 @@ exports.getPayment = async (req, res) => {
 exports.updatePaymentStatus = async (req, res) => {
   try {
     const { status } = req.body;
+    const paymentAccess = await pool.query(
+      `SELECT t.tenant_id, pr.landlord_id
+       FROM payments p
+       JOIN tenancies t ON p.tenancy_id = t.id
+       JOIN units u ON t.unit_id = u.id
+       JOIN properties pr ON u.property_id = pr.id
+       WHERE p.id = $1`,
+      [req.params.id]
+    );
+
+    if (paymentAccess.rows.length === 0) return res.status(404).json({ error: 'Payment not found' });
+    if (!ownsProperty(req.user, paymentAccess.rows[0])) return res.status(403).json({ error: 'Access denied' });
+
     const result = await pool.query(
       'UPDATE payments SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
       [status, req.params.id]

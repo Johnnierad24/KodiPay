@@ -6,13 +6,15 @@ const pool = require('../config/db');
 exports.register = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
   try {
     const { email, password, first_name, last_name, phone, role } = req.body;
     const password_hash = await bcrypt.hash(password, 10);
     
     const result = await pool.query(
       `INSERT INTO users (email, password_hash, first_name, last_name, phone, role) 
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, email, role`,
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, email, first_name, last_name, phone, role`,
       [email, password_hash, first_name, last_name, phone, role]
     );
     
@@ -25,6 +27,9 @@ exports.register = async (req, res) => {
 };
 
 exports.login = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
   try {
     const { email, password } = req.body;
     const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
@@ -46,16 +51,14 @@ exports.login = async (req, res) => {
 
 exports.getCurrentUser = async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).json({ error: 'No token provided' });
-    
-    const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const result = await pool.query('SELECT id, email, first_name, last_name, role FROM users WHERE id = $1', [decoded.id]);
+    const result = await pool.query(
+      'SELECT id, email, first_name, last_name, phone, role FROM users WHERE id = $1',
+      [req.user.id]
+    );
     
     if (result.rows.length === 0) return res.status(404).json({ error: 'User not found' });
     res.json(result.rows[0]);
   } catch (error) {
-    res.status(401).json({ error: 'Invalid token' });
+    res.status(500).json({ error: 'Failed to fetch current user' });
   }
 };

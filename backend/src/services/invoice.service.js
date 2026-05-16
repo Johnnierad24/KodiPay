@@ -56,15 +56,22 @@ async function generateInvoice(tenancyId, month, year) {
   }
 }
 
-async function generateMonthlyInvoices() {
+async function generateMonthlyInvoices(landlordId) {
   try {
     const now = new Date();
     const month = now.getMonth() + 1;
     const year = now.getFullYear();
 
-    const activeTenancies = await pool.query(
-      "SELECT id FROM tenancies WHERE status = 'active'"
-    );
+    const activeTenancies = landlordId
+      ? await pool.query(
+        `SELECT t.id
+         FROM tenancies t
+         JOIN units u ON t.unit_id = u.id
+         JOIN properties p ON u.property_id = p.id
+         WHERE t.status = 'active' AND p.landlord_id = $1`,
+        [landlordId]
+      )
+      : await pool.query("SELECT id FROM tenancies WHERE status = 'active'");
 
     const results = [];
     for (const tenancy of activeTenancies.rows) {

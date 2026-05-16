@@ -1,8 +1,14 @@
 const pool = require('../config/db');
+const { getTenancyAccess, getUnitAccess, canReadTenancy, ownsProperty } = require('../utils/access-control');
 
 exports.createTenancy = async (req, res) => {
   try {
     const { unit_id, tenant_id, start_date, end_date } = req.body;
+    const unitAccess = await getUnitAccess(pool, unit_id);
+
+    if (!unitAccess) return res.status(404).json({ error: 'Unit not found' });
+    if (!ownsProperty(req.user, unitAccess)) return res.status(403).json({ error: 'Access denied' });
+
     const result = await pool.query(
       `INSERT INTO tenancies (unit_id, tenant_id, start_date, end_date) 
        VALUES ($1, $2, $3, $4) RETURNING *`,
@@ -38,8 +44,12 @@ exports.getTenancies = async (req, res) => {
 
 exports.getTenancy = async (req, res) => {
   try {
+    const tenancyAccess = await getTenancyAccess(pool, req.params.id);
+
+    if (!tenancyAccess) return res.status(404).json({ error: 'Tenancy not found' });
+    if (!canReadTenancy(req.user, tenancyAccess)) return res.status(403).json({ error: 'Access denied' });
+
     const result = await pool.query('SELECT * FROM tenancies WHERE id = $1', [req.params.id]);
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Tenancy not found' });
     res.json(result.rows[0]);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch tenancy' });
@@ -49,6 +59,11 @@ exports.getTenancy = async (req, res) => {
 exports.updateTenancy = async (req, res) => {
   try {
     const { end_date, status } = req.body;
+    const tenancyAccess = await getTenancyAccess(pool, req.params.id);
+
+    if (!tenancyAccess) return res.status(404).json({ error: 'Tenancy not found' });
+    if (!ownsProperty(req.user, tenancyAccess)) return res.status(403).json({ error: 'Access denied' });
+
     const result = await pool.query(
       'UPDATE tenancies SET end_date = $1, status = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 RETURNING *',
       [end_date, status, req.params.id]
@@ -62,6 +77,11 @@ exports.updateTenancy = async (req, res) => {
 
 exports.endTenancy = async (req, res) => {
   try {
+    const tenancyAccess = await getTenancyAccess(pool, req.params.id);
+
+    if (!tenancyAccess) return res.status(404).json({ error: 'Tenancy not found' });
+    if (!ownsProperty(req.user, tenancyAccess)) return res.status(403).json({ error: 'Access denied' });
+
     const result = await pool.query('UPDATE tenancies SET status = $1, end_date = CURRENT_DATE, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *', ['ended', req.params.id]);
     if (result.rows.length > 0) {
       await pool.query('UPDATE units SET status = $1 WHERE id = (SELECT unit_id FROM tenancies WHERE id = $2)', ['vacant', req.params.id]);

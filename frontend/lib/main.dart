@@ -6,6 +6,9 @@ import 'screens/onboarding_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/tenant_dashboard.dart';
 import 'screens/landlord_dashboard.dart';
+import 'screens/caretaker_dashboard.dart';
+import 'screens/pay_rent_screen.dart';
+import 'screens/register_screen.dart';
 import 'utils/constants.dart';
 
 void main() {
@@ -31,24 +34,45 @@ class KodiPayApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(
           seedColor: AppColors.kodiBlue,
           primary: AppColors.kodiBlue,
-          secondary: AppColors.kodiOrange,
+          secondary: AppColors.kodiGreen,
           surface: AppColors.white,
-          background: AppColors.background,
         ),
+        scaffoldBackgroundColor: AppColors.background,
         textTheme: GoogleFonts.poppinsTextTheme(Theme.of(context).textTheme),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: AppColors.white,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: AppColors.border),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: AppColors.border),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: AppColors.kodiBlue, width: 1.4),
+          ),
+        ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.kodiBlue,
+            backgroundColor: AppColors.kodiGreen,
             foregroundColor: AppColors.white,
             textStyle: const TextStyle(fontWeight: FontWeight.bold),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
       ),
       home: const AuthWrapper(),
       routes: {
         '/login': (context) => const LoginScreen(),
+        '/register': (context) => const RegisterScreen(),
         '/onboarding': (context) => const OnboardingScreen(),
+        '/pay-rent': (context) => const PayRentScreen(),
       },
     );
   }
@@ -75,6 +99,8 @@ class _AuthWrapperState extends State<AuthWrapper> {
     if (auth.isAuthenticated) {
       if (auth.user?.role == 'landlord') {
         return const LandlordDashboard();
+      } else if (auth.user?.role == 'caretaker') {
+        return const CaretakerDashboard();
       } else {
         return const TenantDashboard();
       }

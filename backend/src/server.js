@@ -21,7 +21,7 @@ app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/properties', authMiddleware, require('./routes/property.routes'));
 app.use('/api/units', authMiddleware, require('./routes/unit.routes'));
 app.use('/api/tenancies', authMiddleware, require('./routes/tenancy.routes'));
-app.use('/api/payments', authMiddleware, require('./routes/payment.routes'));
+app.use('/api/payments', require('./routes/payment.routes'));
 app.use('/api/maintenance', authMiddleware, require('./routes/maintenance.routes'));
 app.use('/api/notifications', authMiddleware, require('./routes/notification.routes'));
 app.use('/api/invoices', authMiddleware, require('./routes/invoice.routes'));
@@ -39,6 +39,11 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
+
+module.exports = app;
