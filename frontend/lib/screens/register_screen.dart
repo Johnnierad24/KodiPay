@@ -17,6 +17,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _obscurePassword = true;
   String _role = 'tenant';
   bool _loadedRouteRole = false;
 
@@ -142,7 +143,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 controller: _passwordController,
                 label: 'Password',
                 icon: Icons.lock_outline_rounded,
-                isPassword: true,
+                isPassword: _obscurePassword,
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                    color: AppColors.muted,
+                  ),
+                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                ),
               ),
               const SizedBox(height: 26),
               SizedBox(
@@ -306,6 +314,7 @@ class _InputField extends StatelessWidget {
   final IconData icon;
   final bool isPassword;
   final TextInputType? keyboardType;
+  final Widget? suffixIcon;
 
   const _InputField({
     required this.controller,
@@ -313,6 +322,7 @@ class _InputField extends StatelessWidget {
     required this.icon,
     this.isPassword = false,
     this.keyboardType,
+    this.suffixIcon,
   });
 
   @override
@@ -324,6 +334,7 @@ class _InputField extends StatelessWidget {
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon, color: AppColors.muted),
+        suffixIcon: suffixIcon,
       ),
     );
   }
