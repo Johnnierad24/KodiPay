@@ -30,20 +30,11 @@ class OnboardingScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: const Column(
-                  children: [
-                    KodiPayLogo(iconSize: 96, fontSize: 42),
-                    SizedBox(height: 14),
-                    Text(
-                      'Pay Rent. Stay Worry-Free.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: AppColors.kodiNavy,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
+                child: const KodiPayLogo(
+                  iconSize: 78,
+                  fontSize: 32,
+                  showSlogan: true,
+                  vertical: true,
                 ),
               ),
               const SizedBox(height: 30),

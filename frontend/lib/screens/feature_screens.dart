@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../utils/constants.dart';
 import '../widgets/dashboard_components.dart';
 
@@ -281,8 +282,18 @@ class _LandlordPaymentsScreenState extends State<LandlordPaymentsScreen> {
   }
 }
 
-class LandlordReportsScreen extends StatelessWidget {
+class LandlordReportsScreen extends StatefulWidget {
   const LandlordReportsScreen({super.key});
+
+  @override
+  State<LandlordReportsScreen> createState() => _LandlordReportsScreenState();
+}
+
+class _LandlordReportsScreenState extends State<LandlordReportsScreen> {
+  String _reportType = 'Income';
+  String _property = 'All Properties';
+  String _period = 'This Month';
+  String _status = 'All';
 
   @override
   Widget build(BuildContext context) {
@@ -292,29 +303,808 @@ class LandlordReportsScreen extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.all(18),
         children: [
-          const _MetricCard(
-              label: 'Collection Rate',
-              value: '92%',
-              color: AppColors.kodiBlue),
-          const SizedBox(height: 12),
-          const _MetricCard(
-              label: 'Occupancy', value: '94%', color: AppColors.kodiGreen),
-          const SizedBox(height: 12),
-          const _MetricCard(
-              label: 'Open Maintenance',
-              value: '5',
-              color: AppColors.kodiOrange),
+          _ReportFilters(
+            period: _period,
+            property: _property,
+            status: _status,
+            onPeriodChanged: (value) => setState(() => _period = value),
+            onPropertyChanged: (value) => setState(() => _property = value),
+            onStatusChanged: (value) => setState(() => _status = value),
+          ),
+          const SizedBox(height: 16),
+          _ReportTypeSelector(
+            selected: _reportType,
+            onChanged: (value) => setState(() => _reportType = value),
+          ),
+          const SizedBox(height: 16),
+          _ReportSummaryGrid(reportType: _reportType),
+          const SizedBox(height: 16),
+          if (_reportType == 'Income') ...[
+            const _IncomeTrendCard(),
+            const SizedBox(height: 16),
+            const _PropertyIncomeBreakdown(),
+          ] else if (_reportType == 'Arrears') ...[
+            _ArrearsReport(onReminder: _sendReminder),
+          ] else if (_reportType == 'Property') ...[
+            const _PropertyPerformanceReport(),
+          ] else if (_reportType == 'Maintenance') ...[
+            const _MaintenanceReport(),
+          ] else if (_reportType == 'Trends') ...[
+            const _IncomeTrendCard(),
+            const SizedBox(height: 16),
+            const _PaidVsPendingCard(),
+          ] else ...[
+            const _TransactionReport(),
+          ],
           const SizedBox(height: 18),
-          ElevatedButton.icon(
-            onPressed: () => _showSnack(
-                context, 'PDF report export is ready for backend wiring'),
-            icon: const Icon(Icons.picture_as_pdf_rounded),
-            label: const Text('Export PDF'),
+          _ReportActions(
+            onExportPdf: () => _showExportSheet(context, 'PDF'),
+            onExportCsv: () => _showExportSheet(context, 'CSV'),
+            onSendReminders: () =>
+                _showSnack(context, 'Reminders queued for overdue tenants.'),
           ),
         ],
       ),
     );
   }
+
+  void _sendReminder(String tenant) {
+    _showSnack(context, 'Reminder sent to $tenant.');
+  }
+}
+
+class _ReportFilters extends StatelessWidget {
+  final String period;
+  final String property;
+  final String status;
+  final ValueChanged<String> onPeriodChanged;
+  final ValueChanged<String> onPropertyChanged;
+  final ValueChanged<String> onStatusChanged;
+
+  const _ReportFilters({
+    required this.period,
+    required this.property,
+    required this.status,
+    required this.onPeriodChanged,
+    required this.onPropertyChanged,
+    required this.onStatusChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _TappableCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Filters', style: _titleStyle),
+          const SizedBox(height: 12),
+          _ReportDropdown(
+            label: 'Date Range',
+            value: period,
+            values: const ['Today', 'This Month', 'This Quarter', 'This Year'],
+            onChanged: onPeriodChanged,
+          ),
+          const SizedBox(height: 10),
+          _ReportDropdown(
+            label: 'Property',
+            value: property,
+            values: const [
+              'All Properties',
+              'Sunview Apartments',
+              'Greenfield Heights',
+              'Lakeview Villas',
+            ],
+            onChanged: onPropertyChanged,
+          ),
+          const SizedBox(height: 10),
+          _ReportDropdown(
+            label: 'Status',
+            value: status,
+            values: const ['All', 'Paid', 'Pending', 'Overdue'],
+            onChanged: onStatusChanged,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReportDropdown extends StatelessWidget {
+  final String label;
+  final String value;
+  final List<String> values;
+  final ValueChanged<String> onChanged;
+
+  const _ReportDropdown({
+    required this.label,
+    required this.value,
+    required this.values,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<String>(
+      initialValue: value,
+      decoration: InputDecoration(labelText: label),
+      items: values
+          .map((item) => DropdownMenuItem(value: item, child: Text(item)))
+          .toList(),
+      onChanged: (value) {
+        if (value != null) onChanged(value);
+      },
+    );
+  }
+}
+
+class _ReportTypeSelector extends StatelessWidget {
+  final String selected;
+  final ValueChanged<String> onChanged;
+
+  const _ReportTypeSelector({
+    required this.selected,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const types = [
+      'Income',
+      'Arrears',
+      'Property',
+      'Maintenance',
+      'Trends',
+      'Transactions'
+    ];
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: types
+            .map(
+              (type) => Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ChoiceChip(
+                  label: Text(type),
+                  selected: selected == type,
+                  selectedColor: AppColors.kodiBlue.withValues(alpha: 0.14),
+                  labelStyle: TextStyle(
+                    color: selected == type
+                        ? AppColors.kodiBlue
+                        : AppColors.textDark,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  onSelected: (_) => onChanged(type),
+                ),
+              ),
+            )
+            .toList(),
+      ),
+    );
+  }
+}
+
+class _ReportSummaryGrid extends StatelessWidget {
+  final String reportType;
+
+  const _ReportSummaryGrid({required this.reportType});
+
+  @override
+  Widget build(BuildContext context) {
+    final cards = switch (reportType) {
+      'Arrears' => const [
+          _ReportMetric(
+              label: 'Overdue Amount',
+              value: 'KSh 75,000',
+              color: AppColors.danger),
+          _ReportMetric(
+              label: 'Tenants Overdue',
+              value: '5',
+              color: AppColors.kodiOrange),
+          _ReportMetric(
+              label: 'Avg Days Late', value: '9', color: AppColors.kodiBlue),
+        ],
+      'Maintenance' => const [
+          _ReportMetric(
+              label: 'Open Issues', value: '12', color: AppColors.kodiOrange),
+          _ReportMetric(
+              label: 'Completed', value: '18', color: AppColors.kodiGreen),
+          _ReportMetric(
+              label: 'Cost', value: 'KSh 38k', color: AppColors.kodiBlue),
+        ],
+      'Property' => const [
+          _ReportMetric(
+              label: 'Best Property',
+              value: 'Greenfield',
+              color: AppColors.kodiGreen),
+          _ReportMetric(
+              label: 'Occupancy', value: '94%', color: AppColors.kodiBlue),
+          _ReportMetric(
+              label: 'Vacant Units', value: '6', color: AppColors.kodiOrange),
+        ],
+      _ => const [
+          _ReportMetric(
+              label: 'Collected',
+              value: 'KSh 245k',
+              color: AppColors.kodiGreen),
+          _ReportMetric(
+              label: 'Expected', value: 'KSh 320k', color: AppColors.kodiBlue),
+          _ReportMetric(
+              label: 'Pending', value: 'KSh 75k', color: AppColors.kodiOrange),
+        ],
+    };
+
+    return GridView.count(
+      crossAxisCount: 3,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      childAspectRatio: 0.92,
+      mainAxisSpacing: 10,
+      crossAxisSpacing: 10,
+      children: cards,
+    );
+  }
+}
+
+class _ReportMetric extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+
+  const _ReportMetric({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _TappableCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppStyles.caption),
+          const SizedBox(height: 8),
+          FittedBox(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: TextStyle(
+                  color: color, fontSize: 19, fontWeight: FontWeight.w900),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _IncomeTrendCard extends StatelessWidget {
+  const _IncomeTrendCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return _ReportSection(
+      title: 'Monthly Income Trend',
+      child: SizedBox(
+        height: 210,
+        child: LineChart(
+          LineChartData(
+            gridData: const FlGridData(show: true, drawVerticalLine: false),
+            titlesData: FlTitlesData(
+              topTitles:
+                  const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              rightTitles:
+                  const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              leftTitles:
+                  const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 28,
+                  interval: 1,
+                  getTitlesWidget: (value, meta) {
+                    const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May'];
+                    final index = value.toInt();
+                    if (index < 0 || index >= labels.length) {
+                      return const SizedBox.shrink();
+                    }
+                    return Text(labels[index], style: AppStyles.caption);
+                  },
+                ),
+              ),
+            ),
+            borderData: FlBorderData(show: false),
+            minX: 0,
+            maxX: 4,
+            minY: 0,
+            maxY: 320,
+            lineBarsData: [
+              LineChartBarData(
+                spots: const [
+                  FlSpot(0, 180),
+                  FlSpot(1, 210),
+                  FlSpot(2, 195),
+                  FlSpot(3, 245),
+                  FlSpot(4, 275),
+                ],
+                isCurved: true,
+                barWidth: 4,
+                color: AppColors.kodiBlue,
+                belowBarData: BarAreaData(
+                  show: true,
+                  color: AppColors.kodiBlue.withValues(alpha: 0.12),
+                ),
+                dotData: const FlDotData(show: true),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PaidVsPendingCard extends StatelessWidget {
+  const _PaidVsPendingCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return _ReportSection(
+      title: 'Paid vs Pending',
+      child: Row(
+        children: [
+          SizedBox(
+            width: 132,
+            height: 132,
+            child: PieChart(
+              PieChartData(
+                sectionsSpace: 3,
+                centerSpaceRadius: 34,
+                sections: [
+                  PieChartSectionData(
+                    value: 77,
+                    color: AppColors.kodiGreen,
+                    title: '77%',
+                    radius: 32,
+                    titleStyle: const TextStyle(
+                        color: AppColors.white, fontWeight: FontWeight.w800),
+                  ),
+                  PieChartSectionData(
+                    value: 23,
+                    color: AppColors.kodiOrange,
+                    title: '23%',
+                    radius: 32,
+                    titleStyle: const TextStyle(
+                        color: AppColors.white, fontWeight: FontWeight.w800),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 18),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _LegendRow(
+                    color: AppColors.kodiGreen,
+                    label: 'Paid',
+                    value: 'KSh 245,000'),
+                SizedBox(height: 12),
+                _LegendRow(
+                    color: AppColors.kodiOrange,
+                    label: 'Pending',
+                    value: 'KSh 75,000'),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LegendRow extends StatelessWidget {
+  final Color color;
+  final String label;
+  final String value;
+
+  const _LegendRow({
+    required this.color,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 8),
+        Expanded(child: Text(label, style: _titleStyle)),
+        Text(value, style: _smallBoldStyle),
+      ],
+    );
+  }
+}
+
+class _PropertyIncomeBreakdown extends StatelessWidget {
+  const _PropertyIncomeBreakdown();
+
+  @override
+  Widget build(BuildContext context) {
+    return const _ReportSection(
+      title: 'Per Property Breakdown',
+      child: Column(
+        children: [
+          _ReportDataRow(
+              label: 'Sunview Apartments',
+              value: 'KSh 250,000',
+              status: '92% paid',
+              color: AppColors.kodiGreen),
+          _ReportDivider(),
+          _ReportDataRow(
+              label: 'Greenfield Heights',
+              value: 'KSh 610,000',
+              status: '96% paid',
+              color: AppColors.kodiGreen),
+          _ReportDivider(),
+          _ReportDataRow(
+              label: 'Lakeview Villas',
+              value: 'KSh 180,000',
+              status: '78% paid',
+              color: AppColors.kodiOrange),
+        ],
+      ),
+    );
+  }
+}
+
+class _ArrearsReport extends StatelessWidget {
+  final ValueChanged<String> onReminder;
+
+  const _ArrearsReport({required this.onReminder});
+
+  @override
+  Widget build(BuildContext context) {
+    return _ReportSection(
+      title: 'Tenants With Unpaid Rent',
+      child: Column(
+        children: [
+          _ArrearsRow(
+              tenant: 'Peter Ochieng',
+              unit: 'C3 - Lakeview Villas',
+              amount: 'KSh 25,000',
+              days: '12 days',
+              onReminder: onReminder),
+          const _ReportDivider(),
+          _ArrearsRow(
+              tenant: 'Grace Njeri',
+              unit: 'A1 - Sunview Apts',
+              amount: 'KSh 30,000',
+              days: '8 days',
+              onReminder: onReminder),
+          const _ReportDivider(),
+          _ArrearsRow(
+              tenant: 'Brian Otieno',
+              unit: 'B8 - Greenfield Hts',
+              amount: 'KSh 20,000',
+              days: '5 days',
+              onReminder: onReminder),
+        ],
+      ),
+    );
+  }
+}
+
+class _ArrearsRow extends StatelessWidget {
+  final String tenant;
+  final String unit;
+  final String amount;
+  final String days;
+  final ValueChanged<String> onReminder;
+
+  const _ArrearsRow({
+    required this.tenant,
+    required this.unit,
+    required this.amount,
+    required this.days,
+    required this.onReminder,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(child: Text(tenant, style: _titleStyle)),
+              Text(amount,
+                  style: const TextStyle(
+                      color: AppColors.danger, fontWeight: FontWeight.w900)),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text('$unit  -  $days overdue', style: AppStyles.caption),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => onReminder(tenant),
+              icon: const Icon(Icons.sms_outlined),
+              label: const Text('Send Reminder'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PropertyPerformanceReport extends StatelessWidget {
+  const _PropertyPerformanceReport();
+
+  @override
+  Widget build(BuildContext context) {
+    return const _ReportSection(
+      title: 'Property Performance',
+      child: Column(
+        children: [
+          _ReportDataRow(
+              label: 'Greenfield Heights',
+              value: 'KSh 610,000',
+              status: '25/32 occupied',
+              color: AppColors.kodiGreen),
+          _ReportDivider(),
+          _ReportDataRow(
+              label: 'Sunview Apartments',
+              value: 'KSh 250,000',
+              status: '10/12 occupied',
+              color: AppColors.kodiBlue),
+          _ReportDivider(),
+          _ReportDataRow(
+              label: 'Lakeview Villas',
+              value: 'KSh 180,000',
+              status: '8/10 occupied',
+              color: AppColors.kodiOrange),
+        ],
+      ),
+    );
+  }
+}
+
+class _MaintenanceReport extends StatelessWidget {
+  const _MaintenanceReport();
+
+  @override
+  Widget build(BuildContext context) {
+    return const _ReportSection(
+      title: 'Maintenance Costs & Issues',
+      child: Column(
+        children: [
+          _ReportDataRow(
+              label: 'Plumbing',
+              value: '6 issues',
+              status: 'KSh 18,000',
+              color: AppColors.kodiOrange),
+          _ReportDivider(),
+          _ReportDataRow(
+              label: 'Electrical',
+              value: '3 issues',
+              status: 'KSh 12,500',
+              color: AppColors.danger),
+          _ReportDivider(),
+          _ReportDataRow(
+              label: 'Locks & Doors',
+              value: '3 issues',
+              status: 'KSh 7,500',
+              color: AppColors.kodiBlue),
+        ],
+      ),
+    );
+  }
+}
+
+class _TransactionReport extends StatelessWidget {
+  const _TransactionReport();
+
+  @override
+  Widget build(BuildContext context) {
+    return const _ReportSection(
+      title: 'Transaction History',
+      child: Column(
+        children: [
+          _ReportDataRow(
+              label: 'Mary Wanjiku',
+              value: 'KSh 25,000',
+              status: 'M-Pesa - Paid',
+              color: AppColors.kodiGreen),
+          _ReportDivider(),
+          _ReportDataRow(
+              label: 'John Kamau',
+              value: 'KSh 20,000',
+              status: 'Bank - Paid',
+              color: AppColors.kodiGreen),
+          _ReportDivider(),
+          _ReportDataRow(
+              label: 'Peter Ochieng',
+              value: 'KSh 25,000',
+              status: 'Pending',
+              color: AppColors.kodiOrange),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReportSection extends StatelessWidget {
+  final String title;
+  final Widget child;
+
+  const _ReportSection({
+    required this.title,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _TappableCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: _titleStyle),
+          const SizedBox(height: 14),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _ReportDataRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final String status;
+  final Color color;
+
+  const _ReportDataRow({
+    required this.label,
+    required this.value,
+    required this.status,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: _titleStyle),
+                const SizedBox(height: 4),
+                Text(status, style: AppStyles.caption),
+              ],
+            ),
+          ),
+          Text(value,
+              style: TextStyle(color: color, fontWeight: FontWeight.w900)),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReportDivider extends StatelessWidget {
+  const _ReportDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Divider(height: 1, color: AppColors.border);
+  }
+}
+
+class _ReportActions extends StatelessWidget {
+  final VoidCallback onExportPdf;
+  final VoidCallback onExportCsv;
+  final VoidCallback onSendReminders;
+
+  const _ReportActions({
+    required this.onExportPdf,
+    required this.onExportCsv,
+    required this.onSendReminders,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: onExportPdf,
+                icon: const Icon(Icons.picture_as_pdf_rounded),
+                label: const Text('PDF'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: onExportCsv,
+                icon: const Icon(Icons.table_chart_outlined),
+                label: const Text('CSV'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: onSendReminders,
+            icon: const Icon(Icons.notifications_active_outlined),
+            label: const Text('Send Arrears Reminders'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+void _showExportSheet(BuildContext context, String type) {
+  showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: AppColors.white,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (context) {
+      return Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Export $type Report', style: AppStyles.heading2),
+            const SizedBox(height: 10),
+            const Text(
+              'Includes filters, summaries, arrears, property performance, maintenance, and transactions.',
+              style: AppStyles.bodyMedium,
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _showSnack(context, '$type export generated.');
+                },
+                icon: const Icon(Icons.download_rounded),
+                label: const Text('Download'),
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
 }
 
 class TenantPaymentsScreen extends StatelessWidget {
@@ -611,25 +1401,224 @@ class MoreScreen extends StatelessWidget {
         padding: const EdgeInsets.all(18),
         children: [
           _SettingsTile(
-            icon: Icons.analytics_outlined,
-            title: 'Reports',
-            subtitle: 'Revenue, occupancy, and collections',
-            onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => const LandlordReportsScreen())),
-          ),
-          _SettingsTile(
-            icon: Icons.notifications_none_rounded,
-            title: 'Notifications',
-            subtitle: 'Reminders and system alerts',
-            onTap: () => _showSnack(context, 'Notifications opened'),
-          ),
-          _SettingsTile(
             icon: Icons.settings_outlined,
             title: 'Settings',
-            subtitle: 'App preferences',
-            onTap: () => _showSnack(context, 'Settings opened'),
+            subtitle: 'App preferences, alerts, and exports',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AppPreferencesScreen()),
+            ),
+          ),
+          _SettingsTile(
+            icon: Icons.person_outline_rounded,
+            title: 'Profile',
+            subtitle: 'Landlord account and security',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const ProfileScreen(
+                  role: 'Landlord',
+                  accentColor: AppColors.kodiGreen,
+                ),
+              ),
+            ),
+          ),
+          _SettingsTile(
+            icon: Icons.help_outline_rounded,
+            title: 'Support',
+            subtitle: 'Get help with payments or reports',
+            onTap: () => _showSnack(context, 'Support request started.'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class LandlordNotificationsScreen extends StatefulWidget {
+  const LandlordNotificationsScreen({super.key});
+
+  @override
+  State<LandlordNotificationsScreen> createState() =>
+      _LandlordNotificationsScreenState();
+}
+
+class _LandlordNotificationsScreenState
+    extends State<LandlordNotificationsScreen> {
+  String _filter = 'All';
+
+  @override
+  Widget build(BuildContext context) {
+    final notifications = [
+      const _NotificationData(
+        type: 'Reminder',
+        title: 'Rent reminder sent',
+        body: 'Peter Ochieng was reminded about KSh 25,000 overdue rent.',
+        status: 'Sent',
+        time: 'Today, 9:30 AM',
+        color: AppColors.kodiBlue,
+        icon: Icons.sms_outlined,
+      ),
+      const _NotificationData(
+        type: 'Maintenance',
+        title: 'Broken Tap reported',
+        body: 'Mary Wanjiku reported a plumbing issue in House 12B.',
+        status: 'In Progress',
+        time: 'Today, 8:10 AM',
+        color: AppColors.kodiOrange,
+        icon: Icons.build_outlined,
+      ),
+      const _NotificationData(
+        type: 'System',
+        title: 'M-Pesa callback processed',
+        body: 'Payment reconciliation completed for Sunview Apartments.',
+        status: 'Resolved',
+        time: 'Yesterday, 5:45 PM',
+        color: AppColors.kodiGreen,
+        icon: Icons.verified_outlined,
+      ),
+      const _NotificationData(
+        type: 'Maintenance',
+        title: 'Electrical fault escalated',
+        body: 'Caretaker marked House 8A issue as high priority.',
+        status: 'Pending',
+        time: 'Yesterday, 2:20 PM',
+        color: AppColors.danger,
+        icon: Icons.warning_amber_rounded,
+      ),
+    ];
+    final visible = _filter == 'All'
+        ? notifications
+        : notifications.where((item) => item.type == _filter).toList();
+
+    return _FeatureScaffold(
+      title: 'Notifications',
+      accentColor: AppColors.kodiBlue,
+      child: ListView(
+        padding: const EdgeInsets.all(18),
+        children: [
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: ['All', 'Reminder', 'Maintenance', 'System']
+                  .map(
+                    (filter) => Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        label: Text(filter),
+                        selected: _filter == filter,
+                        selectedColor:
+                            AppColors.kodiBlue.withValues(alpha: 0.14),
+                        onSelected: (_) => setState(() => _filter = filter),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+          const SizedBox(height: 16),
+          ...visible.map((item) => _NotificationCard(data: item)),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: () => _showSnack(context, 'All notifications read.'),
+            icon: const Icon(Icons.done_all_rounded),
+            label: const Text('Mark All as Read'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class AppPreferencesScreen extends StatefulWidget {
+  const AppPreferencesScreen({super.key});
+
+  @override
+  State<AppPreferencesScreen> createState() => _AppPreferencesScreenState();
+}
+
+class _AppPreferencesScreenState extends State<AppPreferencesScreen> {
+  bool _rentReminders = true;
+  bool _maintenanceAlerts = true;
+  bool _systemAlerts = true;
+  bool _monthlyReports = true;
+  String _defaultExport = 'PDF';
+  String _currency = 'KES';
+
+  @override
+  Widget build(BuildContext context) {
+    return _FeatureScaffold(
+      title: 'App Preferences',
+      accentColor: AppColors.kodiNavy,
+      child: ListView(
+        padding: const EdgeInsets.all(18),
+        children: [
+          _PreferenceSwitch(
+            title: 'Rent reminders',
+            subtitle: 'Notify when rent is due or overdue',
+            value: _rentReminders,
+            onChanged: (value) => setState(() => _rentReminders = value),
+          ),
+          _PreferenceSwitch(
+            title: 'Maintenance alerts',
+            subtitle: 'Notify when tenants report or update issues',
+            value: _maintenanceAlerts,
+            onChanged: (value) => setState(() => _maintenanceAlerts = value),
+          ),
+          _PreferenceSwitch(
+            title: 'System alerts',
+            subtitle: 'Payment callbacks, exports, and account notices',
+            value: _systemAlerts,
+            onChanged: (value) => setState(() => _systemAlerts = value),
+          ),
+          _PreferenceSwitch(
+            title: 'Monthly report summary',
+            subtitle: 'Send income and arrears summary every month',
+            value: _monthlyReports,
+            onChanged: (value) => setState(() => _monthlyReports = value),
+          ),
+          const SizedBox(height: 12),
+          _TappableCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Report Defaults', style: _titleStyle),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: _defaultExport,
+                  decoration: const InputDecoration(labelText: 'Export Format'),
+                  items: const [
+                    DropdownMenuItem(value: 'PDF', child: Text('PDF')),
+                    DropdownMenuItem(value: 'CSV', child: Text('CSV')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) setState(() => _defaultExport = value);
+                  },
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: _currency,
+                  decoration: const InputDecoration(labelText: 'Currency'),
+                  items: const [
+                    DropdownMenuItem(value: 'KES', child: Text('KES')),
+                    DropdownMenuItem(value: 'USD', child: Text('USD')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) setState(() => _currency = value);
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton.icon(
+              onPressed: () => _showSnack(context, 'Preferences saved.'),
+              icon: const Icon(Icons.save_outlined),
+              label: const Text('Save Preferences'),
+            ),
           ),
         ],
       ),
@@ -1150,6 +2139,96 @@ class _AlertCard extends StatelessWidget {
   }
 }
 
+class _NotificationCard extends StatelessWidget {
+  final _NotificationData data;
+
+  const _NotificationCard({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: _TappableCard(
+        onTap: () => _showSnack(context, data.title),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: data.color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(data.icon, color: data.color),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(child: Text(data.title, style: _titleStyle)),
+                      StatusPill(label: data.status, color: data.color),
+                    ],
+                  ),
+                  const SizedBox(height: 5),
+                  Text(data.body, style: AppStyles.caption),
+                  const SizedBox(height: 6),
+                  Text(data.time, style: AppStyles.caption),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PreferenceSwitch extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _PreferenceSwitch({
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: _TappableCard(
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: _titleStyle),
+                  const SizedBox(height: 4),
+                  Text(subtitle, style: AppStyles.caption),
+                ],
+              ),
+            ),
+            Switch(
+              value: value,
+              activeThumbColor: AppColors.kodiGreen,
+              onChanged: onChanged,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class PropertyData {
   final String name;
   final String location;
@@ -1159,6 +2238,26 @@ class PropertyData {
 
   const PropertyData(
       this.name, this.location, this.units, this.occupied, this.monthlyIncome);
+}
+
+class _NotificationData {
+  final String type;
+  final String title;
+  final String body;
+  final String status;
+  final String time;
+  final Color color;
+  final IconData icon;
+
+  const _NotificationData({
+    required this.type,
+    required this.title,
+    required this.body,
+    required this.status,
+    required this.time,
+    required this.color,
+    required this.icon,
+  });
 }
 
 class _TaskData {

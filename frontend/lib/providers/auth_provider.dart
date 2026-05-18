@@ -4,6 +4,18 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/user.dart';
 import '../services/api_service.dart';
 
+class PasswordResetRequestResult {
+  final bool success;
+  final String message;
+  final String? resetToken;
+
+  const PasswordResetRequestResult({
+    required this.success,
+    required this.message,
+    this.resetToken,
+  });
+}
+
 class AuthProvider with ChangeNotifier {
   User? _user;
   String? _token;
@@ -75,6 +87,61 @@ class AuthProvider with ChangeNotifier {
       }
     } catch (e) {
       debugPrint('Login error: $e');
+    }
+
+    _isLoading = false;
+    notifyListeners();
+    return false;
+  }
+
+  Future<PasswordResetRequestResult> requestPasswordReset(String email) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final response = await _apiService.post('/auth/forgot-password', {
+        'email': email.trim(),
+      });
+      final data = jsonDecode(response.body);
+
+      _isLoading = false;
+      notifyListeners();
+
+      return PasswordResetRequestResult(
+        success: response.statusCode == 200,
+        message: data['message'] ?? 'Password reset request processed.',
+        resetToken: data['reset_token'],
+      );
+    } catch (e) {
+      debugPrint('Password reset request error: $e');
+    }
+
+    _isLoading = false;
+    notifyListeners();
+    return const PasswordResetRequestResult(
+      success: false,
+      message: 'Failed to request password reset.',
+    );
+  }
+
+  Future<bool> resetPassword({
+    required String token,
+    required String password,
+  }) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final response = await _apiService.post('/auth/reset-password', {
+        'token': token.trim(),
+        'password': password,
+      });
+
+      _isLoading = false;
+      notifyListeners();
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('Password reset error: $e');
     }
 
     _isLoading = false;

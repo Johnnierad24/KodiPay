@@ -19,6 +19,17 @@ router.post('/login',
   authController.login
 );
 
+router.post('/forgot-password',
+  body('email').isEmail(),
+  authController.requestPasswordReset
+);
+
+router.post('/reset-password',
+  body('token').isString().isLength({ min: 32 }),
+  body('password').isLength({ min: 6 }),
+  authController.resetPassword
+);
+
 router.get('/me', authMiddleware, authController.getCurrentUser);
 
 module.exports = router;

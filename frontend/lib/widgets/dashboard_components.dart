@@ -7,6 +7,7 @@ class DashboardHeader extends StatelessWidget {
   final Color accentColor;
   final VoidCallback onLogout;
   final VoidCallback? onMenuTap;
+  final List<Widget> trailingActions;
 
   const DashboardHeader({
     super.key,
@@ -15,6 +16,7 @@ class DashboardHeader extends StatelessWidget {
     required this.accentColor,
     required this.onLogout,
     this.onMenuTap,
+    this.trailingActions = const [],
   });
 
   @override
@@ -54,6 +56,7 @@ class DashboardHeader extends StatelessWidget {
             ],
           ),
         ),
+        ...trailingActions,
         IconButton(
           tooltip: 'Log out',
           onPressed: onLogout,

@@ -30,6 +30,21 @@ class LandlordDashboard extends StatelessWidget {
                   context,
                   MaterialPageRoute(builder: (_) => const MoreScreen()),
                 ),
+                trailingActions: [
+                  IconButton(
+                    tooltip: 'Notifications',
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const LandlordNotificationsScreen()),
+                    ),
+                    icon: const Badge(
+                      label: Text('3'),
+                      child: Icon(Icons.notifications_none_rounded,
+                          color: AppColors.textDark),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 18),
               GradientPanel(

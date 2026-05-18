@@ -46,6 +46,16 @@ CREATE TABLE IF NOT EXISTS chatbot_logs (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Create password reset tokens table if it doesn't exist
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    token_hash VARCHAR(64) UNIQUE NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    used_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Ensure transaction_ref is unique to prevent duplicate payments
 ALTER TABLE payments DROP CONSTRAINT IF EXISTS payments_transaction_ref_key;
 ALTER TABLE payments ADD CONSTRAINT payments_transaction_ref_key UNIQUE (transaction_ref);
@@ -53,3 +63,5 @@ ALTER TABLE payments ADD CONSTRAINT payments_transaction_ref_key UNIQUE (transac
 -- Create missing indexes
 CREATE INDEX IF NOT EXISTS idx_invoices_tenancy ON invoices(tenancy_id);
 CREATE INDEX IF NOT EXISTS idx_chatbot_user ON chatbot_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_password_reset_user ON password_reset_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_password_reset_token ON password_reset_tokens(token_hash);

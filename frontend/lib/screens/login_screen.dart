@@ -39,19 +39,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _showPasswordReset() {
-    final email = _emailController.text.trim();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          email.isEmpty
-              ? 'Enter your email first, then tap Forgot Password.'
-              : 'Password reset link queued for $email.',
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
@@ -93,16 +80,20 @@ class _LoginScreenState extends State<LoginScreen> {
                 obscureText: _obscurePassword,
                 suffixIcon: IconButton(
                   icon: Icon(
-                    _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                    _obscurePassword
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
                     color: AppColors.muted,
                   ),
-                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                  onPressed: () =>
+                      setState(() => _obscurePassword = !_obscurePassword),
                 ),
               ),
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: _showPasswordReset,
+                  onPressed: () =>
+                      Navigator.pushNamed(context, '/forgot-password'),
                   child: const Text('Forgot Password?'),
                 ),
               ),

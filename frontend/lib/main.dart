@@ -7,8 +7,11 @@ import 'screens/login_screen.dart';
 import 'screens/tenant_dashboard.dart';
 import 'screens/landlord_dashboard.dart';
 import 'screens/caretaker_dashboard.dart';
+import 'screens/forgot_password_screen.dart';
 import 'screens/pay_rent_screen.dart';
 import 'screens/register_screen.dart';
+import 'screens/reset_password_screen.dart';
+import 'screens/welcome_screen.dart';
 import 'utils/constants.dart';
 
 void main() {
@@ -71,6 +74,9 @@ class KodiPayApp extends StatelessWidget {
       routes: {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
+        '/forgot-password': (context) => const ForgotPasswordScreen(),
+        '/reset-password': (context) => const ResetPasswordScreen(),
+        '/welcome': (context) => const WelcomeScreen(),
         '/onboarding': (context) => const OnboardingScreen(),
         '/pay-rent': (context) => const PayRentScreen(),
       },
@@ -106,6 +112,6 @@ class _AuthWrapperState extends State<AuthWrapper> {
       }
     }
 
-    return const OnboardingScreen();
+    return const WelcomeScreen();
   }
 }

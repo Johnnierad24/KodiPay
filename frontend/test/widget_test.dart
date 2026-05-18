@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:kodipay/providers/auth_provider.dart';
 
 void main() {
-  testWidgets('Onboarding screen smoke test', (WidgetTester tester) async {
+  testWidgets('Welcome to onboarding smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
     await tester.pumpWidget(
       MultiProvider(
@@ -14,8 +14,15 @@ void main() {
         child: const KodiPayApp(),
       ),
     );
+    await tester.pumpAndSettle();
 
-    // Verify that onboarding screen content is present.
+    // Verify the welcome screen appears first.
+    expect(find.text('Get Started'), findsOneWidget);
+
+    await tester.tap(find.text('Get Started'));
+    await tester.pumpAndSettle();
+
+    // Verify that onboarding screen content is present after starting.
     expect(find.text('Managing rent made easy'), findsOneWidget);
     expect(find.text('I am a Tenant'), findsOneWidget);
     expect(find.text('I am a Landlord'), findsOneWidget);
