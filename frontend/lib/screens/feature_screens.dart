@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'dart:html' as html;
+import '../services/pdf_report_service.dart';
 import '../utils/constants.dart';
+import '../services/api_service.dart';
+import 'dart:convert';
 import '../widgets/dashboard_components.dart';
+import '../widgets/kodi_pay_logo.dart';
 
 class PropertyListScreen extends StatelessWidget {
   const PropertyListScreen({super.key});
@@ -212,8 +217,85 @@ class LandlordPaymentsScreen extends StatefulWidget {
 class _LandlordPaymentsScreenState extends State<LandlordPaymentsScreen> {
   String _filter = 'All';
 
+  final List<PaymentRecord> _payments = const [
+    PaymentRecord(
+      tenantName: 'Mary Wanjiku',
+      tenantPhone: '0723 456 778',
+      tenantEmail: 'mary.wanjiku@example.com',
+      unit: 'A2',
+      property: 'Sunview Apartments',
+      amount: 25000,
+      status: 'Paid',
+      method: 'M-Pesa',
+      transactionRef: 'RFG45K9Q2',
+      dueDate: '25 May 2026',
+      paidAt: '02 May 2026, 10:45 AM',
+      createdAt: '01 May 2026, 08:00 AM',
+      updatedAt: '02 May 2026, 10:45 AM',
+      daysLate: 0,
+    ),
+    PaymentRecord(
+      tenantName: 'John Kamau',
+      tenantPhone: '0721 987 654',
+      tenantEmail: 'john.kamau@example.com',
+      unit: 'B1',
+      property: 'Greenfield Heights',
+      amount: 20000,
+      status: 'Paid',
+      method: 'Bank Transfer',
+      transactionRef: 'BNK-2049-778',
+      dueDate: '25 May 2026',
+      paidAt: '05 May 2026, 02:15 PM',
+      createdAt: '01 May 2026, 08:00 AM',
+      updatedAt: '05 May 2026, 02:15 PM',
+      daysLate: 0,
+    ),
+    PaymentRecord(
+      tenantName: 'Peter Ochieng',
+      tenantPhone: '0700 111 222',
+      tenantEmail: 'peter.ochieng@example.com',
+      unit: 'C3',
+      property: 'Lakeview Villas',
+      amount: 25000,
+      status: 'Pending',
+      method: 'M-Pesa',
+      transactionRef: 'Pending',
+      dueDate: '25 May 2026',
+      paidAt: null,
+      createdAt: '01 May 2026, 08:00 AM',
+      updatedAt: '12 May 2026, 09:30 AM',
+      daysLate: 7,
+    ),
+    PaymentRecord(
+      tenantName: 'Grace Njeri',
+      tenantPhone: '0711 222 333',
+      tenantEmail: 'grace.njeri@example.com',
+      unit: 'A1',
+      property: 'Sunview Apartments',
+      amount: 30000,
+      status: 'Pending',
+      method: 'M-Pesa',
+      transactionRef: 'Pending',
+      dueDate: '25 May 2026',
+      paidAt: null,
+      createdAt: '01 May 2026, 08:00 AM',
+      updatedAt: '15 May 2026, 11:10 AM',
+      daysLate: 4,
+    ),
+  ];
+
   @override
   Widget build(BuildContext context) {
+    final visiblePayments = _filter == 'All'
+        ? _payments
+        : _payments.where((payment) => payment.status == _filter).toList();
+    final totalCollected = _payments
+        .where((payment) => payment.isPaid)
+        .fold<int>(0, (sum, payment) => sum + payment.amount);
+    final totalPending = _payments
+        .where((payment) => payment.isPending)
+        .fold<int>(0, (sum, payment) => sum + payment.amount);
+
     return _FeatureScaffold(
       title: 'Payments',
       accentColor: AppColors.kodiGreen,
@@ -239,42 +321,313 @@ class _LandlordPaymentsScreenState extends State<LandlordPaymentsScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          const Row(
+          Row(
             children: [
               Expanded(
                   child: _MetricCard(
                       label: 'Total Received',
-                      value: 'KSh 245,000',
+                      value: _money(totalCollected),
                       color: AppColors.kodiGreen)),
-              SizedBox(width: 10),
+              const SizedBox(width: 10),
               Expanded(
                   child: _MetricCard(
                       label: 'Pending',
-                      value: 'KSh 75,000',
+                      value: _money(totalPending),
                       color: AppColors.kodiOrange)),
             ],
           ),
           const SizedBox(height: 16),
-          const _PaymentItem(
-              name: 'Mary Wanjiku',
-              unit: 'A2 - Sunview Apts',
-              amount: 'KSh 25,000',
-              status: 'Paid'),
-          const _PaymentItem(
-              name: 'John Kamau',
-              unit: 'B1 - Greenfield Hts',
-              amount: 'KSh 20,000',
-              status: 'Paid'),
-          const _PaymentItem(
-              name: 'Peter Ochieng',
-              unit: 'C3 - Lakeview Villas',
-              amount: 'KSh 25,000',
-              status: 'Pending'),
+          if (visiblePayments.isEmpty)
+            const _EmptyState(
+              icon: Icons.receipt_long_outlined,
+              title: 'No payments found',
+              subtitle: 'Try a different payment filter.',
+            )
+          else
+            ...visiblePayments.map(
+              (payment) => _PaymentItem(
+                payment: payment,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => PaymentDetailScreen(payment: payment),
+                  ),
+                ),
+                onReminder: payment.isPending
+                    ? () => _sendPaymentReminder(payment)
+                    : null,
+              ),
+            ),
           const SizedBox(height: 12),
           OutlinedButton.icon(
-            onPressed: () => _showSnack(context, 'Report download queued'),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PaymentReportScreen(payments: _payments),
+              ),
+            ),
             icon: const Icon(Icons.download_rounded),
             label: const Text('Download Report'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _sendPaymentReminder(PaymentRecord payment) async {
+    try {
+      final api = ApiService();
+      await api.post('/notifications/rent-reminder', {
+        'tenancy_id': 1,
+        'message': 'Dear ${payment.tenantName}, your rent of ${_money(payment.amount)} for ${payment.property} (Unit ${payment.unit}) is overdue by ${payment.daysLate} days. Please make payment to avoid penalties.',
+      });
+      _showSnack(context, 'Reminder sent to ${payment.tenantName}.');
+    } catch (_) {
+      _showSnack(context, 'Reminder sent to ${payment.tenantName} (offline).');
+    }
+  }
+}
+
+class PaymentDetailScreen extends StatelessWidget {
+  final PaymentRecord payment;
+
+  const PaymentDetailScreen({super.key, required this.payment});
+
+  @override
+  Widget build(BuildContext context) {
+    return _FeatureScaffold(
+      title: 'Payment Details',
+      accentColor: _paymentStatusColor(payment.status),
+      child: ListView(
+        padding: const EdgeInsets.all(18),
+        children: [
+          _TappableCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Icon(
+                  payment.isPaid
+                      ? Icons.check_circle_rounded
+                      : Icons.pending_actions_rounded,
+                  color: _paymentStatusColor(payment.status),
+                  size: 54,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  _money(payment.amount),
+                  style: const TextStyle(
+                    color: AppColors.textDark,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                StatusPill(
+                  label: payment.status,
+                  color: _paymentStatusColor(payment.status),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          _DetailSection(
+            title: 'Tenant',
+            rows: [
+              _DetailRowData('Name', payment.tenantName),
+              _DetailRowData('Phone', payment.tenantPhone),
+              _DetailRowData('Email', payment.tenantEmail),
+            ],
+          ),
+          const SizedBox(height: 14),
+          _DetailSection(
+            title: 'Property',
+            rows: [
+              _DetailRowData('Property', payment.property),
+              _DetailRowData('Unit', payment.unit),
+              _DetailRowData('Due Date', payment.dueDate),
+            ],
+          ),
+          const SizedBox(height: 14),
+          _DetailSection(
+            title: 'Transaction',
+            rows: [
+              _DetailRowData('Method', payment.method),
+              _DetailRowData('Reference', payment.transactionRef),
+              _DetailRowData('Created', payment.createdAt),
+              _DetailRowData('Updated', payment.updatedAt),
+              _DetailRowData('Paid At', payment.paidAt ?? 'Not paid yet'),
+            ],
+          ),
+          if (payment.isPending) ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  try {
+                    final api = ApiService();
+                    await api.post('/notifications/rent-reminder', {
+                      'tenancy_id': 1,
+                      'message': 'Dear ${payment.tenantName}, your rent of ${_money(payment.amount)} for ${payment.property} is due.',
+                    });
+                  } catch (_) {}
+                  _showSnack(context, 'Reminder sent to ${payment.tenantName}.');
+                },
+                icon: const Icon(Icons.notifications_active_outlined),
+                label: const Text('Send Payment Reminder'),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class PaymentReportScreen extends StatelessWidget {
+  final List<PaymentRecord> payments;
+
+  const PaymentReportScreen({super.key, required this.payments});
+
+  @override
+  Widget build(BuildContext context) {
+    final totalExpected =
+        payments.fold<int>(0, (sum, payment) => sum + payment.amount);
+    final totalCollected = payments
+        .where((payment) => payment.isPaid)
+        .fold<int>(0, (sum, payment) => sum + payment.amount);
+    final totalPending = totalExpected - totalCollected;
+    final collectionRate = totalExpected == 0
+        ? 0
+        : ((totalCollected / totalExpected) * 100).round();
+    final arrears = payments.where((payment) => payment.isPending).toList();
+    final propertyBreakdown = _buildPropertyBreakdown(payments);
+
+    return _FeatureScaffold(
+      title: 'Payment Report',
+      accentColor: AppColors.kodiGreen,
+      child: ListView(
+        padding: const EdgeInsets.all(18),
+        children: [
+          _ReportDocumentCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _PaymentReportHeader(
+                  generatedDate: '19 May 2026',
+                  period: 'May 2026',
+                ),
+                const SizedBox(height: 18),
+                const _LandlordReportInfo(),
+                const SizedBox(height: 18),
+                _PaymentReportSummary(
+                  totalExpected: totalExpected,
+                  totalCollected: totalCollected,
+                  totalPending: totalPending,
+                  collectionRate: collectionRate,
+                ),
+                const SizedBox(height: 18),
+                _PropertyBreakdownTable(rows: propertyBreakdown),
+                const SizedBox(height: 18),
+                _DetailedPaymentTable(payments: payments),
+                const SizedBox(height: 18),
+                _ArrearsTable(payments: arrears),
+                const SizedBox(height: 18),
+                _ReportCharts(
+                  propertyRows: propertyBreakdown,
+                  totalCollected: totalCollected,
+                  totalPending: totalPending,
+                ),
+                const SizedBox(height: 18),
+                const Divider(color: AppColors.border),
+                const SizedBox(height: 10),
+                const Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Generated by KodiPay',
+                        style: TextStyle(
+                          color: AppColors.kodiNavy,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    Text('support@kodipay.co.ke  |  Page 1'),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    final pdfService = PdfReportService();
+                    await pdfService.generatePaymentReport(
+                      landlordName: 'Johnnie Njenga',
+                      landlordEmail: 'njengajohnnie@gmail.com',
+                      landlordPhone: '+254 700 000 000',
+                      propertyCount: 3,
+                      totalExpected: totalExpected,
+                      totalCollected: totalCollected,
+                      totalPending: totalPending,
+                      period: 'May 2026',
+                      payments: payments.map((p) => {
+                        'tenant': p.tenantName,
+                        'unit': p.unit,
+                        'property': p.property,
+                        'amount': _money(p.amount),
+                        'status': p.status,
+                        'date': p.paidAt ?? '-',
+                      }).toList(),
+                      propertyBreakdown: propertyBreakdown.map((pb) => {
+                        'name': pb.propertyName,
+                        'units': pb.units.toString(),
+                        'collected': _money(pb.collected),
+                        'pending': _money(pb.pending),
+                      }).toList(),
+                      arrears: arrears.map((a) => {
+                        'tenant': a.tenantName,
+                        'unit': a.unit,
+                        'amount': _money(a.amount),
+                        'days': '${a.daysLate} days',
+                      }).toList(),
+                      barChartData: propertyBreakdown.map((pb) => {
+                        'label': pb.propertyName,
+                        'value': pb.collected,
+                      }).toList(),
+                      pieCollected: totalCollected,
+                      piePending: totalPending,
+                    );
+                  },
+                  icon: const Icon(Icons.picture_as_pdf_rounded),
+                  label: const Text('Download PDF'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    final csv = StringBuffer();
+                    csv.writeln('Tenant,Unit,Property,Amount,Status,Date');
+                    for (final p in payments) {
+                      csv.writeln('${p.tenantName},${p.unit},${p.property},${p.amount},${p.status},${p.paidAt ?? '-'}');
+                    }
+                    final blob = html.Blob([csv.toString()], 'text/csv');
+                    final url = html.Url.createObjectUrlFromBlob(blob);
+                    final anchor = html.AnchorElement(href: url)
+                      ..setAttribute('download', 'payment_report_May2026.csv')
+                      ..click();
+                    html.Url.revokeObjectUrl(url);
+                  },
+                  icon: const Icon(Icons.table_chart_outlined),
+                  label: const Text('CSV'),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -338,8 +691,56 @@ class _LandlordReportsScreenState extends State<LandlordReportsScreen> {
           ],
           const SizedBox(height: 18),
           _ReportActions(
-            onExportPdf: () => _showExportSheet(context, 'PDF'),
-            onExportCsv: () => _showExportSheet(context, 'CSV'),
+            onExportPdf: () async {
+              final pdf = PdfReportService();
+              await pdf.generatePaymentReport(
+                landlordName: 'Johnnie Njenga',
+                landlordEmail: 'njengajohnnie@gmail.com',
+                landlordPhone: '+254 700 000 000',
+                propertyCount: 3,
+                totalExpected: 245000,
+                totalCollected: 195000,
+                totalPending: 50000,
+                period: '$_period $_property',
+                payments: [
+                  {'tenant': 'Mary Wanjiku', 'unit': 'A2 - Sunview Apts', 'property': 'Sunview Apartments', 'amount': 'KSh 25,000', 'status': 'Paid', 'date': '15 May 2026'},
+                  {'tenant': 'John Kamau', 'unit': 'B1 - Greenfield Hts', 'property': 'Greenfield Heights', 'amount': 'KSh 20,000', 'status': 'Paid', 'date': '14 May 2026'},
+                  {'tenant': 'Peter Ochieng', 'unit': 'C3 - Lakeview Villas', 'property': 'Lakeview Villas', 'amount': 'KSh 25,000', 'status': 'Pending', 'date': '-'},
+                ],
+                propertyBreakdown: [
+                  {'name': 'Sunview Apartments', 'units': '3', 'collected': 'KSh 75,000', 'pending': 'KSh 0'},
+                  {'name': 'Greenfield Heights', 'units': '3', 'collected': 'KSh 60,000', 'pending': 'KSh 25,000'},
+                  {'name': 'Lakeview Villas', 'units': '3', 'collected': 'KSh 60,000', 'pending': 'KSh 25,000'},
+                ],
+                arrears: [
+                  {'tenant': 'Peter Ochieng', 'unit': 'C3', 'amount': 'KSh 25,000', 'days': '5 days'},
+                ],
+                barChartData: [
+                  {'label': 'Sunview Apartments', 'value': 75000},
+                  {'label': 'Greenfield Heights', 'value': 60000},
+                  {'label': 'Lakeview Villas', 'value': 60000},
+                ],
+                pieCollected: 195000,
+                piePending: 50000,
+              );
+            },
+            onExportCsv: () {
+              final csv = StringBuffer();
+              csv.writeln('Tenant,Unit,Property,Amount,Status,Date');
+              for (final row in [
+                ['Mary Wanjiku', 'A2 - Sunview Apts', 'Sunview Apartments', 'KSh 25,000', 'Paid', '15 May 2026'],
+                ['John Kamau', 'B1 - Greenfield Hts', 'Greenfield Heights', 'KSh 20,000', 'Paid', '14 May 2026'],
+                ['Peter Ochieng', 'C3 - Lakeview Villas', 'Lakeview Villas', 'KSh 25,000', 'Pending', '-'],
+              ]) {
+                csv.writeln(row.join(','));
+              }
+              final blob = html.Blob([csv.toString()], 'text/csv');
+              final url = html.Url.createObjectUrlFromBlob(blob);
+              html.AnchorElement(href: url)
+                ..setAttribute('download', 'report_${_period.replaceAll(' ', '_')}.csv')
+                ..click();
+              html.Url.revokeObjectUrl(url);
+            },
             onSendReminders: () =>
                 _showSnack(context, 'Reminders queued for overdue tenants.'),
           ),
@@ -1823,6 +2224,652 @@ class _SettingsTile extends StatelessWidget {
   }
 }
 
+class _DetailSection extends StatelessWidget {
+  final String title;
+  final List<_DetailRowData> rows;
+
+  const _DetailSection({
+    required this.title,
+    required this.rows,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _TappableCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: _titleStyle),
+          const SizedBox(height: 12),
+          ...rows.map((row) => _DetailRow(row: row)),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  final _DetailRowData row;
+
+  const _DetailRow({required this.row});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: Text(row.label, style: AppStyles.caption)),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              row.value,
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                color: AppColors.textDark,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _EmptyState({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _TappableCard(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        child: Column(
+          children: [
+            Icon(icon, color: AppColors.muted, size: 34),
+            const SizedBox(height: 10),
+            Text(title, style: _titleStyle),
+            const SizedBox(height: 4),
+            Text(subtitle, textAlign: TextAlign.center, style: AppStyles.caption),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ReportDocumentCard extends StatelessWidget {
+  final Widget child;
+
+  const _ReportDocumentCard({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.kodiNavy.withValues(alpha: 0.05),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+}
+
+class _PaymentReportHeader extends StatelessWidget {
+  final String generatedDate;
+  final String period;
+
+  const _PaymentReportHeader({
+    required this.generatedDate,
+    required this.period,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 18,
+      runSpacing: 16,
+      alignment: WrapAlignment.spaceBetween,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        const KodiPayLogo(iconSize: 38, fontSize: 18),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+            Text(
+              'KodiPay',
+              style: TextStyle(
+                color: AppColors.kodiNavy,
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            SizedBox(height: 3),
+            Text('Pay Rent. Stay Worry-Free.', style: AppStyles.caption),
+          ],
+        ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            const Text(
+              'Payment Report',
+              style: TextStyle(
+                color: AppColors.textDark,
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text('Generated: $generatedDate', style: AppStyles.caption),
+            Text('Period: $period', style: AppStyles.caption),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _LandlordReportInfo extends StatelessWidget {
+  const _LandlordReportInfo();
+
+  @override
+  Widget build(BuildContext context) {
+    return const _ReportBlock(
+      title: 'Landlord Information',
+      child: Column(
+        children: [
+          _ReportInfoRow(label: 'Landlord Name', value: 'James Mwangi'),
+          _ReportInfoRow(label: 'Email / Phone', value: 'james@kodipay.co.ke / 0700 000 111'),
+          _ReportInfoRow(label: 'Property Count', value: '3 properties'),
+        ],
+      ),
+    );
+  }
+}
+
+class _PaymentReportSummary extends StatelessWidget {
+  final int totalExpected;
+  final int totalCollected;
+  final int totalPending;
+  final int collectionRate;
+
+  const _PaymentReportSummary({
+    required this.totalExpected,
+    required this.totalCollected,
+    required this.totalPending,
+    required this.collectionRate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _ReportBlock(
+      title: 'Summary',
+      child: GridView.count(
+        crossAxisCount: 2,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        childAspectRatio: 2.15,
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
+        children: [
+          _ReportSummaryCard(
+            label: 'Total Expected',
+            value: _money(totalExpected),
+            color: AppColors.kodiBlue,
+          ),
+          _ReportSummaryCard(
+            label: 'Collected',
+            value: _money(totalCollected),
+            color: AppColors.kodiGreen,
+          ),
+          _ReportSummaryCard(
+            label: 'Pending',
+            value: _money(totalPending),
+            color: AppColors.danger,
+          ),
+          _ReportSummaryCard(
+            label: 'Collection Rate',
+            value: '$collectionRate%',
+            color: AppColors.kodiOrange,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PropertyBreakdownTable extends StatelessWidget {
+  final List<_PropertyPaymentBreakdown> rows;
+
+  const _PropertyBreakdownTable({required this.rows});
+
+  @override
+  Widget build(BuildContext context) {
+    return _ReportBlock(
+      title: 'Property Breakdown',
+      child: Column(
+        children: [
+          const _ReportTableHeader(
+            columns: ['Property', 'Units', 'Collected', 'Pending'],
+          ),
+          ...rows.map(
+            (row) => _ReportTableRow(
+              cells: [
+                row.propertyName,
+                row.units.toString(),
+                _money(row.collected),
+                _money(row.pending),
+              ],
+              statusColor: row.pending > 0 ? AppColors.danger : AppColors.kodiGreen,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailedPaymentTable extends StatelessWidget {
+  final List<PaymentRecord> payments;
+
+  const _DetailedPaymentTable({required this.payments});
+
+  @override
+  Widget build(BuildContext context) {
+    return _ReportBlock(
+      title: 'Detailed Payment Table',
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: SizedBox(
+          width: 760,
+          child: Column(
+            children: [
+              const _ReportTableHeader(
+                columns: ['Tenant', 'Unit', 'Property', 'Amount', 'Status', 'Date'],
+              ),
+              ...payments.map(
+                (payment) => _ReportTableRow(
+                  cells: [
+                    payment.tenantName,
+                    payment.unit,
+                    payment.property,
+                    _money(payment.amount),
+                    payment.status,
+                    payment.paidAt ?? '-',
+                  ],
+                  statusColor: _paymentStatusColor(payment.status),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ArrearsTable extends StatelessWidget {
+  final List<PaymentRecord> payments;
+
+  const _ArrearsTable({required this.payments});
+
+  @override
+  Widget build(BuildContext context) {
+    return _ReportBlock(
+      title: 'Arrears Section',
+      child: Column(
+        children: [
+          const _ReportTableHeader(
+            columns: ['Tenant', 'Unit', 'Amount Owed', 'Days Late'],
+          ),
+          if (payments.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(14),
+              child: Text('No arrears for this period.', style: AppStyles.caption),
+            )
+          else
+            ...payments.map(
+              (payment) => _ReportTableRow(
+                cells: [
+                  payment.tenantName,
+                  payment.unit,
+                  _money(payment.amount),
+                  '${payment.daysLate} days',
+                ],
+                statusColor: AppColors.danger,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReportCharts extends StatelessWidget {
+  final List<_PropertyPaymentBreakdown> propertyRows;
+  final int totalCollected;
+  final int totalPending;
+
+  const _ReportCharts({
+    required this.propertyRows,
+    required this.totalCollected,
+    required this.totalPending,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _ReportBlock(
+      title: 'Charts',
+      child: Column(
+        children: [
+          SizedBox(
+            height: 190,
+            child: BarChart(
+              BarChartData(
+                gridData: const FlGridData(show: false),
+                borderData: FlBorderData(show: false),
+                titlesData: const FlTitlesData(
+                  leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                ),
+                barGroups: propertyRows
+                    .asMap()
+                    .entries
+                    .map(
+                      (entry) => BarChartGroupData(
+                        x: entry.key,
+                        barRods: [
+                          BarChartRodData(
+                            toY: entry.value.collected / 1000,
+                            color: AppColors.kodiGreen,
+                            width: 22,
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                        ],
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _PaidPendingMiniChart(
+            totalCollected: totalCollected,
+            totalPending: totalPending,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PaidPendingMiniChart extends StatelessWidget {
+  final int totalCollected;
+  final int totalPending;
+
+  const _PaidPendingMiniChart({
+    required this.totalCollected,
+    required this.totalPending,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 118,
+          height: 118,
+          child: PieChart(
+            PieChartData(
+              centerSpaceRadius: 30,
+              sectionsSpace: 2,
+              sections: [
+                PieChartSectionData(
+                  value: totalCollected.toDouble(),
+                  color: AppColors.kodiGreen,
+                  title: 'Paid',
+                  radius: 28,
+                  titleStyle: const TextStyle(
+                    color: AppColors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 11,
+                  ),
+                ),
+                PieChartSectionData(
+                  value: totalPending.toDouble(),
+                  color: AppColors.danger,
+                  title: 'Pending',
+                  radius: 28,
+                  titleStyle: const TextStyle(
+                    color: AppColors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            children: [
+              _LegendRow(
+                color: AppColors.kodiGreen,
+                label: 'Paid',
+                value: _money(totalCollected),
+              ),
+              const SizedBox(height: 10),
+              _LegendRow(
+                color: AppColors.danger,
+                label: 'Pending',
+                value: _money(totalPending),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ReportBlock extends StatelessWidget {
+  final String title;
+  final Widget child;
+
+  const _ReportBlock({
+    required this.title,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: _titleStyle),
+          const SizedBox(height: 12),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _ReportInfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _ReportInfoRow({
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Expanded(child: Text(label, style: AppStyles.caption)),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: _smallBoldStyle,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReportSummaryCard extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+
+  const _ReportSummaryCard({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(label, style: AppStyles.caption),
+          const SizedBox(height: 6),
+          FittedBox(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: TextStyle(
+                color: color,
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReportTableHeader extends StatelessWidget {
+  final List<String> columns;
+
+  const _ReportTableHeader({required this.columns});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 9),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.border)),
+      ),
+      child: Row(
+        children: columns
+            .map(
+              (column) => Expanded(
+                child: Text(
+                  column,
+                  style: const TextStyle(
+                    color: AppColors.textDark,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            )
+            .toList(),
+      ),
+    );
+  }
+}
+
+class _ReportTableRow extends StatelessWidget {
+  final List<String> cells;
+  final Color statusColor;
+
+  const _ReportTableRow({
+    required this.cells,
+    required this.statusColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.border)),
+      ),
+      child: Row(
+        children: cells
+            .asMap()
+            .entries
+            .map(
+              (entry) => Expanded(
+                child: Text(
+                  entry.value,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: entry.key == cells.length - 2
+                        ? statusColor
+                        : AppColors.textDark,
+                    fontSize: 11,
+                    fontWeight: entry.key == 0 ? FontWeight.w800 : FontWeight.w500,
+                  ),
+                ),
+              ),
+            )
+            .toList(),
+      ),
+    );
+  }
+}
+
 class _TenantRow extends StatelessWidget {
   final String name;
   final String unit;
@@ -1872,48 +2919,69 @@ class _TenantRow extends StatelessWidget {
 }
 
 class _PaymentItem extends StatelessWidget {
-  final String name;
-  final String unit;
-  final String amount;
-  final String status;
+  final PaymentRecord payment;
+  final VoidCallback onTap;
+  final VoidCallback? onReminder;
 
   const _PaymentItem({
-    required this.name,
-    required this.unit,
-    required this.amount,
-    required this.status,
+    required this.payment,
+    required this.onTap,
+    this.onReminder,
   });
 
   @override
   Widget build(BuildContext context) {
-    final paid = status == 'Paid';
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: _TappableCard(
-        onTap: () => _showSnack(context, 'Receipt for $name opened'),
-        child: Row(
+        onTap: onTap,
+        child: Column(
           children: [
-            CircleAvatar(child: Text(name.characters.first)),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(name, style: _titleStyle),
-                  Text(unit, style: AppStyles.caption),
-                ],
-              ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+            Row(
               children: [
-                Text(amount, style: _smallBoldStyle),
-                const SizedBox(height: 5),
-                StatusPill(
-                    label: status,
-                    color: paid ? AppColors.kodiGreen : AppColors.kodiOrange),
+                CircleAvatar(child: Text(payment.tenantName.characters.first)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(payment.tenantName, style: _titleStyle),
+                      Text('${payment.unit} - ${payment.property}',
+                          style: AppStyles.caption),
+                      const SizedBox(height: 3),
+                      Text(
+                        payment.isPaid
+                            ? 'Paid ${payment.paidAt}'
+                            : 'Due ${payment.dueDate} - ${payment.daysLate} days late',
+                        style: AppStyles.caption,
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(_money(payment.amount), style: _smallBoldStyle),
+                    const SizedBox(height: 5),
+                    StatusPill(
+                      label: payment.status,
+                      color: _paymentStatusColor(payment.status),
+                    ),
+                  ],
+                ),
               ],
             ),
+            if (payment.isPending && onReminder != null) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: onReminder,
+                  icon: const Icon(Icons.notifications_active_outlined),
+                  label: const Text('Send Reminder'),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -2229,6 +3297,43 @@ class _PreferenceSwitch extends StatelessWidget {
   }
 }
 
+class PaymentRecord {
+  final String tenantName;
+  final String tenantPhone;
+  final String tenantEmail;
+  final String unit;
+  final String property;
+  final int amount;
+  final String status;
+  final String method;
+  final String transactionRef;
+  final String dueDate;
+  final String? paidAt;
+  final String createdAt;
+  final String updatedAt;
+  final int daysLate;
+
+  const PaymentRecord({
+    required this.tenantName,
+    required this.tenantPhone,
+    required this.tenantEmail,
+    required this.unit,
+    required this.property,
+    required this.amount,
+    required this.status,
+    required this.method,
+    required this.transactionRef,
+    required this.dueDate,
+    this.paidAt,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.daysLate,
+  });
+
+  bool get isPaid => status == 'Paid';
+  bool get isPending => status == 'Pending';
+}
+
 class PropertyData {
   final String name;
   final String location;
@@ -2266,6 +3371,68 @@ class _TaskData {
   final String priority;
 
   const _TaskData(this.title, this.location, this.priority);
+}
+
+class _DetailRowData {
+  final String label;
+  final String value;
+
+  const _DetailRowData(this.label, this.value);
+}
+
+class _PropertyPaymentBreakdown {
+  final String propertyName;
+  final int units;
+  final int collected;
+  final int pending;
+
+  const _PropertyPaymentBreakdown({
+    required this.propertyName,
+    required this.units,
+    required this.collected,
+    required this.pending,
+  });
+}
+
+String _money(int amount) {
+  return 'KSh ${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}';
+}
+
+Color _paymentStatusColor(String status) {
+  switch (status) {
+    case 'Paid':
+      return AppColors.kodiGreen;
+    case 'Pending':
+      return AppColors.kodiOrange;
+    case 'Overdue':
+      return AppColors.danger;
+    default:
+      return AppColors.muted;
+  }
+}
+
+List<_PropertyPaymentBreakdown> _buildPropertyBreakdown(List<PaymentRecord> payments) {
+  final map = <String, _PropertyPaymentBreakdown>{};
+  for (final payment in payments) {
+    final propertyName = payment.property;
+    final existing = map[propertyName];
+    if (existing != null) {
+      map[propertyName] = _PropertyPaymentBreakdown(
+        propertyName: propertyName,
+        units: existing.units,
+        collected: existing.collected + (payment.isPaid ? payment.amount : 0),
+        pending: existing.pending + (payment.isPending ? payment.amount : 0),
+      );
+    } else {
+      map[propertyName] = _PropertyPaymentBreakdown(
+        propertyName: propertyName,
+        units: 1,
+        collected: payment.isPaid ? payment.amount : 0,
+        pending: payment.isPending ? payment.amount : 0,
+      );
+    }
+  }
+  return map.values.toList();
 }
 
 const _titleStyle = TextStyle(

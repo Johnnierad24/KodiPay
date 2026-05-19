@@ -11,8 +11,8 @@ class LandlordDashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
-    final firstName = user?.firstName ?? 'James';
-    final lastName = user?.lastName ?? 'Mwangi';
+    final firstName = user?.firstName ?? 'John';
+    final lastName = user?.lastName ?? 'Njenga';
 
     return Scaffold(
       body: SafeArea(
