@@ -86,10 +86,82 @@ async function getRentCollectionRate(year, month) {
   }
 }
 
+async function getLandlordOverview(landlordId) {
+  try {
+    const result = await pool.query(`
+      SELECT
+        COALESCE(prop.total_properties, 0)::int AS total_properties,
+        COALESCE(units.total_units, 0)::int AS total_units,
+        COALESCE(units.occupied_units, 0)::int AS occupied_units,
+        COALESCE(units.vacant_units, 0)::int AS vacant_units,
+        COALESCE(income.this_month_income, 0)::numeric AS this_month_income,
+        COALESCE(income.last_month_income, 0)::numeric AS last_month_income,
+        COALESCE(pending.pending_invoices, 0)::int AS pending_invoices,
+        COALESCE(pending.overdue_invoices, 0)::int AS overdue_invoices,
+        COALESCE(pending.pending_amount, 0)::numeric AS pending_amount,
+        COALESCE(maintenance.open_requests, 0)::int AS open_maintenance,
+        COALESCE(maintenance.urgent_requests, 0)::int AS urgent_maintenance
+      FROM (SELECT 1) seed
+      LEFT JOIN LATERAL (
+        SELECT COUNT(*) AS total_properties
+        FROM properties WHERE landlord_id = $1
+      ) prop ON TRUE
+      LEFT JOIN LATERAL (
+        SELECT
+          COUNT(*) AS total_units,
+          COUNT(*) FILTER (WHERE u.status = 'occupied') AS occupied_units,
+          COUNT(*) FILTER (WHERE u.status = 'vacant') AS vacant_units
+        FROM units u JOIN properties p ON u.property_id = p.id
+        WHERE p.landlord_id = $1
+      ) units ON TRUE
+      LEFT JOIN LATERAL (
+        SELECT
+          SUM(pay.amount) FILTER (
+            WHERE pay.payment_date >= date_trunc('month', CURRENT_DATE)
+          ) AS this_month_income,
+          SUM(pay.amount) FILTER (
+            WHERE pay.payment_date >= date_trunc('month', CURRENT_DATE - INTERVAL '1 month')
+              AND pay.payment_date < date_trunc('month', CURRENT_DATE)
+          ) AS last_month_income
+        FROM payments pay
+        JOIN tenancies t ON pay.tenancy_id = t.id
+        JOIN units u ON t.unit_id = u.id
+        JOIN properties p ON u.property_id = p.id
+        WHERE p.landlord_id = $1 AND pay.status = 'completed'
+      ) income ON TRUE
+      LEFT JOIN LATERAL (
+        SELECT
+          COUNT(*) FILTER (WHERE i.status IN ('pending', 'overdue')) AS pending_invoices,
+          COUNT(*) FILTER (WHERE i.status IN ('pending', 'overdue') AND i.due_date < CURRENT_DATE) AS overdue_invoices,
+          SUM(i.amount) FILTER (WHERE i.status IN ('pending', 'overdue')) AS pending_amount
+        FROM invoices i
+        JOIN tenancies t ON i.tenancy_id = t.id
+        JOIN units u ON t.unit_id = u.id
+        JOIN properties p ON u.property_id = p.id
+        WHERE p.landlord_id = $1
+      ) pending ON TRUE
+      LEFT JOIN LATERAL (
+        SELECT
+          COUNT(*) FILTER (WHERE mr.status IN ('pending', 'in_progress')) AS open_requests,
+          COUNT(*) FILTER (WHERE mr.status IN ('pending', 'in_progress') AND mr.priority IN ('high', 'urgent')) AS urgent_requests
+        FROM maintenance_requests mr
+        JOIN units u ON mr.unit_id = u.id
+        JOIN properties p ON u.property_id = p.id
+        WHERE p.landlord_id = $1
+      ) maintenance ON TRUE
+    `, [landlordId]);
+
+    return { success: true, data: result.rows[0] };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
 module.exports = {
   getRevenueTrend,
   getOccupancyRate,
   getPaymentMethodDistribution,
   getMaintenanceStats,
-  getRentCollectionRate
+  getRentCollectionRate,
+  getLandlordOverview,
 };

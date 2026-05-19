@@ -1,5 +1,6 @@
 const pool = require('../config/db');
 const { initiateSTKPush } = require('../services/mpesa.service');
+const { generateReceiptForPayment } = require('../services/document.service');
 const { getTenancyAccess, canReadTenancy, ownsProperty } = require('../utils/access-control');
 
 exports.recordPayment = async (req, res) => {
@@ -43,11 +44,14 @@ exports.recordPayment = async (req, res) => {
       );
       
       const ledgerResult = await pool.query(
-        `INSERT INTO ledger_entries (tenancy_id, entry_type, amount, description) 
+        `INSERT INTO ledger_entries (tenancy_id, entry_type, amount, description)
          VALUES ($1, 'rent', $2, 'Manual payment recorded') RETURNING *`,
         [tenancy_id, amount]
       );
-      
+
+      generateReceiptForPayment({ paymentId: paymentResult.rows[0].id, uploadedBy: req.user?.id })
+        .catch((err) => console.error('Auto-receipt failed:', err.message));
+
       res.status(201).json({ payment: paymentResult.rows[0], ledger: ledgerResult.rows[0] });
     }
   } catch (error) {

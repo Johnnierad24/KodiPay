@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'dart:html' as html;
 import '../services/pdf_report_service.dart';
@@ -7,72 +8,188 @@ import '../services/api_service.dart';
 import 'dart:convert';
 import '../widgets/dashboard_components.dart';
 import '../widgets/kodi_pay_logo.dart';
+import 'documents_screen.dart';
+import 'units_screen.dart';
 
-class PropertyListScreen extends StatelessWidget {
+class PropertyListScreen extends StatefulWidget {
   const PropertyListScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final properties = [
-      const PropertyData('Sunview Apartments', 'Westlands, Nairobi', '12 Units',
-          '10 Occupied', 'KSh 250,000'),
-      const PropertyData('Greenfield Heights', 'Kilimani, Nairobi', '32 Units',
-          '25 Occupied', 'KSh 610,000'),
-      const PropertyData(
-          'Lakeview Villas', 'Kisumu', '10 Units', '8 Occupied', 'KSh 180,000'),
-    ];
+  State<PropertyListScreen> createState() => _PropertyListScreenState();
+}
 
+class _PropertyListScreenState extends State<PropertyListScreen> {
+  final ApiService _api = ApiService();
+  Future<List<PropertyData>>? _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  void _reload() {
+    setState(() {
+      _future = _fetch();
+    });
+  }
+
+  Future<List<PropertyData>> _fetch() async {
+    final response = await _api.get('/properties');
+    if (response.statusCode != 200) {
+      throw Exception('Could not load properties (${response.statusCode})');
+    }
+    final data = jsonDecode(response.body) as List<dynamic>;
+    return data
+        .map((item) => PropertyData.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> _onAdd() async {
+    final changed = await showPropertySheet(context);
+    if (changed == true) _reload();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return _FeatureScaffold(
       title: 'My Properties',
       accentColor: AppColors.kodiGreen,
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.kodiGreen,
-        onPressed: () => showPropertySheet(context),
+        onPressed: _onAdd,
         child: const Icon(Icons.add_home_rounded, color: AppColors.white),
       ),
-      child: ListView.separated(
-        padding: const EdgeInsets.all(18),
-        itemCount: properties.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (context, index) {
-          final property = properties[index];
-          return _TappableCard(
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (_) => PropertyDetailScreen(property: property)),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 76,
-                  height: 76,
-                  decoration: BoxDecoration(
-                    color: AppColors.kodiGreen.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(16),
+      child: RefreshIndicator(
+        onRefresh: () async => _reload(),
+        child: FutureBuilder<List<PropertyData>>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return ListView(
+                padding: const EdgeInsets.all(40),
+                children: [
+                  const SizedBox(height: 60),
+                  const Icon(Icons.error_outline_rounded,
+                      size: 56, color: AppColors.danger),
+                  const SizedBox(height: 14),
+                  Center(
+                    child: Text(
+                      snapshot.error.toString(),
+                      textAlign: TextAlign.center,
+                      style: AppStyles.bodyMedium,
+                    ),
                   ),
-                  child: const Icon(Icons.apartment_rounded,
-                      color: AppColors.kodiGreen, size: 36),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  const SizedBox(height: 14),
+                  Center(
+                    child: OutlinedButton.icon(
+                      onPressed: _reload,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Retry'),
+                    ),
+                  ),
+                ],
+              );
+            }
+            final properties = snapshot.data ?? const <PropertyData>[];
+            if (properties.isEmpty) {
+              return ListView(
+                padding: const EdgeInsets.all(40),
+                children: [
+                  const SizedBox(height: 60),
+                  const Icon(Icons.home_work_outlined,
+                      size: 72, color: AppColors.muted),
+                  const SizedBox(height: 14),
+                  const Center(
+                    child: Text(
+                      'No properties yet',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textDark,
+                          fontSize: 16),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Center(
+                    child: Text(
+                      'Add your first property to start tracking units, tenants, and payments.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: AppColors.textLight),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Center(
+                    child: ElevatedButton.icon(
+                      onPressed: _onAdd,
+                      icon: const Icon(Icons.add_home_rounded),
+                      label: const Text('Add Property'),
+                    ),
+                  ),
+                ],
+              );
+            }
+            return ListView.separated(
+              padding: const EdgeInsets.all(18),
+              itemCount: properties.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final property = properties[index];
+                return _TappableCard(
+                  onTap: () async {
+                    final changed = await Navigator.push<bool>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            PropertyDetailScreen(property: property),
+                      ),
+                    );
+                    if (changed == true) _reload();
+                  },
+                  child: Row(
                     children: [
-                      Text(property.name, style: _titleStyle),
-                      const SizedBox(height: 4),
-                      Text(property.location, style: AppStyles.caption),
-                      const SizedBox(height: 9),
-                      Text('${property.units}  -  ${property.occupied}',
-                          style: _smallBoldStyle),
+                      Container(
+                        width: 76,
+                        height: 76,
+                        decoration: BoxDecoration(
+                          color: AppColors.kodiGreen.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: const Icon(Icons.apartment_rounded,
+                            color: AppColors.kodiGreen, size: 36),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(property.name, style: _titleStyle),
+                            const SizedBox(height: 4),
+                            Text(
+                              property.location.isEmpty
+                                  ? '—'
+                                  : property.location,
+                              style: AppStyles.caption,
+                            ),
+                            const SizedBox(height: 9),
+                            Text(
+                              '${property.unitsLabel}  •  ${property.occupiedLabel}',
+                              style: _smallBoldStyle,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right_rounded,
+                          color: AppColors.muted),
                     ],
                   ),
-                ),
-                const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
-              ],
-            ),
-          );
-        },
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }
@@ -85,6 +202,7 @@ class PropertyDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final propertyId = property.id;
     return _FeatureScaffold(
       title: property.name,
       accentColor: AppColors.kodiGreen,
@@ -97,25 +215,33 @@ class PropertyDetailScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(property.location,
-                    style:
-                        TextStyle(color: Colors.white.withValues(alpha: 0.86))),
+                Text(
+                  property.location.isEmpty ? '—' : property.location,
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.86)),
+                ),
                 const SizedBox(height: 16),
                 Row(
                   children: [
                     Expanded(
-                        child: StatBox(
-                            value: property.units.split(' ').first,
-                            label: 'Total Units')),
+                      child: StatBox(
+                        value: property.totalUnits.toString(),
+                        label: 'Total Units',
+                      ),
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
-                        child: StatBox(
-                            value: property.occupied.split(' ').first,
-                            label: 'Occupied')),
+                      child: StatBox(
+                        value: property.occupiedUnits.toString(),
+                        label: 'Occupied',
+                      ),
+                    ),
                     const SizedBox(width: 10),
-                    const Expanded(
-                        child: StatBox(
-                            value: 'KSh 25,000', label: 'Monthly Income')),
+                    Expanded(
+                      child: StatBox(
+                        value: 'KSh ${_formatKsh(property.thisMonthIncome)}',
+                        label: 'This Month',
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -125,20 +251,43 @@ class PropertyDetailScreen extends StatelessWidget {
           _SettingsTile(
             icon: Icons.meeting_room_outlined,
             title: 'Units',
-            subtitle: 'View vacancy and rent status',
-            onTap: () => _showSnack(context, 'Units module opened'),
+            subtitle:
+                '${property.totalUnits} total • ${property.vacantUnits} vacant',
+            onTap: propertyId == null
+                ? () => _showSnack(context,
+                    'Property is missing an ID — refresh and try again')
+                : () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => UnitsListScreen(
+                          propertyId: propertyId,
+                          propertyName: property.name,
+                        ),
+                      ),
+                    ),
           ),
           _SettingsTile(
             icon: Icons.groups_2_outlined,
             title: 'Tenants',
-            subtitle: 'Manage active tenants',
-            onTap: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const TenantListScreen())),
+            subtitle:
+                '${property.activeTenants} active in this property',
+            onTap: propertyId == null
+                ? () => _showSnack(context,
+                    'Property is missing an ID — refresh and try again')
+                : () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => TenantListScreen(
+                          propertyId: propertyId,
+                          propertyName: property.name,
+                        ),
+                      ),
+                    ),
           ),
           _SettingsTile(
             icon: Icons.receipt_long_outlined,
             title: 'Transactions',
-            subtitle: property.monthlyIncome,
+            subtitle: 'KSh ${_formatKsh(property.thisMonthIncome)} this month',
             onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -147,9 +296,19 @@ class PropertyDetailScreen extends StatelessWidget {
           _SettingsTile(
             icon: Icons.folder_copy_outlined,
             title: 'Documents',
-            subtitle: 'Leases and receipts',
-            onTap: () =>
-                _showSnack(context, 'Documents are ready for upload wiring'),
+            subtitle: 'Leases, receipts, agreements',
+            onTap: propertyId == null
+                ? () => _showSnack(context,
+                    'Property is missing an ID — refresh and try again')
+                : () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => DocumentsListScreen(
+                          propertyId: propertyId,
+                          propertyName: property.name,
+                        ),
+                      ),
+                    ),
           ),
         ],
       ),
@@ -157,13 +316,71 @@ class PropertyDetailScreen extends StatelessWidget {
   }
 }
 
-class TenantListScreen extends StatelessWidget {
-  const TenantListScreen({super.key});
+class TenantListScreen extends StatefulWidget {
+  final int? propertyId;
+  final String? propertyName;
+
+  const TenantListScreen({super.key, this.propertyId, this.propertyName});
+
+  @override
+  State<TenantListScreen> createState() => _TenantListScreenState();
+}
+
+class _TenantListScreenState extends State<TenantListScreen> {
+  final ApiService _api = ApiService();
+  final TextEditingController _searchController = TextEditingController();
+  Future<List<TenancyRecord>>? _future;
+  String _search = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _reload() {
+    setState(() {
+      _future = _fetch();
+    });
+  }
+
+  Future<List<TenancyRecord>> _fetch() async {
+    final response = await _api.get('/tenancies', query: {
+      if (widget.propertyId != null) 'propertyId': widget.propertyId,
+    });
+    if (response.statusCode != 200) {
+      throw Exception('Could not load tenants (${response.statusCode})');
+    }
+    final data = jsonDecode(response.body) as List<dynamic>;
+    return data
+        .map((item) => TenancyRecord.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  bool _matchesSearch(TenancyRecord t) {
+    if (_search.isEmpty) return true;
+    final q = _search.toLowerCase();
+    return t.tenantName.toLowerCase().contains(q) ||
+        t.unitNumber.toLowerCase().contains(q) ||
+        t.propertyName.toLowerCase().contains(q) ||
+        (t.tenantPhone ?? '').toLowerCase().contains(q);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final scoped = widget.propertyId != null;
+    final title = scoped
+        ? 'Tenants — ${widget.propertyName ?? ''}'
+        : 'All Tenants';
+
     return _FeatureScaffold(
-      title: 'Tenants',
+      title: title,
       accentColor: AppColors.kodiGreen,
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.kodiGreen,
@@ -171,38 +388,706 @@ class TenantListScreen extends StatelessWidget {
         child:
             const Icon(Icons.person_add_alt_1_rounded, color: AppColors.white),
       ),
+      child: RefreshIndicator(
+        onRefresh: () async => _reload(),
+        child: FutureBuilder<List<TenancyRecord>>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return ListView(
+                padding: const EdgeInsets.all(40),
+                children: [
+                  const SizedBox(height: 60),
+                  const Icon(Icons.error_outline_rounded,
+                      size: 56, color: AppColors.danger),
+                  const SizedBox(height: 14),
+                  Center(
+                    child: Text(
+                      snapshot.error.toString(),
+                      textAlign: TextAlign.center,
+                      style: AppStyles.bodyMedium,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Center(
+                    child: OutlinedButton.icon(
+                      onPressed: _reload,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Retry'),
+                    ),
+                  ),
+                ],
+              );
+            }
+            final all = (snapshot.data ?? const <TenancyRecord>[])
+                .where(_matchesSearch)
+                .toList();
+
+            if (all.isEmpty) {
+              return ListView(
+                padding: const EdgeInsets.all(40),
+                children: [
+                  const SizedBox(height: 60),
+                  const Icon(Icons.groups_2_outlined,
+                      size: 72, color: AppColors.muted),
+                  const SizedBox(height: 16),
+                  Center(
+                    child: Text(
+                      _search.isEmpty
+                          ? 'No tenants yet'
+                          : 'No tenants match "$_search"',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textDark,
+                          fontSize: 16),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Center(
+                    child: Text(
+                      'Add a tenancy to start tracking rent and payments.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: AppColors.textLight),
+                    ),
+                  ),
+                ],
+              );
+            }
+
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(18, 14, 18, 100),
+              children: [
+                TextField(
+                  controller: _searchController,
+                  onChanged: (value) => setState(() => _search = value.trim()),
+                  decoration: InputDecoration(
+                    hintText: 'Search tenants by name, unit, or phone...',
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    suffixIcon: _search.isEmpty
+                        ? null
+                        : IconButton(
+                            icon: const Icon(Icons.clear_rounded),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() => _search = '');
+                            },
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                if (scoped)
+                  ..._buildFlatList(all)
+                else
+                  ..._buildGroupedList(all),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildFlatList(List<TenancyRecord> tenancies) {
+    return tenancies
+        .map((t) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _TenantTile(
+                tenancy: t,
+                onTap: () => _openDetail(t),
+              ),
+            ))
+        .toList();
+  }
+
+  List<Widget> _buildGroupedList(List<TenancyRecord> tenancies) {
+    final groups = <String, List<TenancyRecord>>{};
+    for (final t in tenancies) {
+      groups.putIfAbsent(t.propertyName, () => []).add(t);
+    }
+    final sortedKeys = groups.keys.toList()..sort();
+    return [
+      for (final key in sortedKeys) ...[
+        Padding(
+          padding: const EdgeInsets.fromLTRB(2, 0, 2, 10),
+          child: Row(
+            children: [
+              const Icon(Icons.apartment_rounded,
+                  size: 18, color: AppColors.kodiGreen),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  key,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textDark,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.kodiGreen.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  '${groups[key]!.length}',
+                  style: const TextStyle(
+                    color: AppColors.kodiGreen,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        for (final t in groups[key]!) ...[
+          _TenantTile(tenancy: t, onTap: () => _openDetail(t)),
+          const SizedBox(height: 10),
+        ],
+        const SizedBox(height: 14),
+      ],
+    ];
+  }
+
+  Future<void> _openDetail(TenancyRecord tenancy) async {
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TenantDetailScreen(tenancy: tenancy),
+      ),
+    );
+    if (changed == true) _reload();
+  }
+}
+
+class TenancyRecord {
+  final int id;
+  final int tenantId;
+  final String tenantName;
+  final String? tenantPhone;
+  final String? tenantEmail;
+  final String unitNumber;
+  final int unitId;
+  final String propertyName;
+  final int propertyId;
+  final num rentAmount;
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final String status;
+
+  const TenancyRecord({
+    required this.id,
+    required this.tenantId,
+    required this.tenantName,
+    required this.tenantPhone,
+    required this.tenantEmail,
+    required this.unitNumber,
+    required this.unitId,
+    required this.propertyName,
+    required this.propertyId,
+    required this.rentAmount,
+    required this.startDate,
+    required this.endDate,
+    required this.status,
+  });
+
+  factory TenancyRecord.fromJson(Map<String, dynamic> json) {
+    final firstName = json['first_name']?.toString() ?? '';
+    final lastName = json['last_name']?.toString() ?? '';
+    return TenancyRecord(
+      id: json['id'] as int,
+      tenantId: _toInt(json['tenant_id']),
+      tenantName: '$firstName $lastName'.trim(),
+      tenantPhone: json['tenant_phone'] as String?,
+      tenantEmail: json['tenant_email'] as String?,
+      unitNumber: (json['unit_number'] ?? '').toString(),
+      unitId: _toInt(json['unit_id']),
+      propertyName: (json['property_name'] ?? '').toString(),
+      propertyId: _toInt(json['property_id']),
+      rentAmount: _toNum(json['rent_amount']),
+      startDate: _parseDate(json['start_date']),
+      endDate: _parseDate(json['end_date']),
+      status: (json['status'] ?? 'active').toString(),
+    );
+  }
+}
+
+DateTime? _parseDate(dynamic value) {
+  if (value == null) return null;
+  try {
+    return DateTime.parse(value.toString());
+  } catch (_) {
+    return null;
+  }
+}
+
+class _TenantTile extends StatelessWidget {
+  final TenancyRecord tenancy;
+  final VoidCallback onTap;
+
+  const _TenantTile({required this.tenancy, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final initials = tenancy.tenantName.isNotEmpty
+        ? tenancy.tenantName
+            .split(' ')
+            .where((p) => p.isNotEmpty)
+            .take(2)
+            .map((p) => p[0])
+            .join()
+            .toUpperCase()
+        : '?';
+    final active = tenancy.status == 'active';
+
+    return Material(
+      color: AppColors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: AppColors.kodiGreen.withValues(alpha: 0.12),
+                child: Text(
+                  initials,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.kodiGreen,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tenancy.tenantName.isEmpty ? 'Unnamed' : tenancy.tenantName,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textDark,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Unit ${tenancy.unitNumber} • ${tenancy.propertyName}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppStyles.caption,
+                    ),
+                    if (tenancy.tenantPhone != null &&
+                        tenancy.tenantPhone!.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        tenancy.tenantPhone!,
+                        style: AppStyles.caption,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: active
+                          ? AppColors.successSoft
+                          : AppColors.dangerSoft,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      active ? 'Active' : tenancy.status.toUpperCase(),
+                      style: TextStyle(
+                        color: active ? AppColors.kodiGreen : AppColors.danger,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'KSh ${_formatKsh(tenancy.rentAmount)}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textDark,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 4),
+              const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class TenantDetailScreen extends StatefulWidget {
+  final TenancyRecord tenancy;
+  const TenantDetailScreen({super.key, required this.tenancy});
+
+  @override
+  State<TenantDetailScreen> createState() => _TenantDetailScreenState();
+}
+
+class _TenantDetailScreenState extends State<TenantDetailScreen> {
+  final ApiService _api = ApiService();
+  Future<List<_PaymentSummary>>? _paymentsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _paymentsFuture = _loadPayments();
+  }
+
+  Future<List<_PaymentSummary>> _loadPayments() async {
+    final response = await _api.get('/payments/tenancy/${widget.tenancy.id}');
+    if (response.statusCode != 200) return const [];
+    final data = jsonDecode(response.body) as List<dynamic>;
+    return data
+        .map((item) => _PaymentSummary.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = widget.tenancy;
+    final initials = t.tenantName.isNotEmpty
+        ? t.tenantName
+            .split(' ')
+            .where((p) => p.isNotEmpty)
+            .take(2)
+            .map((p) => p[0])
+            .join()
+            .toUpperCase()
+        : '?';
+
+    return _FeatureScaffold(
+      title: t.tenantName.isEmpty ? 'Tenant' : t.tenantName,
+      accentColor: AppColors.kodiGreen,
       child: ListView(
         padding: const EdgeInsets.all(18),
-        children: const [
-          TextField(
-            decoration: InputDecoration(
-              hintText: 'Search tenants...',
-              prefixIcon: Icon(Icons.search_rounded),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Column(
+              children: [
+                CircleAvatar(
+                  radius: 36,
+                  backgroundColor:
+                      AppColors.kodiGreen.withValues(alpha: 0.12),
+                  child: Text(
+                    initials,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.kodiGreen,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  t.tenantName.isEmpty ? 'Unnamed' : t.tenantName,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
+                    color: AppColors.textDark,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${t.propertyName} • Unit ${t.unitNumber}',
+                  style: AppStyles.caption,
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    _DetailChip(
+                      icon: Icons.phone_rounded,
+                      label: t.tenantPhone?.isNotEmpty == true
+                          ? t.tenantPhone!
+                          : 'No phone',
+                    ),
+                    _DetailChip(
+                      icon: Icons.email_rounded,
+                      label: t.tenantEmail?.isNotEmpty == true
+                          ? t.tenantEmail!
+                          : 'No email',
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-          SizedBox(height: 14),
-          _TenantRow(
-              name: 'Mary Wanjiku',
-              unit: 'A2 - Sunview Apartments',
-              phone: '0723 456 778',
-              active: true),
-          _TenantRow(
-              name: 'John Kamau',
-              unit: 'B1 - Greenfield Heights',
-              phone: '0721 987 654',
-              active: true),
-          _TenantRow(
-              name: 'Peter Ochieng',
-              unit: 'C3 - Lakeview Villas',
-              phone: '0700 111 222',
-              active: true),
-          _TenantRow(
-              name: 'Grace Njeri',
-              unit: 'A1 - Sunview Apartments',
-              phone: '0711 222 333',
-              active: false),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Column(
+              children: [
+                _DetailRow(
+                  row: _DetailRowData(
+                    'Status',
+                    t.status.isEmpty
+                        ? '—'
+                        : t.status[0].toUpperCase() + t.status.substring(1),
+                  ),
+                ),
+                const Divider(height: 16, color: AppColors.border),
+                _DetailRow(
+                  row: _DetailRowData(
+                    'Monthly rent',
+                    'KSh ${_formatKsh(t.rentAmount)}',
+                  ),
+                ),
+                const Divider(height: 16, color: AppColors.border),
+                _DetailRow(
+                  row: _DetailRowData(
+                    'Start date',
+                    t.startDate == null
+                        ? '—'
+                        : '${t.startDate!.day}/${t.startDate!.month}/${t.startDate!.year}',
+                  ),
+                ),
+                if (t.endDate != null) ...[
+                  const Divider(height: 16, color: AppColors.border),
+                  _DetailRow(
+                    row: _DetailRowData(
+                      'End date',
+                      '${t.endDate!.day}/${t.endDate!.month}/${t.endDate!.year}',
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => DocumentsListScreen(
+                        propertyId: t.propertyId,
+                        propertyName: t.propertyName,
+                        tenantId: t.tenantId,
+                        tenancyId: t.id,
+                      ),
+                    ),
+                  ),
+                  icon: const Icon(Icons.folder_copy_outlined),
+                  label: const Text('Documents'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => showReminderSheet(context),
+                  icon: const Icon(Icons.send_rounded),
+                  label: const Text('Reminder'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              'Recent Payments',
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                color: AppColors.textDark,
+                fontSize: 14,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          FutureBuilder<List<_PaymentSummary>>(
+            future: _paymentsFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState != ConnectionState.done) {
+                return const Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              final payments = snapshot.data ?? const <_PaymentSummary>[];
+              if (payments.isEmpty) {
+                return Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: AppColors.white,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Text(
+                    'No payments recorded for this tenancy yet.',
+                    style: TextStyle(color: AppColors.textLight),
+                  ),
+                );
+              }
+              return Container(
+                decoration: BoxDecoration(
+                  color: AppColors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  children: [
+                    for (var i = 0; i < payments.length && i < 5; i++) ...[
+                      if (i > 0)
+                        const Divider(
+                            height: 1,
+                            indent: 14,
+                            endIndent: 14,
+                            color: AppColors.border),
+                      Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppColors.kodiGreen
+                                    .withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(Icons.payments_outlined,
+                                  color: AppColors.kodiGreen, size: 18),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'KSh ${_formatKsh(payments[i].amount)}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.textDark,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${payments[i].method} • ${payments[i].paymentDate.day}/${payments[i].paymentDate.month}/${payments[i].paymentDate.year}',
+                                    style: AppStyles.caption,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: payments[i].status == 'completed'
+                                    ? AppColors.successSoft
+                                    : AppColors.warningSoft,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                payments[i].status.toUpperCase(),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 10,
+                                  color: payments[i].status == 'completed'
+                                      ? AppColors.kodiGreen
+                                      : AppColors.kodiOrange,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            },
+          ),
         ],
       ),
+    );
+  }
+}
+
+class _DetailChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  const _DetailChip({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: AppColors.textLight),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              color: AppColors.textDark,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PaymentSummary {
+  final num amount;
+  final String method;
+  final String status;
+  final DateTime paymentDate;
+
+  const _PaymentSummary({
+    required this.amount,
+    required this.method,
+    required this.status,
+    required this.paymentDate,
+  });
+
+  factory _PaymentSummary.fromJson(Map<String, dynamic> json) {
+    return _PaymentSummary(
+      amount: _toNum(json['amount']),
+      method: (json['payment_method'] ?? '—').toString(),
+      status: (json['status'] ?? 'pending').toString(),
+      paymentDate:
+          _parseDate(json['payment_date']) ?? DateTime.now(),
     );
   }
 }
@@ -1846,89 +2731,298 @@ class LandlordNotificationsScreen extends StatefulWidget {
 
 class _LandlordNotificationsScreenState
     extends State<LandlordNotificationsScreen> {
-  String _filter = 'All';
+  final ApiService _api = ApiService();
+  Future<List<_NotificationItem>>? _future;
+  bool _markingAll = false;
+  bool _changed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  void _reload() {
+    setState(() {
+      _future = _fetch();
+    });
+  }
+
+  Future<List<_NotificationItem>> _fetch() async {
+    final response = await _api.get('/notifications');
+    if (response.statusCode != 200) {
+      throw Exception('Could not load notifications (${response.statusCode})');
+    }
+    final data = jsonDecode(response.body) as List<dynamic>;
+    return data
+        .map((item) => _NotificationItem.fromJson(item as Map<String, dynamic>))
+        .where((item) => !item.isRead)
+        .toList();
+  }
+
+  Future<void> _markOne(int id) async {
+    try {
+      await _api.put('/notifications/$id/read');
+      _changed = true;
+      _reload();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not mark as read')),
+      );
+    }
+  }
+
+  Future<void> _markAll() async {
+    setState(() => _markingAll = true);
+    try {
+      await _api.put('/notifications/read-all');
+      _changed = true;
+      if (!mounted) return;
+      _reload();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not mark all as read')),
+      );
+    } finally {
+      if (mounted) setState(() => _markingAll = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final notifications = [
-      const _NotificationData(
-        type: 'Reminder',
-        title: 'Rent reminder sent',
-        body: 'Peter Ochieng was reminded about KSh 25,000 overdue rent.',
-        status: 'Sent',
-        time: 'Today, 9:30 AM',
-        color: AppColors.kodiBlue,
-        icon: Icons.sms_outlined,
-      ),
-      const _NotificationData(
-        type: 'Maintenance',
-        title: 'Broken Tap reported',
-        body: 'Mary Wanjiku reported a plumbing issue in House 12B.',
-        status: 'In Progress',
-        time: 'Today, 8:10 AM',
-        color: AppColors.kodiOrange,
-        icon: Icons.build_outlined,
-      ),
-      const _NotificationData(
-        type: 'System',
-        title: 'M-Pesa callback processed',
-        body: 'Payment reconciliation completed for Sunview Apartments.',
-        status: 'Resolved',
-        time: 'Yesterday, 5:45 PM',
-        color: AppColors.kodiGreen,
-        icon: Icons.verified_outlined,
-      ),
-      const _NotificationData(
-        type: 'Maintenance',
-        title: 'Electrical fault escalated',
-        body: 'Caretaker marked House 8A issue as high priority.',
-        status: 'Pending',
-        time: 'Yesterday, 2:20 PM',
-        color: AppColors.danger,
-        icon: Icons.warning_amber_rounded,
-      ),
-    ];
-    final visible = _filter == 'All'
-        ? notifications
-        : notifications.where((item) => item.type == _filter).toList();
-
-    return _FeatureScaffold(
-      title: 'Notifications',
-      accentColor: AppColors.kodiBlue,
-      child: ListView(
-        padding: const EdgeInsets.all(18),
-        children: [
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: ['All', 'Reminder', 'Maintenance', 'System']
-                  .map(
-                    (filter) => Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ChoiceChip(
-                        label: Text(filter),
-                        selected: _filter == filter,
-                        selectedColor:
-                            AppColors.kodiBlue.withValues(alpha: 0.14),
-                        onSelected: (_) => setState(() => _filter = filter),
+    return PopScope<Object?>(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        Navigator.pop(context, _changed);
+      },
+      child: _FeatureScaffold(
+        title: 'Notifications',
+        accentColor: AppColors.kodiBlue,
+        child: RefreshIndicator(
+          onRefresh: () async => _reload(),
+          child: FutureBuilder<List<_NotificationItem>>(
+            future: _future,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError) {
+                return ListView(
+                  padding: const EdgeInsets.all(40),
+                  children: [
+                    const SizedBox(height: 60),
+                    const Icon(Icons.error_outline_rounded,
+                        size: 56, color: AppColors.danger),
+                    const SizedBox(height: 14),
+                    Center(
+                      child: Text(
+                        snapshot.error.toString(),
+                        textAlign: TextAlign.center,
+                        style: AppStyles.bodyMedium,
                       ),
                     ),
-                  )
-                  .toList(),
+                    const SizedBox(height: 14),
+                    Center(
+                      child: OutlinedButton.icon(
+                        onPressed: _reload,
+                        icon: const Icon(Icons.refresh_rounded),
+                        label: const Text('Retry'),
+                      ),
+                    ),
+                  ],
+                );
+              }
+              final items = snapshot.data ?? const <_NotificationItem>[];
+              if (items.isEmpty) {
+                return ListView(
+                  padding: const EdgeInsets.all(40),
+                  children: [
+                    const SizedBox(height: 80),
+                    const Icon(Icons.notifications_none_rounded,
+                        size: 72, color: AppColors.muted),
+                    const SizedBox(height: 16),
+                    const Center(
+                      child: Text(
+                        'You\'re all caught up',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textDark,
+                            fontSize: 16),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    const Center(
+                      child: Text(
+                        'New activity will show up here.',
+                        style: TextStyle(color: AppColors.textLight),
+                      ),
+                    ),
+                  ],
+                );
+              }
+              return ListView(
+                padding: const EdgeInsets.all(18),
+                children: [
+                  for (final item in items) _NotificationApiCard(
+                    item: item,
+                    onMarkRead: () => _markOne(item.id),
+                  ),
+                  const SizedBox(height: 14),
+                  OutlinedButton.icon(
+                    onPressed: _markingAll ? null : _markAll,
+                    icon: _markingAll
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.done_all_rounded),
+                    label: Text(_markingAll
+                        ? 'Marking...'
+                        : 'Mark All as Read (${items.length})'),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NotificationItem {
+  final int id;
+  final String type;
+  final String title;
+  final String message;
+  final bool isRead;
+  final DateTime createdAt;
+
+  const _NotificationItem({
+    required this.id,
+    required this.type,
+    required this.title,
+    required this.message,
+    required this.isRead,
+    required this.createdAt,
+  });
+
+  factory _NotificationItem.fromJson(Map<String, dynamic> json) {
+    return _NotificationItem(
+      id: json['id'] as int,
+      type: (json['type'] ?? 'system').toString(),
+      title: (json['title'] ?? '').toString(),
+      message: (json['message'] ?? '').toString(),
+      isRead: json['is_read'] == true,
+      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ??
+          DateTime.now(),
+    );
+  }
+}
+
+class _NotificationApiCard extends StatelessWidget {
+  final _NotificationItem item;
+  final VoidCallback onMarkRead;
+
+  const _NotificationApiCard({required this.item, required this.onMarkRead});
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _paletteForType(item.type);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: palette.color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(palette.icon, color: palette.color),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textDark,
+                  ),
+                ),
+                if (item.message.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(item.message, style: AppStyles.bodyMedium),
+                ],
+                const SizedBox(height: 6),
+                Text(
+                  _relativeTime(item.createdAt),
+                  style: AppStyles.caption,
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 16),
-          ...visible.map((item) => _NotificationCard(data: item)),
-          const SizedBox(height: 10),
-          OutlinedButton.icon(
-            onPressed: () => _showSnack(context, 'All notifications read.'),
-            icon: const Icon(Icons.done_all_rounded),
-            label: const Text('Mark All as Read'),
+          IconButton(
+            tooltip: 'Mark as read',
+            onPressed: onMarkRead,
+            icon: const Icon(Icons.check_circle_outline_rounded,
+                color: AppColors.kodiGreen),
           ),
         ],
       ),
     );
   }
+}
+
+class _NotificationPalette {
+  final Color color;
+  final IconData icon;
+  const _NotificationPalette(this.color, this.icon);
+}
+
+_NotificationPalette _paletteForType(String type) {
+  switch (type.toLowerCase()) {
+    case 'reminder':
+    case 'rent_reminder':
+      return const _NotificationPalette(AppColors.kodiBlue, Icons.sms_outlined);
+    case 'maintenance':
+      return const _NotificationPalette(
+          AppColors.kodiOrange, Icons.build_outlined);
+    case 'payment':
+    case 'mpesa':
+      return const _NotificationPalette(
+          AppColors.kodiGreen, Icons.verified_outlined);
+    case 'alert':
+    case 'warning':
+      return const _NotificationPalette(
+          AppColors.danger, Icons.warning_amber_rounded);
+    default:
+      return const _NotificationPalette(
+          AppColors.kodiNavy, Icons.notifications_active_outlined);
+  }
+}
+
+String _relativeTime(DateTime time) {
+  final diff = DateTime.now().difference(time);
+  if (diff.inMinutes < 1) return 'Just now';
+  if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+  if (diff.inHours < 24) return '${diff.inHours}h ago';
+  if (diff.inDays < 7) return '${diff.inDays}d ago';
+  return '${time.day}/${time.month}/${time.year}';
 }
 
 class AppPreferencesScreen extends StatefulWidget {
@@ -2027,24 +3121,542 @@ class _AppPreferencesScreenState extends State<AppPreferencesScreen> {
   }
 }
 
-Future<void> showPropertySheet(BuildContext context) {
-  return _showInputSheet(
+Future<bool?> showPropertySheet(BuildContext context) {
+  return showModalBottomSheet<bool>(
     context: context,
-    title: 'Add Property',
-    fields: const ['Property Name', 'Location', 'Monthly Rent'],
-    submitLabel: 'Save Property',
-    message: 'Property saved locally. Backend wiring comes next.',
+    isScrollControlled: true,
+    backgroundColor: AppColors.white,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (_) => const _AddPropertySheet(),
   );
 }
 
-Future<void> showTenantSheet(BuildContext context) {
-  return _showInputSheet(
+class _AddPropertySheet extends StatefulWidget {
+  const _AddPropertySheet();
+
+  @override
+  State<_AddPropertySheet> createState() => _AddPropertySheetState();
+}
+
+class _AddPropertySheetState extends State<_AddPropertySheet> {
+  final ApiService _api = ApiService();
+  final TextEditingController _name = TextEditingController();
+  final TextEditingController _address = TextEditingController();
+  final TextEditingController _description = TextEditingController();
+  bool _submitting = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _address.dispose();
+    _description.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_name.text.trim().isEmpty || _address.text.trim().isEmpty) {
+      setState(() => _error = 'Name and address are required');
+      return;
+    }
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+    try {
+      final response = await _api.post('/properties', {
+        'name': _name.text.trim(),
+        'address': _address.text.trim(),
+        if (_description.text.trim().isNotEmpty)
+          'description': _description.text.trim(),
+      });
+      if (response.statusCode >= 400) {
+        setState(() {
+          _submitting = false;
+          _error = _decodeError(response.body);
+        });
+        return;
+      }
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _error = 'Failed to save property: $e';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(18, 18, 18, 18 + bottomInset),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Add Property', style: AppStyles.heading2),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _name,
+              decoration: const InputDecoration(labelText: 'Property name'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _address,
+              decoration: const InputDecoration(labelText: 'Address / Location'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _description,
+              maxLines: 2,
+              decoration:
+                  const InputDecoration(labelText: 'Description (optional)'),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 10),
+              Text(_error!, style: const TextStyle(color: AppColors.danger)),
+            ],
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: _submitting ? null : _submit,
+                child: _submitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: AppColors.white),
+                      )
+                    : const Text('Save Property'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _decodeError(String body) {
+  try {
+    final data = jsonDecode(body);
+    if (data is Map && data['error'] is String) return data['error'] as String;
+    if (data is Map && data['errors'] is List) {
+      final list = data['errors'] as List;
+      if (list.isNotEmpty && list.first is Map) {
+        final first = list.first as Map;
+        return (first['msg'] ?? 'Validation failed').toString();
+      }
+    }
+  } catch (_) {}
+  return 'Request failed';
+}
+
+Future<bool?> showTenantSheet(BuildContext context) {
+  return showModalBottomSheet<bool>(
     context: context,
-    title: 'Add Tenant',
-    fields: const ['Full Name', 'Phone Number', 'Email', 'Property', 'Unit'],
-    submitLabel: 'Save Tenant',
-    message: 'Tenant saved locally. Backend wiring comes next.',
+    isScrollControlled: true,
+    backgroundColor: AppColors.white,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (_) => const _AddTenantSheet(),
   );
+}
+
+class _AddTenantSheet extends StatefulWidget {
+  const _AddTenantSheet();
+
+  @override
+  State<_AddTenantSheet> createState() => _AddTenantSheetState();
+}
+
+class _AddTenantSheetState extends State<_AddTenantSheet> {
+  final ApiService _api = ApiService();
+  final TextEditingController _firstName = TextEditingController();
+  final TextEditingController _lastName = TextEditingController();
+  final TextEditingController _email = TextEditingController();
+  final TextEditingController _phone = TextEditingController();
+
+  Future<List<PropertyData>>? _propertiesFuture;
+  PropertyData? _selectedProperty;
+  List<_VacantUnit> _vacantUnits = const [];
+  bool _loadingUnits = false;
+  _VacantUnit? _selectedUnit;
+  DateTime _startDate = DateTime.now();
+  bool _submitting = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _propertiesFuture = _loadProperties();
+  }
+
+  @override
+  void dispose() {
+    _firstName.dispose();
+    _lastName.dispose();
+    _email.dispose();
+    _phone.dispose();
+    super.dispose();
+  }
+
+  Future<List<PropertyData>> _loadProperties() async {
+    final response = await _api.get('/properties');
+    if (response.statusCode != 200) {
+      throw Exception('Could not load properties (${response.statusCode})');
+    }
+    final data = jsonDecode(response.body) as List<dynamic>;
+    return data
+        .map((item) => PropertyData.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> _loadUnitsFor(int propertyId) async {
+    setState(() {
+      _loadingUnits = true;
+      _vacantUnits = const [];
+      _selectedUnit = null;
+    });
+    try {
+      final response = await _api.get('/units/property/$propertyId');
+      if (response.statusCode != 200) {
+        throw Exception('Could not load units');
+      }
+      final data = jsonDecode(response.body) as List<dynamic>;
+      final vacant = data
+          .map((item) => _VacantUnit.fromJson(item as Map<String, dynamic>))
+          .where((u) => u.status == 'vacant')
+          .toList();
+      if (!mounted) return;
+      setState(() {
+        _vacantUnits = vacant;
+        _loadingUnits = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadingUnits = false;
+        _error = 'Failed to load units: $e';
+      });
+    }
+  }
+
+  Future<void> _submit() async {
+    if (_selectedProperty == null) {
+      setState(() => _error = 'Pick a property');
+      return;
+    }
+    if (_selectedUnit == null) {
+      setState(() => _error = 'Pick a vacant unit');
+      return;
+    }
+    if (_firstName.text.trim().isEmpty || _lastName.text.trim().isEmpty) {
+      setState(() => _error = 'Tenant name is required');
+      return;
+    }
+    if (_email.text.trim().isEmpty || !_email.text.contains('@')) {
+      setState(() => _error = 'A valid email is required');
+      return;
+    }
+
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+    try {
+      final response = await _api.post('/tenancies/with-new-tenant', {
+        'unit_id': _selectedUnit!.id,
+        'first_name': _firstName.text.trim(),
+        'last_name': _lastName.text.trim(),
+        'email': _email.text.trim(),
+        if (_phone.text.trim().isNotEmpty) 'phone': _phone.text.trim(),
+        'start_date': _startDate.toIso8601String().split('T').first,
+      });
+
+      if (response.statusCode >= 400) {
+        setState(() {
+          _submitting = false;
+          _error = _decodeError(response.body);
+        });
+        return;
+      }
+
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final tempPassword = body['temp_password'] as String?;
+      if (!mounted) return;
+      Navigator.pop(context, true);
+
+      if (tempPassword != null) {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        if (!context.mounted) return;
+        await showDialog<void>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Tenant added'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${_firstName.text.trim()} ${_lastName.text.trim()} can now log in with:',
+                ),
+                const SizedBox(height: 12),
+                _PasswordBox(password: tempPassword),
+                const SizedBox(height: 12),
+                const Text(
+                  'Share this with the tenant. They can change it via "Forgot password" on the login screen.',
+                  style: TextStyle(color: AppColors.textLight, fontSize: 12),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Done'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _error = 'Failed to add tenant: $e';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(18, 18, 18, 18 + bottomInset),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Add Tenant',
+                style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
+                    color: AppColors.textDark)),
+            const SizedBox(height: 16),
+            FutureBuilder<List<PropertyData>>(
+              future: _propertiesFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                if (snapshot.hasError) {
+                  return Text(snapshot.error.toString(),
+                      style: const TextStyle(color: AppColors.danger));
+                }
+                final properties = snapshot.data ?? const <PropertyData>[];
+                if (properties.isEmpty) {
+                  return const Text(
+                    'No properties yet. Add a property first.',
+                    style: TextStyle(color: AppColors.textLight),
+                  );
+                }
+                return DropdownButtonFormField<PropertyData>(
+                  value: _selectedProperty,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Property'),
+                  items: properties
+                      .map((p) => DropdownMenuItem(
+                            value: p,
+                            child: Text(
+                              p.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    setState(() => _selectedProperty = value);
+                    if (value?.id != null) _loadUnitsFor(value!.id!);
+                  },
+                );
+              },
+            ),
+            const SizedBox(height: 12),
+            if (_loadingUnits)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: LinearProgressIndicator(),
+              )
+            else if (_selectedProperty != null && _vacantUnits.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  'No vacant units in this property. Add a unit first.',
+                  style: TextStyle(color: AppColors.textLight),
+                ),
+              )
+            else if (_vacantUnits.isNotEmpty)
+              DropdownButtonFormField<_VacantUnit>(
+                value: _selectedUnit,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Vacant unit'),
+                items: _vacantUnits
+                    .map((u) => DropdownMenuItem(
+                          value: u,
+                          child: Text(
+                            'Unit ${u.unitNumber} • KSh ${_formatKsh(u.rentAmount)}/mo',
+                          ),
+                        ))
+                    .toList(),
+                onChanged: (value) => setState(() => _selectedUnit = value),
+              ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _firstName,
+              decoration: const InputDecoration(labelText: 'First name'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _lastName,
+              decoration: const InputDecoration(labelText: 'Last name'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _email,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(labelText: 'Email'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _phone,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(labelText: 'Phone (optional)'),
+            ),
+            const SizedBox(height: 12),
+            InkWell(
+              onTap: () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: _startDate,
+                  firstDate: DateTime.now().subtract(const Duration(days: 30)),
+                  lastDate: DateTime.now().add(const Duration(days: 365)),
+                );
+                if (picked != null) setState(() => _startDate = picked);
+              },
+              child: InputDecorator(
+                decoration: const InputDecoration(labelText: 'Start date'),
+                child: Text(
+                  '${_startDate.day}/${_startDate.month}/${_startDate.year}',
+                  style: const TextStyle(color: AppColors.textDark),
+                ),
+              ),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 12),
+              Text(_error!, style: const TextStyle(color: AppColors.danger)),
+            ],
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: _submitting ? null : _submit,
+                child: _submitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: AppColors.white),
+                      )
+                    : const Text('Save Tenant'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _VacantUnit {
+  final int id;
+  final String unitNumber;
+  final num rentAmount;
+  final String status;
+
+  const _VacantUnit({
+    required this.id,
+    required this.unitNumber,
+    required this.rentAmount,
+    required this.status,
+  });
+
+  factory _VacantUnit.fromJson(Map<String, dynamic> json) {
+    final rent = json['rent_amount'];
+    return _VacantUnit(
+      id: json['id'] as int,
+      unitNumber: (json['unit_number'] ?? '').toString(),
+      rentAmount: rent is num
+          ? rent
+          : num.tryParse(rent?.toString() ?? '') ?? 0,
+      status: (json['status'] ?? 'vacant').toString(),
+    );
+  }
+}
+
+class _PasswordBox extends StatelessWidget {
+  final String password;
+  const _PasswordBox({required this.password});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: SelectableText(
+              password,
+              style: const TextStyle(
+                fontFamily: 'monospace',
+                fontWeight: FontWeight.w800,
+                fontSize: 16,
+                color: AppColors.textDark,
+              ),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Copy',
+            icon: const Icon(Icons.copy_rounded, size: 18),
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: password));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Copied to clipboard')),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 Future<void> showIssueSheet(BuildContext context) {
@@ -2870,54 +4482,6 @@ class _ReportTableRow extends StatelessWidget {
   }
 }
 
-class _TenantRow extends StatelessWidget {
-  final String name;
-  final String unit;
-  final String phone;
-  final bool active;
-
-  const _TenantRow({
-    required this.name,
-    required this.unit,
-    required this.phone,
-    required this.active,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: _TappableCard(
-        onTap: () => _showSnack(context, '$name selected'),
-        child: Row(
-          children: [
-            CircleAvatar(
-              backgroundColor: AppColors.kodiGreen.withValues(alpha: 0.12),
-              child: Text(name.characters.first,
-                  style: const TextStyle(fontWeight: FontWeight.w800)),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(name, style: _titleStyle),
-                  const SizedBox(height: 3),
-                  Text(unit, style: AppStyles.caption),
-                  Text(phone, style: AppStyles.caption),
-                ],
-              ),
-            ),
-            StatusPill(
-                label: active ? 'Active' : 'Inactive',
-                color: active ? AppColors.kodiGreen : AppColors.danger),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _PaymentItem extends StatelessWidget {
   final PaymentRecord payment;
   final VoidCallback onTap;
@@ -3207,54 +4771,6 @@ class _AlertCard extends StatelessWidget {
   }
 }
 
-class _NotificationCard extends StatelessWidget {
-  final _NotificationData data;
-
-  const _NotificationCard({required this.data});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: _TappableCard(
-        onTap: () => _showSnack(context, data.title),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: data.color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(data.icon, color: data.color),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(child: Text(data.title, style: _titleStyle)),
-                      StatusPill(label: data.status, color: data.color),
-                    ],
-                  ),
-                  const SizedBox(height: 5),
-                  Text(data.body, style: AppStyles.caption),
-                  const SizedBox(height: 6),
-                  Text(data.time, style: AppStyles.caption),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _PreferenceSwitch extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -3335,35 +4851,69 @@ class PaymentRecord {
 }
 
 class PropertyData {
+  final int? id;
   final String name;
   final String location;
-  final String units;
-  final String occupied;
-  final String monthlyIncome;
+  final int totalUnits;
+  final int occupiedUnits;
+  final int vacantUnits;
+  final num thisMonthIncome;
+  final num expectedMonthlyRent;
+  final int activeTenants;
 
-  const PropertyData(
-      this.name, this.location, this.units, this.occupied, this.monthlyIncome);
-}
-
-class _NotificationData {
-  final String type;
-  final String title;
-  final String body;
-  final String status;
-  final String time;
-  final Color color;
-  final IconData icon;
-
-  const _NotificationData({
-    required this.type,
-    required this.title,
-    required this.body,
-    required this.status,
-    required this.time,
-    required this.color,
-    required this.icon,
+  const PropertyData({
+    this.id,
+    required this.name,
+    required this.location,
+    required this.totalUnits,
+    required this.occupiedUnits,
+    required this.vacantUnits,
+    required this.thisMonthIncome,
+    required this.expectedMonthlyRent,
+    required this.activeTenants,
   });
+
+  String get unitsLabel => '$totalUnits ${totalUnits == 1 ? 'Unit' : 'Units'}';
+  String get occupiedLabel => '$occupiedUnits Occupied';
+  String get monthlyIncomeLabel => 'KSh ${_formatKsh(thisMonthIncome)}';
+
+  factory PropertyData.fromJson(Map<String, dynamic> json) {
+    return PropertyData(
+      id: json['id'] is int ? json['id'] as int : null,
+      name: (json['name'] ?? '').toString(),
+      location: (json['address'] ?? '').toString(),
+      totalUnits: _toInt(json['total_units']),
+      occupiedUnits: _toInt(json['occupied_units']),
+      vacantUnits: _toInt(json['vacant_units']),
+      thisMonthIncome: _toNum(json['this_month_income']),
+      expectedMonthlyRent: _toNum(json['expected_monthly_rent']),
+      activeTenants: _toInt(json['active_tenants']),
+    );
+  }
 }
+
+int _toInt(dynamic value) {
+  if (value == null) return 0;
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  return int.tryParse(value.toString()) ?? 0;
+}
+
+num _toNum(dynamic value) {
+  if (value == null) return 0;
+  if (value is num) return value;
+  return num.tryParse(value.toString()) ?? 0;
+}
+
+String _formatKsh(num value) {
+  final whole = value.toInt();
+  final formatted = whole.toString().replaceAllMapped(
+        RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+        (match) => '${match.group(1)},',
+      );
+  return formatted;
+}
+
 
 class _TaskData {
   final String title;

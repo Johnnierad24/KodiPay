@@ -78,15 +78,19 @@ async function processCallback(callbackData) {
       );
       
       // Add to ledger
-      const paymentResult = await pool.query('SELECT tenancy_id FROM payments WHERE transaction_ref = $1', [MpesaReceiptNumber]);
+      const paymentResult = await pool.query('SELECT id, tenancy_id FROM payments WHERE transaction_ref = $1', [MpesaReceiptNumber]);
       if (paymentResult.rows.length > 0) {
         await pool.query(
-          `INSERT INTO ledger_entries (tenancy_id, entry_type, amount, description) 
+          `INSERT INTO ledger_entries (tenancy_id, entry_type, amount, description)
            VALUES ($1, 'rent', $2, 'M-Pesa payment via STK Push')`,
           [paymentResult.rows[0].tenancy_id, Amount]
         );
+
+        const { generateReceiptForPayment } = require('./document.service');
+        generateReceiptForPayment({ paymentId: paymentResult.rows[0].id })
+          .catch((err) => console.error('M-Pesa auto-receipt failed:', err.message));
       }
-      
+
       return { success: true, receipt: MpesaReceiptNumber };
     } else {
       // Payment failed

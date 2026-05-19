@@ -29,6 +29,7 @@ app.use('/api/analytics', authMiddleware, require('./routes/analytics.routes'));
 app.use('/api/reports', authMiddleware, require('./routes/report.routes'));
 app.use('/api/chatbot', authMiddleware, require('./routes/chatbot.routes'));
 app.use('/api/upload', authMiddleware, require('./routes/upload.routes'));
+app.use('/api/documents', authMiddleware, require('./routes/document.routes'));
 
 const setupCronJobs = require('./cron');
 setupCronJobs();

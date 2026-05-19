@@ -1,6 +1,6 @@
 const firebase = require('../config/firebase');
 
-async function uploadFile(fileBuffer, fileName, folder = 'maintenance') {
+async function uploadFile(fileBuffer, fileName, folder = 'maintenance', mimeType) {
   try {
     if (!firebase.apps.length || !process.env.FIREBASE_STORAGE_BUCKET) {
       console.warn('Firebase Storage not configured, simulating upload');
@@ -15,7 +15,7 @@ async function uploadFile(fileBuffer, fileName, folder = 'maintenance') {
     const file = bucket.file(`${folder}/${Date.now()}_${fileName}`);
 
     await file.save(fileBuffer, {
-      metadata: { contentType: 'auto' },
+      metadata: mimeType ? { contentType: mimeType } : undefined,
       public: true
     });
 

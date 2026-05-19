@@ -1,12 +1,76 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../services/api_service.dart';
 import '../utils/constants.dart';
 import '../widgets/dashboard_components.dart';
 import 'feature_screens.dart';
 
-class LandlordDashboard extends StatelessWidget {
+class LandlordDashboard extends StatefulWidget {
   const LandlordDashboard({super.key});
+
+  @override
+  State<LandlordDashboard> createState() => _LandlordDashboardState();
+}
+
+class _LandlordDashboardState extends State<LandlordDashboard> {
+  final ApiService _api = ApiService();
+  int _unreadCount = 0;
+  _DashboardOverview? _overview;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUnreadCount();
+    _loadOverview();
+  }
+
+  Future<void> _loadUnreadCount() async {
+    try {
+      final response = await _api.get('/notifications');
+      if (response.statusCode != 200) return;
+      final data = jsonDecode(response.body) as List<dynamic>;
+      final unread = data.where((item) {
+        final map = item as Map<String, dynamic>;
+        return map['is_read'] != true;
+      }).length;
+      if (!mounted) return;
+      setState(() => _unreadCount = unread);
+    } catch (_) {
+      // Silent failure — badge just stays at last value.
+    }
+  }
+
+  Future<void> _loadOverview() async {
+    try {
+      final response = await _api.get('/analytics/dashboard');
+      if (response.statusCode != 200) return;
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      if (!mounted) return;
+      setState(() => _overview = _DashboardOverview.fromJson(data));
+    } catch (_) {
+      // Silent failure — overview just stays at last value.
+    }
+  }
+
+  Future<void> _openNotifications() async {
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const LandlordNotificationsScreen()),
+    );
+    if (changed == true) _loadUnreadCount();
+  }
+
+  Future<void> _onAddProperty() async {
+    final changed = await showPropertySheet(context);
+    if (changed == true) _loadOverview();
+  }
+
+  Future<void> _onAddTenant() async {
+    final changed = await showTenantSheet(context);
+    if (changed == true) _loadOverview();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,16 +97,17 @@ class LandlordDashboard extends StatelessWidget {
                 trailingActions: [
                   IconButton(
                     tooltip: 'Notifications',
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const LandlordNotificationsScreen()),
-                    ),
-                    icon: const Badge(
-                      label: Text('3'),
-                      child: Icon(Icons.notifications_none_rounded,
-                          color: AppColors.textDark),
-                    ),
+                    onPressed: _openNotifications,
+                    icon: _unreadCount > 0
+                        ? Badge(
+                            label: Text(
+                              _unreadCount > 99 ? '99+' : _unreadCount.toString(),
+                            ),
+                            child: const Icon(Icons.notifications_none_rounded,
+                                color: AppColors.textDark),
+                          )
+                        : const Icon(Icons.notifications_none_rounded,
+                            color: AppColors.textDark),
                   ),
                 ],
               ),
@@ -93,11 +158,25 @@ class LandlordDashboard extends StatelessWidget {
                         mainAxisSpacing: 10,
                         crossAxisSpacing: 10,
                       ),
-                      children: const [
-                        StatBox(value: '12', label: 'Properties'),
-                        StatBox(value: '48', label: 'Units'),
-                        StatBox(value: 'KSh 245,000', label: 'Total Income'),
-                        StatBox(value: '5', label: 'Pending Payments'),
+                      children: [
+                        StatBox(
+                          value: _overview?.totalProperties.toString() ?? '—',
+                          label: 'Properties',
+                        ),
+                        StatBox(
+                          value: _overview?.totalUnits.toString() ?? '—',
+                          label: 'Units',
+                        ),
+                        StatBox(
+                          value: _overview == null
+                              ? '—'
+                              : 'KSh ${_formatKsh(_overview!.thisMonthIncome)}',
+                          label: 'This Month',
+                        ),
+                        StatBox(
+                          value: _overview?.pendingInvoices.toString() ?? '—',
+                          label: 'Pending Payments',
+                        ),
                       ],
                     ),
                   ],
@@ -148,12 +227,12 @@ class LandlordDashboard extends StatelessWidget {
                       label: 'Add Property',
                       icon: Icons.add_home_rounded,
                       color: AppColors.kodiGreen,
-                      onTap: () => showPropertySheet(context)),
+                      onTap: _onAddProperty),
                   QuickActionTile(
                       label: 'Add Tenant',
                       icon: Icons.person_add_alt_1_rounded,
                       color: AppColors.kodiNavy,
-                      onTap: () => showTenantSheet(context)),
+                      onTap: _onAddTenant),
                   QuickActionTile(
                       label: 'Reminder',
                       icon: Icons.mail_outline_rounded,
@@ -284,4 +363,69 @@ class _DividerLine extends StatelessWidget {
     return const Divider(
         height: 1, indent: 58, endIndent: 14, color: AppColors.border);
   }
+}
+
+class _DashboardOverview {
+  final int totalProperties;
+  final int totalUnits;
+  final int occupiedUnits;
+  final int vacantUnits;
+  final num thisMonthIncome;
+  final num lastMonthIncome;
+  final int pendingInvoices;
+  final int overdueInvoices;
+  final num pendingAmount;
+  final int openMaintenance;
+  final int urgentMaintenance;
+
+  const _DashboardOverview({
+    required this.totalProperties,
+    required this.totalUnits,
+    required this.occupiedUnits,
+    required this.vacantUnits,
+    required this.thisMonthIncome,
+    required this.lastMonthIncome,
+    required this.pendingInvoices,
+    required this.overdueInvoices,
+    required this.pendingAmount,
+    required this.openMaintenance,
+    required this.urgentMaintenance,
+  });
+
+  factory _DashboardOverview.fromJson(Map<String, dynamic> json) {
+    int toInt(dynamic v) {
+      if (v == null) return 0;
+      if (v is int) return v;
+      if (v is num) return v.toInt();
+      return int.tryParse(v.toString()) ?? 0;
+    }
+
+    num toNum(dynamic v) {
+      if (v == null) return 0;
+      if (v is num) return v;
+      return num.tryParse(v.toString()) ?? 0;
+    }
+
+    return _DashboardOverview(
+      totalProperties: toInt(json['total_properties']),
+      totalUnits: toInt(json['total_units']),
+      occupiedUnits: toInt(json['occupied_units']),
+      vacantUnits: toInt(json['vacant_units']),
+      thisMonthIncome: toNum(json['this_month_income']),
+      lastMonthIncome: toNum(json['last_month_income']),
+      pendingInvoices: toInt(json['pending_invoices']),
+      overdueInvoices: toInt(json['overdue_invoices']),
+      pendingAmount: toNum(json['pending_amount']),
+      openMaintenance: toInt(json['open_maintenance']),
+      urgentMaintenance: toInt(json['urgent_maintenance']),
+    );
+  }
+}
+
+String _formatKsh(num value) {
+  final whole = value.toInt();
+  return whole.toString().replaceAllMapped(
+        RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+        (match) => '${match.group(1)},',
+      );
 }

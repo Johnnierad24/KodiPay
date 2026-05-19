@@ -1,4 +1,11 @@
-const { getRevenueTrend, getOccupancyRate, getPaymentMethodDistribution, getMaintenanceStats, getRentCollectionRate } = require('../services/analytics.service');
+const {
+  getRevenueTrend,
+  getOccupancyRate,
+  getPaymentMethodDistribution,
+  getMaintenanceStats,
+  getRentCollectionRate,
+  getLandlordOverview,
+} = require('../services/analytics.service');
 
 exports.getRevenueTrend = async (req, res) => {
   try {
@@ -38,6 +45,19 @@ exports.getMaintenanceStats = async (req, res) => {
     res.json(result.data);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch maintenance stats' });
+  }
+};
+
+exports.getDashboardOverview = async (req, res) => {
+  try {
+    if (!['landlord', 'agent'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    const result = await getLandlordOverview(req.user.id);
+    if (!result.success) return res.status(500).json({ error: result.error });
+    res.json(result.data);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch dashboard overview' });
   }
 };
 
