@@ -35,7 +35,7 @@ async function sendSMS(phoneNumber, message) {
 async function sendRentReminder(tenancyId) {
   try {
     const result = await pool.query(`
-      SELECT t.id, u.phone, u.first_name, u.last_name, un.unit_number, p.name as property_name, un.rent_amount
+      SELECT t.id, t.tenant_id, u.phone, u.first_name, u.last_name, un.unit_number, p.name as property_name, un.rent_amount
       FROM tenancies t
       JOIN users u ON t.tenant_id = u.id
       JOIN units un ON t.unit_id = un.id
@@ -48,11 +48,15 @@ async function sendRentReminder(tenancyId) {
     const tenancy = result.rows[0];
     const message = `Hi ${tenancy.first_name}, your rent of KES ${tenancy.rent_amount} for ${tenancy.property_name} (Unit ${tenancy.unit_number}) is due. Pay via M-Pesa: Pay Bill ${process.env.MPESA_SHORTCODE || '174379'}. - KodiPay`;
 
-    await sendSMS(tenancy.phone, message);
+    try {
+      await sendSMS(tenancy.phone, message);
+    } catch (smsErr) {
+      console.warn('SMS dispatch failed, continuing with in-app notification:', smsErr.message);
+    }
 
     await pool.query(
       'INSERT INTO notifications (user_id, type, title, message, related_id, related_type) VALUES ($1, $2, $3, $4, $5, $6)',
-      [tenancy.tenant_id, 'sms_reminder', 'Rent Reminder Sent', message, tenancyId, 'tenancy']
+      [tenancy.tenant_id, 'rent_reminder', 'Rent Reminder', message, tenancyId, 'tenancy']
     );
 
     return { success: true, message: 'Reminder sent' };

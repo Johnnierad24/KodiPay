@@ -58,3 +58,61 @@ exports.sendRentReminder = async (req, res) => {
     res.status(500).json({ error: 'Failed to send reminder' });
   }
 };
+
+exports.sendAnnouncement = async (req, res) => {
+  try {
+    if (!['landlord', 'agent'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Only landlords or agents can post announcements' });
+    }
+    const { title, message, property_id } = req.body || {};
+    if (!title || !message) {
+      return res.status(400).json({ error: 'Title and message are required' });
+    }
+
+    const params = [req.user.id];
+    let propertyClause = '';
+    if (property_id) {
+      const parsed = parseInt(property_id, 10);
+      if (Number.isNaN(parsed)) {
+        return res.status(400).json({ error: 'property_id must be an integer' });
+      }
+      params.push(parsed);
+      propertyClause = ' AND p.id = $2';
+    }
+
+    const tenantQuery = `
+      SELECT DISTINCT t.tenant_id
+      FROM tenancies t
+      JOIN units u ON t.unit_id = u.id
+      JOIN properties p ON u.property_id = p.id
+      WHERE p.landlord_id = $1 AND t.status = 'active'${propertyClause}
+    `;
+    const tenants = await pool.query(tenantQuery, params);
+
+    if (tenants.rows.length === 0) {
+      return res.json({ success: true, recipients: 0, message: 'No active tenants found' });
+    }
+
+    const insertText = `
+      INSERT INTO notifications (user_id, type, title, message, related_id, related_type)
+      VALUES ${tenants.rows.map((_, idx) => `($${idx * 4 + 1}, 'announcement', $${idx * 4 + 2}, $${idx * 4 + 3}, $${idx * 4 + 4}, 'announcement')`).join(', ')}
+    `;
+    const insertValues = tenants.rows.flatMap((row) => [
+      row.tenant_id,
+      title,
+      message,
+      property_id || null,
+    ]);
+
+    await pool.query(insertText, insertValues);
+
+    res.status(201).json({
+      success: true,
+      recipients: tenants.rows.length,
+      message: 'Announcement delivered',
+    });
+  } catch (error) {
+    console.error('sendAnnouncement failed:', error.message);
+    res.status(500).json({ error: 'Failed to send announcement' });
+  }
+};

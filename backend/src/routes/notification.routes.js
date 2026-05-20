@@ -7,5 +7,6 @@ router.put('/:id/read', notificationController.markAsRead);
 router.put('/read-all', notificationController.markAllAsRead);
 router.post('/test', notificationController.sendTestNotification);
 router.post('/rent-reminder', notificationController.sendRentReminder);
+router.post('/announcement', notificationController.sendAnnouncement);
 
 module.exports = router;

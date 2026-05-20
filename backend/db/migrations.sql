@@ -96,3 +96,19 @@ CREATE INDEX IF NOT EXISTS idx_documents_tenant ON documents(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_documents_tenancy ON documents(tenancy_id);
 CREATE INDEX IF NOT EXISTS idx_documents_type ON documents(type);
 CREATE INDEX IF NOT EXISTS idx_documents_expires_on ON documents(expires_on) WHERE expires_on IS NOT NULL;
+
+-- Maintenance: add category column and expand priority to include 'emergency'
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='maintenance_requests' AND column_name='category') THEN
+        ALTER TABLE maintenance_requests ADD COLUMN category VARCHAR(30) DEFAULT 'other';
+    END IF;
+END $$;
+
+ALTER TABLE maintenance_requests DROP CONSTRAINT IF EXISTS maintenance_requests_category_check;
+ALTER TABLE maintenance_requests ADD CONSTRAINT maintenance_requests_category_check
+    CHECK (category IN ('electrical', 'structural', 'plumbing', 'other'));
+
+ALTER TABLE maintenance_requests DROP CONSTRAINT IF EXISTS maintenance_requests_priority_check;
+ALTER TABLE maintenance_requests ADD CONSTRAINT maintenance_requests_priority_check
+    CHECK (priority IN ('low', 'medium', 'high', 'urgent', 'emergency'));

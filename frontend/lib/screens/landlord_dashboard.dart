@@ -87,7 +87,7 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
             children: [
               DashboardHeader(
                 name: '$firstName $lastName',
-                subtitle: 'Good morning!',
+                subtitle: 'Property Management at Your Fingertips!',
                 accentColor: AppColors.kodiGreen,
                 onLogout: () => context.read<AuthProvider>().logout(),
                 onMenuTap: () => Navigator.push(
@@ -238,6 +238,11 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
                       icon: Icons.mail_outline_rounded,
                       color: AppColors.kodiBlue,
                       onTap: () => showReminderSheet(context)),
+                  QuickActionTile(
+                      label: 'Announce',
+                      icon: Icons.campaign_outlined,
+                      color: AppColors.kodiGreen,
+                      onTap: () => showAnnouncementSheet(context)),
                   QuickActionTile(
                       label: 'Reports',
                       icon: Icons.analytics_outlined,

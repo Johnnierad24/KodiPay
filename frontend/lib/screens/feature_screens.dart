@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:provider/provider.dart';
 import 'dart:html' as html;
+import '../providers/auth_provider.dart';
 import '../services/pdf_report_service.dart';
 import '../utils/constants.dart';
 import '../services/api_service.dart';
@@ -9,6 +11,7 @@ import 'dart:convert';
 import '../widgets/dashboard_components.dart';
 import '../widgets/kodi_pay_logo.dart';
 import 'documents_screen.dart';
+import 'forgot_password_screen.dart';
 import 'units_screen.dart';
 
 class PropertyListScreen extends StatefulWidget {
@@ -1100,176 +1103,236 @@ class LandlordPaymentsScreen extends StatefulWidget {
 }
 
 class _LandlordPaymentsScreenState extends State<LandlordPaymentsScreen> {
+  final ApiService _api = ApiService();
   String _filter = 'All';
+  Future<List<PaymentRecord>>? _future;
 
-  final List<PaymentRecord> _payments = const [
-    PaymentRecord(
-      tenantName: 'Mary Wanjiku',
-      tenantPhone: '0723 456 778',
-      tenantEmail: 'mary.wanjiku@example.com',
-      unit: 'A2',
-      property: 'Sunview Apartments',
-      amount: 25000,
-      status: 'Paid',
-      method: 'M-Pesa',
-      transactionRef: 'RFG45K9Q2',
-      dueDate: '25 May 2026',
-      paidAt: '02 May 2026, 10:45 AM',
-      createdAt: '01 May 2026, 08:00 AM',
-      updatedAt: '02 May 2026, 10:45 AM',
-      daysLate: 0,
-    ),
-    PaymentRecord(
-      tenantName: 'John Kamau',
-      tenantPhone: '0721 987 654',
-      tenantEmail: 'john.kamau@example.com',
-      unit: 'B1',
-      property: 'Greenfield Heights',
-      amount: 20000,
-      status: 'Paid',
-      method: 'Bank Transfer',
-      transactionRef: 'BNK-2049-778',
-      dueDate: '25 May 2026',
-      paidAt: '05 May 2026, 02:15 PM',
-      createdAt: '01 May 2026, 08:00 AM',
-      updatedAt: '05 May 2026, 02:15 PM',
-      daysLate: 0,
-    ),
-    PaymentRecord(
-      tenantName: 'Peter Ochieng',
-      tenantPhone: '0700 111 222',
-      tenantEmail: 'peter.ochieng@example.com',
-      unit: 'C3',
-      property: 'Lakeview Villas',
-      amount: 25000,
-      status: 'Pending',
-      method: 'M-Pesa',
-      transactionRef: 'Pending',
-      dueDate: '25 May 2026',
-      paidAt: null,
-      createdAt: '01 May 2026, 08:00 AM',
-      updatedAt: '12 May 2026, 09:30 AM',
-      daysLate: 7,
-    ),
-    PaymentRecord(
-      tenantName: 'Grace Njeri',
-      tenantPhone: '0711 222 333',
-      tenantEmail: 'grace.njeri@example.com',
-      unit: 'A1',
-      property: 'Sunview Apartments',
-      amount: 30000,
-      status: 'Pending',
-      method: 'M-Pesa',
-      transactionRef: 'Pending',
-      dueDate: '25 May 2026',
-      paidAt: null,
-      createdAt: '01 May 2026, 08:00 AM',
-      updatedAt: '15 May 2026, 11:10 AM',
-      daysLate: 4,
-    ),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  void _reload() {
+    setState(() {
+      _future = _fetch();
+    });
+  }
+
+  Future<List<PaymentRecord>> _fetch() async {
+    final tenancyResp = await _api.get('/tenancies');
+    if (tenancyResp.statusCode != 200) {
+      throw Exception('Could not load tenancies (${tenancyResp.statusCode})');
+    }
+    final tenancies = (jsonDecode(tenancyResp.body) as List<dynamic>)
+        .map((item) =>
+            TenancyRecord.fromJson(item as Map<String, dynamic>))
+        .toList();
+
+    final records = <PaymentRecord>[];
+    for (final tenancy in tenancies) {
+      List<Map<String, dynamic>> payments = const [];
+      try {
+        final paymentsResp =
+            await _api.get('/payments/tenancy/${tenancy.id}');
+        if (paymentsResp.statusCode == 200) {
+          payments = (jsonDecode(paymentsResp.body) as List<dynamic>)
+              .cast<Map<String, dynamic>>();
+        }
+      } catch (_) {
+        // Skip tenancies whose payment fetch fails; show pending fallback.
+      }
+
+      if (payments.isEmpty) {
+        if (tenancy.status == 'active') {
+          records.add(PaymentRecord.pendingFor(tenancy));
+        }
+        continue;
+      }
+
+      final now = DateTime.now();
+      final paidThisMonth = payments.any((p) {
+        final status = (p['status'] ?? '').toString().toLowerCase();
+        final date = _parseDate(p['payment_date']);
+        return status == 'completed' &&
+            date != null &&
+            date.year == now.year &&
+            date.month == now.month;
+      });
+
+      for (final payment in payments) {
+        records.add(PaymentRecord.fromTenancyAndPayment(tenancy, payment));
+      }
+
+      if (!paidThisMonth && tenancy.status == 'active') {
+        records.add(PaymentRecord.pendingFor(tenancy));
+      }
+    }
+
+    records.sort((a, b) {
+      if (a.isPending && !b.isPending) return -1;
+      if (!a.isPending && b.isPending) return 1;
+      return 0;
+    });
+    return records;
+  }
+
+  Future<void> _sendPaymentReminder(PaymentRecord payment) async {
+    if (payment.tenancyId == null) {
+      _showSnack(context, 'Missing tenancy info — cannot send reminder.');
+      return;
+    }
+    try {
+      final response = await _api.post('/notifications/rent-reminder', {
+        'tenancy_id': payment.tenancyId,
+        'message':
+            'Dear ${payment.tenantName}, your rent of ${_money(payment.amount)} for ${payment.property} (Unit ${payment.unit}) is overdue by ${payment.daysLate} days. Please make payment to avoid penalties.',
+      });
+      if (!mounted) return;
+      if (response.statusCode == 200) {
+        _showSnack(context, 'Reminder sent to ${payment.tenantName}.');
+      } else {
+        _showSnack(context,
+            'Reminder failed (${response.statusCode}) for ${payment.tenantName}.');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack(context, 'Reminder failed: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final visiblePayments = _filter == 'All'
-        ? _payments
-        : _payments.where((payment) => payment.status == _filter).toList();
-    final totalCollected = _payments
-        .where((payment) => payment.isPaid)
-        .fold<int>(0, (sum, payment) => sum + payment.amount);
-    final totalPending = _payments
-        .where((payment) => payment.isPending)
-        .fold<int>(0, (sum, payment) => sum + payment.amount);
-
     return _FeatureScaffold(
       title: 'Payments',
       accentColor: AppColors.kodiGreen,
-      child: ListView(
-        padding: const EdgeInsets.all(18),
-        children: [
-          Row(
-            children: [
-              _FilterChip(
-                  label: 'All',
-                  selected: _filter == 'All',
-                  onTap: () => setState(() => _filter = 'All')),
-              const SizedBox(width: 8),
-              _FilterChip(
-                  label: 'Paid',
-                  selected: _filter == 'Paid',
-                  onTap: () => setState(() => _filter = 'Paid')),
-              const SizedBox(width: 8),
-              _FilterChip(
-                  label: 'Pending',
-                  selected: _filter == 'Pending',
-                  onTap: () => setState(() => _filter = 'Pending')),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                  child: _MetricCard(
-                      label: 'Total Received',
-                      value: _money(totalCollected),
-                      color: AppColors.kodiGreen)),
-              const SizedBox(width: 10),
-              Expanded(
-                  child: _MetricCard(
-                      label: 'Pending',
-                      value: _money(totalPending),
-                      color: AppColors.kodiOrange)),
-            ],
-          ),
-          const SizedBox(height: 16),
-          if (visiblePayments.isEmpty)
-            const _EmptyState(
-              icon: Icons.receipt_long_outlined,
-              title: 'No payments found',
-              subtitle: 'Try a different payment filter.',
-            )
-          else
-            ...visiblePayments.map(
-              (payment) => _PaymentItem(
-                payment: payment,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => PaymentDetailScreen(payment: payment),
+      child: RefreshIndicator(
+        onRefresh: () async => _reload(),
+        child: FutureBuilder<List<PaymentRecord>>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return ListView(
+                padding: const EdgeInsets.all(30),
+                children: [
+                  const SizedBox(height: 60),
+                  const Icon(Icons.error_outline_rounded,
+                      size: 56, color: AppColors.danger),
+                  const SizedBox(height: 12),
+                  Center(
+                    child: Text(
+                      snapshot.error.toString(),
+                      textAlign: TextAlign.center,
+                      style: AppStyles.bodyMedium,
+                    ),
                   ),
+                  const SizedBox(height: 14),
+                  Center(
+                    child: OutlinedButton.icon(
+                      onPressed: _reload,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Retry'),
+                    ),
+                  ),
+                ],
+              );
+            }
+            final allPayments = snapshot.data ?? const <PaymentRecord>[];
+            final visiblePayments = _filter == 'All'
+                ? allPayments
+                : allPayments
+                    .where((payment) => payment.status == _filter)
+                    .toList();
+            final totalCollected = allPayments
+                .where((payment) => payment.isPaid)
+                .fold<int>(0, (sum, payment) => sum + payment.amount);
+            final totalPending = allPayments
+                .where((payment) => payment.isPending)
+                .fold<int>(0, (sum, payment) => sum + payment.amount);
+
+            return ListView(
+              padding: const EdgeInsets.all(18),
+              children: [
+                Row(
+                  children: [
+                    _FilterChip(
+                        label: 'All',
+                        selected: _filter == 'All',
+                        onTap: () => setState(() => _filter = 'All')),
+                    const SizedBox(width: 8),
+                    _FilterChip(
+                        label: 'Paid',
+                        selected: _filter == 'Paid',
+                        onTap: () => setState(() => _filter = 'Paid')),
+                    const SizedBox(width: 8),
+                    _FilterChip(
+                        label: 'Pending',
+                        selected: _filter == 'Pending',
+                        onTap: () => setState(() => _filter = 'Pending')),
+                  ],
                 ),
-                onReminder: payment.isPending
-                    ? () => _sendPaymentReminder(payment)
-                    : null,
-              ),
-            ),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => PaymentReportScreen(payments: _payments),
-              ),
-            ),
-            icon: const Icon(Icons.download_rounded),
-            label: const Text('Download Report'),
-          ),
-        ],
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                        child: _MetricCard(
+                            label: 'Total Received',
+                            value: _money(totalCollected),
+                            color: AppColors.kodiGreen)),
+                    const SizedBox(width: 10),
+                    Expanded(
+                        child: _MetricCard(
+                            label: 'Pending',
+                            value: _money(totalPending),
+                            color: AppColors.kodiOrange)),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                if (visiblePayments.isEmpty)
+                  const _EmptyState(
+                    icon: Icons.receipt_long_outlined,
+                    title: 'No payments found',
+                    subtitle: 'Try a different payment filter.',
+                  )
+                else
+                  ...visiblePayments.map(
+                    (payment) => _PaymentItem(
+                      payment: payment,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              PaymentDetailScreen(payment: payment),
+                        ),
+                      ),
+                      onReminder: payment.isPending && payment.tenancyId != null
+                          ? () => _sendPaymentReminder(payment)
+                          : null,
+                    ),
+                  ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: allPayments.isEmpty
+                      ? null
+                      : () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  PaymentReportScreen(payments: allPayments),
+                            ),
+                          ),
+                  icon: const Icon(Icons.download_rounded),
+                  label: const Text('Download Report'),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
-  }
-
-  void _sendPaymentReminder(PaymentRecord payment) async {
-    try {
-      final api = ApiService();
-      await api.post('/notifications/rent-reminder', {
-        'tenancy_id': 1,
-        'message': 'Dear ${payment.tenantName}, your rent of ${_money(payment.amount)} for ${payment.property} (Unit ${payment.unit}) is overdue by ${payment.daysLate} days. Please make payment to avoid penalties.',
-      });
-      _showSnack(context, 'Reminder sent to ${payment.tenantName}.');
-    } catch (_) {
-      _showSnack(context, 'Reminder sent to ${payment.tenantName} (offline).');
-    }
   }
 }
 
@@ -1349,18 +1412,34 @@ class PaymentDetailScreen extends StatelessWidget {
               width: double.infinity,
               height: 52,
               child: ElevatedButton.icon(
-                onPressed: () async {
-                  try {
-                    final api = ApiService();
-                    await api.post('/notifications/rent-reminder', {
-                      'tenancy_id': 1,
-                      'message': 'Dear ${payment.tenantName}, your rent of ${_money(payment.amount)} for ${payment.property} is due.',
-                    });
-                  } catch (_) {}
-                  _showSnack(context, 'Reminder sent to ${payment.tenantName}.');
-                },
+                onPressed: payment.tenancyId == null
+                    ? null
+                    : () async {
+                        final api = ApiService();
+                        try {
+                          final response = await api
+                              .post('/notifications/rent-reminder', {
+                            'tenancy_id': payment.tenancyId,
+                            'message':
+                                'Dear ${payment.tenantName}, your rent of ${_money(payment.amount)} for ${payment.property} is due.',
+                          });
+                          if (!context.mounted) return;
+                          if (response.statusCode == 200) {
+                            _showSnack(context,
+                                'Reminder sent to ${payment.tenantName}.');
+                          } else {
+                            _showSnack(context,
+                                'Reminder failed (${response.statusCode}).');
+                          }
+                        } catch (e) {
+                          if (!context.mounted) return;
+                          _showSnack(context, 'Reminder failed: $e');
+                        }
+                      },
                 icon: const Icon(Icons.notifications_active_outlined),
-                label: const Text('Send Payment Reminder'),
+                label: Text(payment.tenancyId == null
+                    ? 'Tenancy missing — cannot send reminder'
+                    : 'Send Payment Reminder'),
               ),
             ),
           ],
@@ -2393,57 +2472,346 @@ void _showExportSheet(BuildContext context, String type) {
   );
 }
 
-class TenantPaymentsScreen extends StatelessWidget {
+class TenantPaymentsScreen extends StatefulWidget {
   const TenantPaymentsScreen({super.key});
+
+  @override
+  State<TenantPaymentsScreen> createState() => _TenantPaymentsScreenState();
+}
+
+class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
+  final ApiService _api = ApiService();
+  Future<_TenantPaymentsBundle>? _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  void _reload() {
+    setState(() {
+      _future = _fetch();
+    });
+  }
+
+  Future<_TenantPaymentsBundle> _fetch() async {
+    final tenancyResp = await _api.get('/tenancies');
+    if (tenancyResp.statusCode != 200) {
+      throw Exception('Could not load tenancy (${tenancyResp.statusCode})');
+    }
+    final tenancies = (jsonDecode(tenancyResp.body) as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+    if (tenancies.isEmpty) {
+      return const _TenantPaymentsBundle(payments: [], tenancy: null);
+    }
+    final active = tenancies.firstWhere(
+      (t) => (t['status']?.toString() ?? 'active') == 'active',
+      orElse: () => tenancies.first,
+    );
+    final tenancyId = active['id'];
+    final paymentsResp = await _api.get('/payments/tenancy/$tenancyId');
+    if (paymentsResp.statusCode != 200) {
+      throw Exception('Could not load payments (${paymentsResp.statusCode})');
+    }
+    final payments = (jsonDecode(paymentsResp.body) as List<dynamic>)
+        .map((item) =>
+            _TenantPayment.fromJson(item as Map<String, dynamic>))
+        .toList();
+    return _TenantPaymentsBundle(
+      payments: payments,
+      tenancy: _TenantTenancySummary.fromJson(active),
+    );
+  }
+
+  void _downloadCsv(List<_TenantPayment> payments,
+      _TenantTenancySummary? tenancy) {
+    if (payments.isEmpty) {
+      _showSnack(context, 'No payments to download yet.');
+      return;
+    }
+    final csv = StringBuffer();
+    csv.writeln('Date,Amount,Method,Reference,Status');
+    for (final p in payments) {
+      csv.writeln([
+        p.paymentDate?.toIso8601String().split('T').first ?? '',
+        p.amount.toStringAsFixed(2),
+        _csvField(p.method),
+        _csvField(p.transactionRef ?? ''),
+        _csvField(p.status),
+      ].join(','));
+    }
+    final blob = html.Blob([csv.toString()], 'text/csv');
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    final name = tenancy?.propertyName ?? 'tenant';
+    html.AnchorElement(href: url)
+      ..setAttribute('download', 'my_payments_${name.replaceAll(' ', '_')}.csv')
+      ..click();
+    html.Url.revokeObjectUrl(url);
+  }
 
   @override
   Widget build(BuildContext context) {
     return _FeatureScaffold(
       title: 'My Payments',
       accentColor: AppColors.kodiBlue,
-      child: ListView(
-        padding: const EdgeInsets.all(18),
+      child: RefreshIndicator(
+        onRefresh: () async => _reload(),
+        child: FutureBuilder<_TenantPaymentsBundle>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return ListView(
+                padding: const EdgeInsets.all(30),
+                children: [
+                  const SizedBox(height: 60),
+                  const Icon(Icons.error_outline_rounded,
+                      size: 56, color: AppColors.danger),
+                  const SizedBox(height: 12),
+                  Center(
+                    child: Text(
+                      snapshot.error.toString(),
+                      textAlign: TextAlign.center,
+                      style: AppStyles.bodyMedium,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Center(
+                    child: OutlinedButton.icon(
+                      onPressed: _reload,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Retry'),
+                    ),
+                  ),
+                ],
+              );
+            }
+            final bundle = snapshot.data ??
+                const _TenantPaymentsBundle(payments: [], tenancy: null);
+            final payments = bundle.payments;
+            final tenancy = bundle.tenancy;
+            final amountDue =
+                tenancy?.rentAmount ?? 0;
+            return ListView(
+              padding: const EdgeInsets.all(18),
+              children: [
+                GradientPanel(
+                  startColor: const Color(0xFF1D6FD8),
+                  endColor: const Color(0xFF0047A1),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Amount Due',
+                        style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.86)),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        amountDue > 0
+                            ? 'KSh ${_formatKsh(amountDue)}'
+                            : 'KSh 0',
+                        style: const TextStyle(
+                          color: AppColors.white,
+                          fontSize: 30,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      if (tenancy != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          '${tenancy.propertyName} • Unit ${tenancy.unitNumber}',
+                          style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.86),
+                              fontSize: 12),
+                        ),
+                      ],
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.white,
+                              foregroundColor: AppColors.kodiBlue),
+                          onPressed: () =>
+                              Navigator.pushNamed(context, '/pay-rent'),
+                          child: const Text('Pay Now (M-Pesa)'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    const Expanded(
+                      child: SectionTitle(title: 'Payment History'),
+                    ),
+                    TextButton.icon(
+                      onPressed: () => _downloadCsv(payments, tenancy),
+                      icon: const Icon(Icons.download_rounded),
+                      label: const Text('Download'),
+                    ),
+                  ],
+                ),
+                if (payments.isEmpty)
+                  const _EmptyState(
+                    icon: Icons.receipt_long_outlined,
+                    title: 'No payments yet',
+                    subtitle:
+                        'Your rent receipts will show up here once payments are recorded.',
+                  )
+                else
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.white,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      children: [
+                        for (var i = 0; i < payments.length; i++) ...[
+                          if (i > 0)
+                            const Divider(
+                                height: 1,
+                                indent: 16,
+                                endIndent: 16,
+                                color: AppColors.border),
+                          _TenantPaymentRow(payment: payments[i]),
+                        ],
+                      ],
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+String _csvField(String value) {
+  if (value.contains(',') || value.contains('"') || value.contains('\n')) {
+    return '"${value.replaceAll('"', '""')}"';
+  }
+  return value;
+}
+
+class _TenantPaymentsBundle {
+  final List<_TenantPayment> payments;
+  final _TenantTenancySummary? tenancy;
+  const _TenantPaymentsBundle({required this.payments, required this.tenancy});
+}
+
+class _TenantTenancySummary {
+  final int id;
+  final String propertyName;
+  final String unitNumber;
+  final num rentAmount;
+
+  const _TenantTenancySummary({
+    required this.id,
+    required this.propertyName,
+    required this.unitNumber,
+    required this.rentAmount,
+  });
+
+  factory _TenantTenancySummary.fromJson(Map<String, dynamic> json) {
+    return _TenantTenancySummary(
+      id: _toInt(json['id']),
+      propertyName: (json['property_name'] ?? '').toString(),
+      unitNumber: (json['unit_number'] ?? '').toString(),
+      rentAmount: _toNum(json['rent_amount']),
+    );
+  }
+}
+
+class _TenantPayment {
+  final int id;
+  final num amount;
+  final String method;
+  final String? transactionRef;
+  final String status;
+  final DateTime? paymentDate;
+
+  const _TenantPayment({
+    required this.id,
+    required this.amount,
+    required this.method,
+    required this.transactionRef,
+    required this.status,
+    required this.paymentDate,
+  });
+
+  factory _TenantPayment.fromJson(Map<String, dynamic> json) {
+    return _TenantPayment(
+      id: _toInt(json['id']),
+      amount: _toNum(json['amount']),
+      method: (json['payment_method'] ?? '').toString(),
+      transactionRef: json['transaction_ref']?.toString(),
+      status: (json['status'] ?? '').toString(),
+      paymentDate: DateTime.tryParse(json['payment_date']?.toString() ?? ''),
+    );
+  }
+}
+
+class _TenantPaymentRow extends StatelessWidget {
+  final _TenantPayment payment;
+  const _TenantPaymentRow({required this.payment});
+
+  @override
+  Widget build(BuildContext context) {
+    final isPaid = payment.status.toLowerCase() == 'completed';
+    final color = isPaid ? AppColors.kodiGreen : AppColors.kodiOrange;
+    final label = isPaid ? 'Paid' : _capitalize(payment.status);
+    final dateText = payment.paymentDate == null
+        ? '—'
+        : '${payment.paymentDate!.day}/${payment.paymentDate!.month}/${payment.paymentDate!.year}';
+    return Padding(
+      padding: const EdgeInsets.all(14),
+      child: Row(
         children: [
-          GradientPanel(
-            startColor: const Color(0xFF1D6FD8),
-            endColor: const Color(0xFF0047A1),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              isPaid ? Icons.check_circle_outline : Icons.pending_actions,
+              color: color,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Amount Due',
-                    style:
-                        TextStyle(color: Colors.white.withValues(alpha: 0.86))),
-                const SizedBox(height: 6),
-                const Text('KSh 25,000',
-                    style: TextStyle(
-                        color: AppColors.white,
-                        fontSize: 30,
-                        fontWeight: FontWeight.w900)),
-                const SizedBox(height: 14),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.white,
-                        foregroundColor: AppColors.kodiBlue),
-                    onPressed: () => Navigator.pushNamed(context, '/pay-rent'),
-                    child: const Text('Pay Now (M-Pesa)'),
-                  ),
+                Text('KSh ${_formatKsh(payment.amount)}', style: _titleStyle),
+                const SizedBox(height: 4),
+                Text(
+                  '${_capitalize(payment.method)} • ${payment.transactionRef ?? 'No reference'}',
+                  style: AppStyles.caption,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 18),
-          const SectionTitle(title: 'Payment History'),
-          const ListPanel(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              _TenantPaymentHistory(month: 'Apr 2024', date: 'Apr 25, 2024'),
-              Divider(
-                  height: 1,
-                  indent: 16,
-                  endIndent: 16,
-                  color: AppColors.border),
-              _TenantPaymentHistory(month: 'Mar 2024', date: 'Mar 25, 2024'),
+              Text(dateText,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textDark,
+                      fontSize: 12)),
+              const SizedBox(height: 4),
+              StatusPill(label: label, color: color),
             ],
           ),
         ],
@@ -2452,69 +2820,860 @@ class TenantPaymentsScreen extends StatelessWidget {
   }
 }
 
-class TenantMaintenanceScreen extends StatelessWidget {
+String _capitalize(String value) {
+  if (value.isEmpty) return value;
+  return value[0].toUpperCase() + value.substring(1).toLowerCase();
+}
+
+class TenantMaintenanceScreen extends StatefulWidget {
   const TenantMaintenanceScreen({super.key});
+
+  @override
+  State<TenantMaintenanceScreen> createState() =>
+      _TenantMaintenanceScreenState();
+}
+
+class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
+  final ApiService _api = ApiService();
+  Future<_TenantMaintenanceBundle>? _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  void _reload() {
+    setState(() {
+      _future = _fetch();
+    });
+  }
+
+  Future<_TenantMaintenanceBundle> _fetch() async {
+    final tenancyResp = await _api.get('/tenancies');
+    if (tenancyResp.statusCode != 200) {
+      throw Exception('Could not load tenancy (${tenancyResp.statusCode})');
+    }
+    final tenancies = (jsonDecode(tenancyResp.body) as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+    _TenantTenancySummary? tenancy;
+    int? unitId;
+    if (tenancies.isNotEmpty) {
+      final active = tenancies.firstWhere(
+        (t) => (t['status']?.toString() ?? 'active') == 'active',
+        orElse: () => tenancies.first,
+      );
+      tenancy = _TenantTenancySummary.fromJson(active);
+      unitId = _toInt(active['unit_id']);
+    }
+
+    final response = await _api.get('/maintenance/mine');
+    if (response.statusCode != 200) {
+      throw Exception('Could not load issues (${response.statusCode})');
+    }
+    final items = (jsonDecode(response.body) as List<dynamic>)
+        .map((item) =>
+            _MaintenanceItem.fromJson(item as Map<String, dynamic>))
+        .toList();
+    return _TenantMaintenanceBundle(
+      items: items,
+      tenancy: tenancy,
+      unitId: unitId,
+    );
+  }
+
+  Future<void> _onReport(_TenantMaintenanceBundle bundle) async {
+    if (bundle.unitId == null) {
+      _showSnack(context, 'No active tenancy — please contact your landlord.');
+      return;
+    }
+    final created = await showIssueSheet(context, unitId: bundle.unitId!);
+    if (created == true) _reload();
+  }
+
+  Future<void> _openDetail(_MaintenanceItem item) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => MaintenanceDetailScreen(item: item)),
+    );
+    _reload();
+  }
 
   @override
   Widget build(BuildContext context) {
     return _FeatureScaffold(
       title: 'My Maintenance',
       accentColor: AppColors.kodiOrange,
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: AppColors.kodiBlue,
-        onPressed: () => showIssueSheet(context),
-        icon: const Icon(Icons.add_rounded, color: AppColors.white),
-        label: const Text('Report Issue',
-            style: TextStyle(color: AppColors.white)),
+      floatingActionButton: FutureBuilder<_TenantMaintenanceBundle>(
+        future: _future,
+        builder: (context, snapshot) {
+          final bundle = snapshot.data;
+          return FloatingActionButton.extended(
+            backgroundColor: AppColors.kodiBlue,
+            onPressed: bundle == null ? null : () => _onReport(bundle),
+            icon: const Icon(Icons.add_rounded, color: AppColors.white),
+            label: const Text('Report Issue',
+                style: TextStyle(color: AppColors.white)),
+          );
+        },
       ),
+      child: RefreshIndicator(
+        onRefresh: () async => _reload(),
+        child: FutureBuilder<_TenantMaintenanceBundle>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return ListView(
+                padding: const EdgeInsets.all(30),
+                children: [
+                  const SizedBox(height: 60),
+                  const Icon(Icons.error_outline_rounded,
+                      size: 56, color: AppColors.danger),
+                  const SizedBox(height: 12),
+                  Center(
+                    child: Text(
+                      snapshot.error.toString(),
+                      textAlign: TextAlign.center,
+                      style: AppStyles.bodyMedium,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Center(
+                    child: OutlinedButton.icon(
+                      onPressed: _reload,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Retry'),
+                    ),
+                  ),
+                ],
+              );
+            }
+            final bundle = snapshot.data;
+            final items = bundle?.items ?? const <_MaintenanceItem>[];
+            if (items.isEmpty) {
+              return ListView(
+                padding: const EdgeInsets.all(30),
+                children: const [
+                  SizedBox(height: 60),
+                  Icon(Icons.handyman_outlined,
+                      size: 72, color: AppColors.muted),
+                  SizedBox(height: 14),
+                  Center(
+                    child: Text(
+                      'No issues yet',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textDark,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 6),
+                  Center(
+                    child: Text(
+                      'Tap "Report Issue" to let your landlord or caretaker know.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: AppColors.textLight),
+                    ),
+                  ),
+                ],
+              );
+            }
+            return ListView(
+              padding: const EdgeInsets.all(18),
+              children: [
+                for (final item in items)
+                  _MaintenanceItemCard(
+                    item: item,
+                    onTap: () => _openDetail(item),
+                  ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _TenantMaintenanceBundle {
+  final List<_MaintenanceItem> items;
+  final _TenantTenancySummary? tenancy;
+  final int? unitId;
+  const _TenantMaintenanceBundle({
+    required this.items,
+    required this.tenancy,
+    required this.unitId,
+  });
+}
+
+class _MaintenanceItem {
+  final int id;
+  final String title;
+  final String description;
+  final String status;
+  final String priority;
+  final String category;
+  final String propertyName;
+  final String unitNumber;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  const _MaintenanceItem({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.status,
+    required this.priority,
+    required this.category,
+    required this.propertyName,
+    required this.unitNumber,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  factory _MaintenanceItem.fromJson(Map<String, dynamic> json) {
+    return _MaintenanceItem(
+      id: _toInt(json['id']),
+      title: (json['title'] ?? '').toString(),
+      description: (json['description'] ?? '').toString(),
+      status: (json['status'] ?? 'pending').toString(),
+      priority: (json['priority'] ?? 'medium').toString(),
+      category: (json['category'] ?? 'other').toString(),
+      propertyName: (json['property_name'] ?? '').toString(),
+      unitNumber: (json['unit_number'] ?? '').toString(),
+      createdAt:
+          DateTime.tryParse(json['created_at']?.toString() ?? '') ??
+              DateTime.now(),
+      updatedAt:
+          DateTime.tryParse(json['updated_at']?.toString() ?? '') ??
+              DateTime.now(),
+    );
+  }
+}
+
+Color _maintenanceStatusColor(String status) {
+  switch (status.toLowerCase()) {
+    case 'completed':
+      return AppColors.kodiGreen;
+    case 'in_progress':
+      return AppColors.kodiBlue;
+    case 'cancelled':
+      return AppColors.muted;
+    default:
+      return AppColors.kodiOrange;
+  }
+}
+
+String _maintenanceStatusLabel(String status) {
+  switch (status.toLowerCase()) {
+    case 'in_progress':
+      return 'In Progress';
+    case 'completed':
+      return 'Completed';
+    case 'cancelled':
+      return 'Cancelled';
+    default:
+      return 'Pending';
+  }
+}
+
+Color _maintenancePriorityColor(String priority) {
+  switch (priority.toLowerCase()) {
+    case 'emergency':
+      return AppColors.danger;
+    case 'urgent':
+    case 'high':
+      return AppColors.kodiOrange;
+    case 'low':
+      return AppColors.muted;
+    default:
+      return AppColors.kodiBlue;
+  }
+}
+
+String _capitalizeWord(String value) {
+  if (value.isEmpty) return value;
+  return value[0].toUpperCase() + value.substring(1).toLowerCase();
+}
+
+class _MaintenanceItemCard extends StatelessWidget {
+  final _MaintenanceItem item;
+  final VoidCallback onTap;
+  const _MaintenanceItemCard({required this.item, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final statusColor = _maintenanceStatusColor(item.status);
+    final statusLabel = _maintenanceStatusLabel(item.status);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: _TappableCard(
+        onTap: onTap,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(Icons.build_circle_outlined, color: statusColor),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(item.title, style: _titleStyle),
+                      const SizedBox(height: 3),
+                      Text(
+                        item.unitNumber.isEmpty
+                            ? item.propertyName
+                            : '${item.propertyName} • Unit ${item.unitNumber}',
+                        style: AppStyles.caption,
+                      ),
+                    ],
+                  ),
+                ),
+                StatusPill(label: statusLabel, color: statusColor),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                _MaintenanceTag(
+                    label: _capitalizeWord(item.category),
+                    color: AppColors.kodiNavy),
+                const SizedBox(width: 8),
+                _MaintenanceTag(
+                  label: _capitalizeWord(item.priority),
+                  color: _maintenancePriorityColor(item.priority),
+                ),
+                const Spacer(),
+                Text(_relativeTime(item.createdAt), style: AppStyles.caption),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MaintenanceTag extends StatelessWidget {
+  final String label;
+  final Color color;
+  const _MaintenanceTag({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+            color: color, fontSize: 10, fontWeight: FontWeight.w800),
+      ),
+    );
+  }
+}
+
+class MaintenanceDetailScreen extends StatelessWidget {
+  final _MaintenanceItem item;
+  const MaintenanceDetailScreen({super.key, required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final statusColor = _maintenanceStatusColor(item.status);
+    final statusLabel = _maintenanceStatusLabel(item.status);
+    return _FeatureScaffold(
+      title: 'Issue Details',
+      accentColor: statusColor,
       child: ListView(
         padding: const EdgeInsets.all(18),
-        children: const [
-          _IssueListItem(
-              title: 'Leaking Sink',
-              location: 'Kitchen - A2',
-              status: 'In Progress',
-              color: AppColors.kodiOrange),
-          _IssueListItem(
-              title: 'Broken Window',
-              location: 'Bedroom - A2',
-              status: 'Pending',
-              color: AppColors.kodiOrange),
-          _IssueListItem(
-              title: 'Light Not Working',
-              location: 'Living Room - A2',
-              status: 'Pending',
-              color: AppColors.kodiOrange),
+        children: [
+          _TappableCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: statusColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Icon(Icons.build_circle_outlined,
+                          color: statusColor),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(item.title, style: AppStyles.heading2),
+                          const SizedBox(height: 4),
+                          Text(
+                            item.unitNumber.isEmpty
+                                ? item.propertyName
+                                : '${item.propertyName} • Unit ${item.unitNumber}',
+                            style: AppStyles.caption,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    StatusPill(label: statusLabel, color: statusColor),
+                    const SizedBox(width: 8),
+                    _MaintenanceTag(
+                      label: _capitalizeWord(item.priority),
+                      color: _maintenancePriorityColor(item.priority),
+                    ),
+                    const SizedBox(width: 8),
+                    _MaintenanceTag(
+                      label: _capitalizeWord(item.category),
+                      color: AppColors.kodiNavy,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          _TappableCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Description', style: _titleStyle),
+                const SizedBox(height: 8),
+                Text(
+                  item.description.isEmpty
+                      ? 'No description provided.'
+                      : item.description,
+                  style: const TextStyle(
+                      color: AppColors.textDark, height: 1.45),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          _TappableCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Timeline', style: _titleStyle),
+                const SizedBox(height: 12),
+                _MaintenanceTimelineRow(
+                  icon: Icons.report_problem_outlined,
+                  color: AppColors.kodiBlue,
+                  label: 'Reported',
+                  time: item.createdAt,
+                ),
+                if (item.updatedAt != item.createdAt)
+                  _MaintenanceTimelineRow(
+                    icon: item.status.toLowerCase() == 'completed'
+                        ? Icons.check_circle_outline
+                        : Icons.timelapse_outlined,
+                    color: statusColor,
+                    label: 'Last updated ($statusLabel)',
+                    time: item.updatedAt,
+                  ),
+                if (item.status.toLowerCase() == 'completed') ...[
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Your caretaker marked this issue as completed.',
+                    style: AppStyles.caption,
+                  ),
+                ],
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class TenantNoticesScreen extends StatelessWidget {
+class _MaintenanceTimelineRow extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String label;
+  final DateTime time;
+  const _MaintenanceTimelineRow({
+    required this.icon,
+    required this.color,
+    required this.label,
+    required this.time,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label,
+                    style: const TextStyle(
+                        color: AppColors.textDark,
+                        fontWeight: FontWeight.w700)),
+                const SizedBox(height: 2),
+                Text(
+                  '${time.day}/${time.month}/${time.year} • '
+                  '${time.hour.toString().padLeft(2, '0')}:'
+                  '${time.minute.toString().padLeft(2, '0')}',
+                  style: AppStyles.caption,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class TenantNoticesScreen extends StatefulWidget {
   const TenantNoticesScreen({super.key});
+
+  @override
+  State<TenantNoticesScreen> createState() => _TenantNoticesScreenState();
+}
+
+class _TenantNoticesScreenState extends State<TenantNoticesScreen> {
+  final ApiService _api = ApiService();
+  Future<List<_NotificationItem>>? _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  void _reload() {
+    setState(() {
+      _future = _fetch();
+    });
+  }
+
+  Future<List<_NotificationItem>> _fetch() async {
+    final response = await _api.get('/notifications');
+    if (response.statusCode != 200) {
+      throw Exception('Could not load notices (${response.statusCode})');
+    }
+    final data = jsonDecode(response.body) as List<dynamic>;
+    return data
+        .map((item) => _NotificationItem.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> _openNotice(_NotificationItem item) async {
+    if (!item.isRead) {
+      try {
+        await _api.put('/notifications/${item.id}/read');
+      } catch (_) {
+        // Non-fatal — proceed to open the detail screen.
+      }
+    }
+    if (!mounted) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => NoticeDetailScreen(item: item)),
+    );
+    _reload();
+  }
 
   @override
   Widget build(BuildContext context) {
     return _FeatureScaffold(
       title: 'Notices',
       accentColor: AppColors.kodiBlue,
+      child: RefreshIndicator(
+        onRefresh: () async => _reload(),
+        child: FutureBuilder<List<_NotificationItem>>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return ListView(
+                padding: const EdgeInsets.all(30),
+                children: [
+                  const SizedBox(height: 60),
+                  const Icon(Icons.error_outline_rounded,
+                      size: 56, color: AppColors.danger),
+                  const SizedBox(height: 12),
+                  Center(
+                    child: Text(
+                      snapshot.error.toString(),
+                      textAlign: TextAlign.center,
+                      style: AppStyles.bodyMedium,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Center(
+                    child: OutlinedButton.icon(
+                      onPressed: _reload,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Retry'),
+                    ),
+                  ),
+                ],
+              );
+            }
+            final items = snapshot.data ?? const <_NotificationItem>[];
+            if (items.isEmpty) {
+              return ListView(
+                padding: const EdgeInsets.all(40),
+                children: const [
+                  SizedBox(height: 80),
+                  Icon(Icons.notifications_none_rounded,
+                      size: 72, color: AppColors.muted),
+                  SizedBox(height: 16),
+                  Center(
+                    child: Text(
+                      'No notices yet',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textDark,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 6),
+                  Center(
+                    child: Text(
+                      'Reminders, announcements, and maintenance updates will appear here.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: AppColors.textLight),
+                    ),
+                  ),
+                ],
+              );
+            }
+            return ListView(
+              padding: const EdgeInsets.all(18),
+              children: [
+                for (final item in items)
+                  _TenantNoticeCard(
+                    item: item,
+                    onTap: () => _openNotice(item),
+                  ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _TenantNoticeCard extends StatelessWidget {
+  final _NotificationItem item;
+  final VoidCallback onTap;
+
+  const _TenantNoticeCard({required this.item, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _paletteForType(item.type);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: _TappableCard(
+        onTap: onTap,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: palette.color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(palette.icon, color: palette.color),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(child: Text(item.title, style: _titleStyle)),
+                      if (!item.isRead)
+                        Container(
+                          width: 9,
+                          height: 9,
+                          decoration: const BoxDecoration(
+                            color: AppColors.kodiBlue,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                    ],
+                  ),
+                  if (item.message.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      item.message,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppStyles.caption,
+                    ),
+                  ],
+                  const SizedBox(height: 6),
+                  Text(_relativeTime(item.createdAt), style: AppStyles.caption),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class NoticeDetailScreen extends StatelessWidget {
+  final _NotificationItem item;
+  const NoticeDetailScreen({super.key, required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _paletteForType(item.type);
+    return _FeatureScaffold(
+      title: _labelForType(item.type),
+      accentColor: palette.color,
       child: ListView(
         padding: const EdgeInsets.all(18),
-        children: const [
-          _NoticeCard(
-              title: 'Water Interruption',
-              body:
-                  'Water service will be interrupted on Saturday from 8 AM to noon.'),
-          _NoticeCard(
-              title: 'Rent Reminder',
-              body: 'May rent is due on 25th May 2024.'),
-          _NoticeCard(
-              title: 'Security Update',
-              body: 'Visitor registration is now required at the main gate.'),
+        children: [
+          _TappableCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: palette.color.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(palette.icon, color: palette.color),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(item.title, style: AppStyles.heading2),
+                          const SizedBox(height: 4),
+                          Text(
+                            _relativeTime(item.createdAt),
+                            style: AppStyles.caption,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: palette.color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    _labelForType(item.type),
+                    style: TextStyle(
+                      color: palette.color,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          _TappableCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Message', style: _titleStyle),
+                const SizedBox(height: 10),
+                Text(
+                  item.message.isEmpty
+                      ? 'No additional details provided.'
+                      : item.message,
+                  style: const TextStyle(
+                    color: AppColors.textDark,
+                    height: 1.45,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Received ${item.createdAt.day}/${item.createdAt.month}/${item.createdAt.year} at '
+                  '${item.createdAt.hour.toString().padLeft(2, '0')}:'
+                  '${item.createdAt.minute.toString().padLeft(2, '0')}',
+                  style: AppStyles.caption,
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
+  }
+}
+
+String _labelForType(String type) {
+  switch (type.toLowerCase()) {
+    case 'reminder':
+    case 'rent_reminder':
+    case 'sms_reminder':
+      return 'Rent Reminder';
+    case 'maintenance':
+      return 'Maintenance Update';
+    case 'announcement':
+      return 'Announcement';
+    case 'payment':
+    case 'mpesa':
+      return 'Payment';
+    case 'alert':
+    case 'warning':
+      return 'Alert';
+    default:
+      return 'Notice';
   }
 }
 
@@ -2627,8 +3786,64 @@ class ProfileScreen extends StatelessWidget {
     required this.accentColor,
   });
 
+  String _initials(String firstName, String lastName) {
+    final f = firstName.trim();
+    final l = lastName.trim();
+    if (f.isEmpty && l.isEmpty) return '?';
+    return ((f.isNotEmpty ? f[0] : '') + (l.isNotEmpty ? l[0] : ''))
+        .toUpperCase();
+  }
+
+  Future<void> _confirmAndSignOut(BuildContext context) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sign out?'),
+        content: const Text(
+            'You will need to sign in again to use KodiPay on this device.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+            child: const Text('Sign out'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    if (!context.mounted) return;
+    await context.read<AuthProvider>().logout();
+  }
+
+  Future<void> _sendPasswordReset(BuildContext context, String email) async {
+    if (email.isEmpty || email == '—') {
+      _showSnack(context, 'No email on file — contact support to update it.');
+      return;
+    }
+    final result =
+        await context.read<AuthProvider>().requestPasswordReset(email);
+    if (!context.mounted) return;
+    _showSnack(context, result.message);
+    if (result.success && result.resetToken != null) {
+      Navigator.pushNamed(context, '/reset-password',
+          arguments: result.resetToken);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final user = context.watch<AuthProvider>().user;
+    final firstName = user?.firstName ?? '';
+    final lastName = user?.lastName ?? '';
+    final fullName = '$firstName $lastName'.trim();
+    final email = user?.email ?? '—';
+    final phone = (user?.phone?.trim().isNotEmpty ?? false)
+        ? user!.phone!.trim()
+        : 'Not added';
+
     return _FeatureScaffold(
       title: 'Profile',
       accentColor: accentColor,
@@ -2641,33 +3856,95 @@ class ProfileScreen extends StatelessWidget {
                 CircleAvatar(
                   radius: 28,
                   backgroundColor: accentColor.withValues(alpha: 0.12),
-                  child: Icon(Icons.person_rounded, color: accentColor),
+                  child: Text(
+                    _initials(firstName, lastName),
+                    style: TextStyle(
+                      color: accentColor,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(role, style: _titleStyle),
+                      Text(
+                        fullName.isEmpty ? role : fullName,
+                        style: _titleStyle,
+                      ),
                       const SizedBox(height: 4),
-                      const Text('KodiPay account', style: AppStyles.caption),
+                      Text(email, style: AppStyles.caption),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: accentColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          role,
+                          style: TextStyle(
+                            color: accentColor,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
               ],
             ),
           ),
-          _SettingsTile(
-            icon: Icons.lock_outline_rounded,
-            title: 'Security',
-            subtitle: 'Password and session settings',
-            onTap: () => _showSnack(context, 'Security settings opened'),
+          const SizedBox(height: 18),
+          _DetailSection(
+            title: 'Account',
+            rows: [
+              _DetailRowData('Full name', fullName.isEmpty ? '—' : fullName),
+              _DetailRowData('Email', email),
+              _DetailRowData('Phone', phone),
+              _DetailRowData('Role', role),
+            ],
+          ),
+          const SizedBox(height: 18),
+          const Padding(
+            padding: EdgeInsets.only(left: 4, bottom: 4),
+            child: Text('Security', style: _smallBoldStyle),
           ),
           _SettingsTile(
-            icon: Icons.help_outline_rounded,
-            title: 'Support',
-            subtitle: 'Contact KodiPay support',
-            onTap: () => _showSnack(context, 'Support request started'),
+            icon: Icons.lock_reset_rounded,
+            title: 'Change password',
+            subtitle: 'Send a reset link to $email',
+            onTap: () => _sendPasswordReset(context, email),
+          ),
+          _SettingsTile(
+            icon: Icons.mail_outline_rounded,
+            title: 'Forgot password flow',
+            subtitle: 'Use the standard reset screen instead',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => const ForgotPasswordScreen()),
+            ),
+          ),
+          _SettingsTile(
+            icon: Icons.copy_all_outlined,
+            title: 'Copy email',
+            subtitle: email,
+            onTap: () async {
+              await Clipboard.setData(ClipboardData(text: email));
+              if (!context.mounted) return;
+              _showSnack(context, 'Email copied to clipboard');
+            },
+          ),
+          _SettingsTile(
+            icon: Icons.logout_rounded,
+            title: 'Sign out',
+            subtitle: 'End your KodiPay session on this device',
+            onTap: () => _confirmAndSignOut(context),
           ),
         ],
       ),
@@ -2713,10 +3990,258 @@ class MoreScreen extends StatelessWidget {
             icon: Icons.help_outline_rounded,
             title: 'Support',
             subtitle: 'Get help with payments or reports',
-            onTap: () => _showSnack(context, 'Support request started.'),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const SupportScreen(
+                  accentColor: AppColors.kodiGreen,
+                ),
+              ),
+            ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class SupportScreen extends StatefulWidget {
+  final Color accentColor;
+  const SupportScreen({super.key, this.accentColor = AppColors.kodiBlue});
+
+  @override
+  State<SupportScreen> createState() => _SupportScreenState();
+}
+
+class _SupportScreenState extends State<SupportScreen> {
+  static const String _supportEmail = 'support@kodipay.co.ke';
+  static const String _supportPhone = '+254 700 123 456';
+  static const String _supportWhatsApp = '+254 700 123 456';
+
+  final _subjectController = TextEditingController();
+  final _messageController = TextEditingController();
+  String _category = 'Payments';
+
+  @override
+  void dispose() {
+    _subjectController.dispose();
+    _messageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _copy(String label, String value) async {
+    await Clipboard.setData(ClipboardData(text: value));
+    if (!mounted) return;
+    _showSnack(context, '$label copied to clipboard');
+  }
+
+  Future<void> _prepareEmail() async {
+    final subject = _subjectController.text.trim();
+    final message = _messageController.text.trim();
+    if (subject.isEmpty || message.isEmpty) {
+      _showSnack(context, 'Please add a subject and a message.');
+      return;
+    }
+    final body = 'Category: $_category\n\n$message';
+    final mailto = 'mailto:$_supportEmail'
+        '?subject=${Uri.encodeComponent('[$_category] $subject')}'
+        '&body=${Uri.encodeComponent(body)}';
+    await Clipboard.setData(ClipboardData(text: mailto));
+    if (!mounted) return;
+    _showSnack(context,
+        'Mail link copied — paste into your browser or write to $_supportEmail');
+    _subjectController.clear();
+    _messageController.clear();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _FeatureScaffold(
+      title: 'Support',
+      accentColor: widget.accentColor,
+      child: ListView(
+        padding: const EdgeInsets.all(18),
+        children: [
+          _TappableCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 22,
+                      backgroundColor:
+                          widget.accentColor.withValues(alpha: 0.12),
+                      child: Icon(Icons.support_agent_rounded,
+                          color: widget.accentColor),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text("We're here to help", style: _titleStyle),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Reach out about payments, reports, account access, or anything else. We typically respond within a few hours on business days.',
+                  style: AppStyles.caption,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          const Padding(
+            padding: EdgeInsets.only(left: 4, bottom: 4),
+            child: Text('Contact KodiPay', style: _smallBoldStyle),
+          ),
+          _SettingsTile(
+            icon: Icons.email_outlined,
+            title: 'Email support',
+            subtitle: _supportEmail,
+            onTap: () => _copy('Email', _supportEmail),
+          ),
+          _SettingsTile(
+            icon: Icons.call_outlined,
+            title: 'Call us',
+            subtitle: _supportPhone,
+            onTap: () => _copy('Phone number', _supportPhone),
+          ),
+          _SettingsTile(
+            icon: Icons.chat_bubble_outline_rounded,
+            title: 'WhatsApp',
+            subtitle: _supportWhatsApp,
+            onTap: () => _copy('WhatsApp number', _supportWhatsApp),
+          ),
+          const SizedBox(height: 18),
+          const Padding(
+            padding: EdgeInsets.only(left: 4, bottom: 4),
+            child: Text('Send us a message', style: _smallBoldStyle),
+          ),
+          _TappableCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('What do you need help with?',
+                    style: AppStyles.caption),
+                const SizedBox(height: 6),
+                DropdownButtonFormField<String>(
+                  value: _category,
+                  isExpanded: true,
+                  items: const [
+                    DropdownMenuItem(
+                        value: 'Payments',
+                        child: Text('Payments (M-Pesa, invoices)')),
+                    DropdownMenuItem(
+                        value: 'Reports',
+                        child: Text('Reports (PDF, CSV, charts)')),
+                    DropdownMenuItem(
+                        value: 'Account', child: Text('Account & security')),
+                    DropdownMenuItem(
+                        value: 'Other', child: Text('Something else')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) setState(() => _category = value);
+                  },
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _subjectController,
+                  decoration: const InputDecoration(
+                    labelText: 'Subject',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _messageController,
+                  minLines: 4,
+                  maxLines: 8,
+                  decoration: const InputDecoration(
+                    labelText: 'Describe the issue',
+                    border: OutlineInputBorder(),
+                    alignLabelWithHint: true,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton.icon(
+                    onPressed: _prepareEmail,
+                    icon: const Icon(Icons.send_rounded),
+                    label: const Text('Prepare email to support'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: widget.accentColor,
+                      foregroundColor: AppColors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  "We'll copy a mail link to your clipboard — paste it in your browser, or email us directly at $_supportEmail.",
+                  style: AppStyles.caption,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          const Padding(
+            padding: EdgeInsets.only(left: 4, bottom: 4),
+            child: Text('Quick answers', style: _smallBoldStyle),
+          ),
+          _TappableCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                _HelpRow(
+                  icon: Icons.payments_outlined,
+                  title: 'Payment not showing up?',
+                  body:
+                      'Confirm the tenant used the correct M-Pesa till and reference. Most receipts post within 2–3 minutes.',
+                ),
+                SizedBox(height: 12),
+                _HelpRow(
+                  icon: Icons.picture_as_pdf_outlined,
+                  title: 'Report missing data?',
+                  body:
+                      'Make sure the date range covers the invoices, then re-download the PDF or CSV from Reports.',
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HelpRow extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String body;
+  const _HelpRow({required this.icon, required this.title, required this.body});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: AppColors.kodiBlue),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: _titleStyle),
+              const SizedBox(height: 3),
+              Text(body, style: AppStyles.caption),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -3659,14 +5184,238 @@ class _PasswordBox extends StatelessWidget {
   }
 }
 
-Future<void> showIssueSheet(BuildContext context) {
-  return _showInputSheet(
+Future<bool?> showIssueSheet(BuildContext context, {required int unitId}) {
+  return showModalBottomSheet<bool>(
     context: context,
-    title: 'Report Maintenance Issue',
-    fields: const ['Issue Title', 'Category', 'Description'],
-    submitLabel: 'Submit Issue',
-    message: 'Issue submitted locally. Backend wiring comes next.',
+    isScrollControlled: true,
+    backgroundColor: AppColors.white,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (_) => _ReportIssueSheet(unitId: unitId),
   );
+}
+
+class _ReportIssueSheet extends StatefulWidget {
+  final int unitId;
+  const _ReportIssueSheet({required this.unitId});
+
+  @override
+  State<_ReportIssueSheet> createState() => _ReportIssueSheetState();
+}
+
+class _ReportIssueSheetState extends State<_ReportIssueSheet> {
+  final ApiService _api = ApiService();
+  final _titleController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _customPriorityController = TextEditingController();
+
+  String _category = 'plumbing';
+  String _urgency = 'urgent';
+  bool _submitting = false;
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _customPriorityController.dispose();
+    super.dispose();
+  }
+
+  String _categoryHint(String value) {
+    switch (value) {
+      case 'electrical':
+        return 'Sockets, wiring, lighting circuits';
+      case 'structural':
+        return 'Walls, doors, windows, floors';
+      case 'plumbing':
+        return 'Taps, pipes, drainage, water leaks';
+      default:
+        return 'Anything that doesn\'t fit the other categories';
+    }
+  }
+
+  String _urgencyHint(String value) {
+    switch (value) {
+      case 'emergency':
+        return 'Fire, flood, electrical failure, gas leak';
+      case 'urgent':
+        return 'Lighting replacement, minor plumbing leak';
+      default:
+        return 'Describe how urgent this is in your own words';
+    }
+  }
+
+  Future<void> _submit() async {
+    final title = _titleController.text.trim();
+    final description = _descriptionController.text.trim();
+    if (title.isEmpty || description.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Please add a title and a description.')),
+      );
+      return;
+    }
+    String priorityToSend = _urgency;
+    String descriptionToSend = description;
+    if (_urgency == 'other') {
+      final custom = _customPriorityController.text.trim();
+      if (custom.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text(
+                  'Describe the urgency in the "Other" field, or pick Emergency / Urgent.')),
+        );
+        return;
+      }
+      priorityToSend = 'medium';
+      descriptionToSend = 'Urgency note: $custom\n\n$description';
+    }
+
+    setState(() => _submitting = true);
+    try {
+      final response = await _api.post('/maintenance', {
+        'unit_id': widget.unitId,
+        'title': title,
+        'description': descriptionToSend,
+        'category': _category,
+        'priority': priorityToSend,
+      });
+      if (!mounted) return;
+      if (response.statusCode == 201) {
+        Navigator.pop(context, true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Issue reported.')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content:
+                  Text('Failed to report issue (${response.statusCode}).')),
+        );
+        setState(() => _submitting = false);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to report issue: $e')),
+      );
+      setState(() => _submitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+          18, 18, 18, MediaQuery.of(context).viewInsets.bottom + 18),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Report Maintenance Issue', style: AppStyles.heading2),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _titleController,
+              decoration: const InputDecoration(
+                labelText: 'Title (e.g. Leaking sink)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Text('Category', style: AppStyles.caption),
+            const SizedBox(height: 6),
+            DropdownButtonFormField<String>(
+              value: _category,
+              isExpanded: true,
+              items: const [
+                DropdownMenuItem(
+                    value: 'electrical', child: Text('Electrical')),
+                DropdownMenuItem(
+                    value: 'structural',
+                    child: Text('Structural (walls, doors, windows)')),
+                DropdownMenuItem(
+                    value: 'plumbing', child: Text('Plumbing')),
+                DropdownMenuItem(value: 'other', child: Text('Other')),
+              ],
+              onChanged: (value) {
+                if (value != null) setState(() => _category = value);
+              },
+              decoration: const InputDecoration(border: OutlineInputBorder()),
+            ),
+            const SizedBox(height: 4),
+            Text(_categoryHint(_category), style: AppStyles.caption),
+            const SizedBox(height: 14),
+            const Text('Urgency', style: AppStyles.caption),
+            const SizedBox(height: 6),
+            DropdownButtonFormField<String>(
+              value: _urgency,
+              isExpanded: true,
+              items: const [
+                DropdownMenuItem(
+                    value: 'emergency',
+                    child: Text('Emergency (fire, flood, electrical failure)')),
+                DropdownMenuItem(
+                    value: 'urgent',
+                    child: Text(
+                        'Urgent (lighting replacement, minor leak)')),
+                DropdownMenuItem(value: 'other', child: Text('Other')),
+              ],
+              onChanged: (value) {
+                if (value != null) setState(() => _urgency = value);
+              },
+              decoration: const InputDecoration(border: OutlineInputBorder()),
+            ),
+            const SizedBox(height: 4),
+            Text(_urgencyHint(_urgency), style: AppStyles.caption),
+            if (_urgency == 'other') ...[
+              const SizedBox(height: 12),
+              TextField(
+                controller: _customPriorityController,
+                decoration: const InputDecoration(
+                  labelText: 'Describe the urgency',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+            const SizedBox(height: 14),
+            TextField(
+              controller: _descriptionController,
+              minLines: 4,
+              maxLines: 8,
+              decoration: const InputDecoration(
+                labelText: 'Describe the issue',
+                border: OutlineInputBorder(),
+                alignLabelWithHint: true,
+              ),
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton.icon(
+                onPressed: _submitting ? null : _submit,
+                icon: _submitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: AppColors.white),
+                      )
+                    : const Icon(Icons.send_rounded),
+                label: Text(_submitting ? 'Submitting...' : 'Submit Issue'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.kodiBlue,
+                  foregroundColor: AppColors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 Future<void> showReminderSheet(BuildContext context) {
@@ -3677,6 +5426,196 @@ Future<void> showReminderSheet(BuildContext context) {
     submitLabel: 'Send Reminder',
     message: 'Reminder queued.',
   );
+}
+
+Future<bool?> showAnnouncementSheet(BuildContext context) {
+  return showModalBottomSheet<bool>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: AppColors.white,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (sheetContext) => const _AnnouncementSheet(),
+  );
+}
+
+class _AnnouncementSheet extends StatefulWidget {
+  const _AnnouncementSheet();
+
+  @override
+  State<_AnnouncementSheet> createState() => _AnnouncementSheetState();
+}
+
+class _AnnouncementSheetState extends State<_AnnouncementSheet> {
+  final ApiService _api = ApiService();
+  final _titleController = TextEditingController();
+  final _messageController = TextEditingController();
+  List<PropertyData> _properties = const [];
+  int? _propertyId;
+  bool _loadingProperties = true;
+  bool _submitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProperties();
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _messageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadProperties() async {
+    try {
+      final response = await _api.get('/properties');
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as List<dynamic>;
+        if (!mounted) return;
+        setState(() {
+          _properties = data
+              .map((item) =>
+                  PropertyData.fromJson(item as Map<String, dynamic>))
+              .toList();
+          _loadingProperties = false;
+        });
+      } else {
+        if (!mounted) return;
+        setState(() => _loadingProperties = false);
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingProperties = false);
+    }
+  }
+
+  Future<void> _submit() async {
+    final title = _titleController.text.trim();
+    final message = _messageController.text.trim();
+    if (title.isEmpty || message.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please add a title and a message.')),
+      );
+      return;
+    }
+    setState(() => _submitting = true);
+    try {
+      final body = <String, dynamic>{'title': title, 'message': message};
+      if (_propertyId != null) body['property_id'] = _propertyId;
+      final response = await _api.post('/notifications/announcement', body);
+      if (!mounted) return;
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final recipients = data['recipients'] ?? 0;
+        Navigator.pop(context, true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Announcement sent to $recipients tenant(s).')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content:
+                  Text('Failed to send announcement (${response.statusCode})')),
+        );
+        setState(() => _submitting = false);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to send announcement: $e')),
+      );
+      setState(() => _submitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+          18, 18, 18, MediaQuery.of(context).viewInsets.bottom + 18),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Post Announcement', style: AppStyles.heading2),
+            const SizedBox(height: 6),
+            const Text(
+              'Every active tenant of the chosen property — or all of your tenants — will see this in their Notices.',
+              style: AppStyles.caption,
+            ),
+            const SizedBox(height: 16),
+            const Text('Audience', style: AppStyles.caption),
+            const SizedBox(height: 6),
+            if (_loadingProperties)
+              const LinearProgressIndicator()
+            else
+              DropdownButtonFormField<int?>(
+                value: _propertyId,
+                isExpanded: true,
+                items: [
+                  const DropdownMenuItem<int?>(
+                    value: null,
+                    child: Text('All my tenants'),
+                  ),
+                  for (final property in _properties)
+                    if (property.id != null)
+                      DropdownMenuItem<int?>(
+                        value: property.id,
+                        child: Text(property.name),
+                      ),
+                ],
+                onChanged: (value) => setState(() => _propertyId = value),
+                decoration: const InputDecoration(border: OutlineInputBorder()),
+              ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _titleController,
+              decoration: const InputDecoration(
+                labelText: 'Title',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _messageController,
+              minLines: 4,
+              maxLines: 8,
+              decoration: const InputDecoration(
+                labelText: 'Message',
+                border: OutlineInputBorder(),
+                alignLabelWithHint: true,
+              ),
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton.icon(
+                onPressed: _submitting ? null : _submit,
+                icon: _submitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: AppColors.white),
+                      )
+                    : const Icon(Icons.campaign_outlined),
+                label: Text(_submitting ? 'Sending...' : 'Send Announcement'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.kodiGreen,
+                  foregroundColor: AppColors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 Future<void> _showInputSheet({
@@ -4603,130 +6542,6 @@ class _FilterChip extends StatelessWidget {
   }
 }
 
-class _TenantPaymentHistory extends StatelessWidget {
-  final String month;
-  final String date;
-
-  const _TenantPaymentHistory({
-    required this.month,
-    required this.date,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(15),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(month, style: _titleStyle),
-                const SizedBox(height: 5),
-                const Row(
-                  children: [
-                    Text('KSh 25,000',
-                        style: TextStyle(fontWeight: FontWeight.w700)),
-                    SizedBox(width: 10),
-                    StatusPill(label: 'Paid', color: AppColors.kodiGreen),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          Text(date, style: AppStyles.caption),
-        ],
-      ),
-    );
-  }
-}
-
-class _IssueListItem extends StatelessWidget {
-  final String title;
-  final String location;
-  final String status;
-  final Color color;
-
-  const _IssueListItem({
-    required this.title,
-    required this.location,
-    required this.status,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: _TappableCard(
-        onTap: () => _showSnack(context, '$title details opened'),
-        child: Row(
-          children: [
-            Container(
-              width: 58,
-              height: 58,
-              decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(14)),
-              child: const Icon(Icons.build_circle_outlined,
-                  color: AppColors.kodiOrange),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: _titleStyle),
-                  const SizedBox(height: 3),
-                  Text(location, style: AppStyles.caption),
-                ],
-              ),
-            ),
-            StatusPill(label: status, color: color),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _NoticeCard extends StatelessWidget {
-  final String title;
-  final String body;
-
-  const _NoticeCard({
-    required this.title,
-    required this.body,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: _TappableCard(
-        onTap: () => _showSnack(context, title),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Icon(Icons.campaign_outlined, color: AppColors.kodiBlue),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: _titleStyle),
-                  const SizedBox(height: 4),
-                  Text(body, style: AppStyles.caption),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _AlertCard extends StatelessWidget {
   final String title;
@@ -4814,6 +6629,7 @@ class _PreferenceSwitch extends StatelessWidget {
 }
 
 class PaymentRecord {
+  final int? tenancyId;
   final String tenantName;
   final String tenantPhone;
   final String tenantEmail;
@@ -4830,6 +6646,7 @@ class PaymentRecord {
   final int daysLate;
 
   const PaymentRecord({
+    this.tenancyId,
     required this.tenantName,
     required this.tenantPhone,
     required this.tenantEmail,
@@ -4848,6 +6665,108 @@ class PaymentRecord {
 
   bool get isPaid => status == 'Paid';
   bool get isPending => status == 'Pending';
+
+  static String _formatDate(DateTime d) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${d.day.toString().padLeft(2, '0')} ${months[d.month - 1]} ${d.year}';
+  }
+
+  static String _formatDateTime(DateTime d) {
+    final hour12 = d.hour % 12 == 0 ? 12 : d.hour % 12;
+    final ampm = d.hour < 12 ? 'AM' : 'PM';
+    return '${_formatDate(d)}, ${hour12.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')} $ampm';
+  }
+
+  static String _displayMethod(String raw) {
+    switch (raw.toLowerCase()) {
+      case 'mpesa':
+        return 'M-Pesa';
+      case 'bank_transfer':
+        return 'Bank Transfer';
+      case 'cash':
+        return 'Cash';
+      default:
+        return raw.isEmpty ? '—' : raw;
+    }
+  }
+
+  factory PaymentRecord.fromTenancyAndPayment(
+    TenancyRecord tenancy,
+    Map<String, dynamic> payment,
+  ) {
+    final amount = _toNum(payment['amount']).toInt();
+    final rawStatus = (payment['status'] ?? 'pending').toString().toLowerCase();
+    final paymentDate = _parseDate(payment['payment_date']);
+    final createdAt = _parseDate(payment['created_at']);
+    final updatedAt = _parseDate(payment['updated_at']);
+    final dueDate = _assumedDueDate(tenancy.startDate, paymentDate);
+    final daysLate = rawStatus == 'completed'
+        ? 0
+        : _daysBetween(dueDate, DateTime.now()).clamp(0, 9999);
+    return PaymentRecord(
+      tenancyId: tenancy.id,
+      tenantName: tenancy.tenantName.isEmpty ? 'Tenant' : tenancy.tenantName,
+      tenantPhone: tenancy.tenantPhone ?? '—',
+      tenantEmail: tenancy.tenantEmail ?? '—',
+      unit: tenancy.unitNumber,
+      property: tenancy.propertyName,
+      amount: amount,
+      status: rawStatus == 'completed' ? 'Paid' : 'Pending',
+      method: _displayMethod((payment['payment_method'] ?? '').toString()),
+      transactionRef:
+          (payment['transaction_ref']?.toString().trim().isNotEmpty ?? false)
+              ? payment['transaction_ref'].toString()
+              : 'Pending',
+      dueDate: _formatDate(dueDate),
+      paidAt:
+          rawStatus == 'completed' && paymentDate != null
+              ? _formatDateTime(paymentDate)
+              : null,
+      createdAt:
+          createdAt != null ? _formatDateTime(createdAt) : '—',
+      updatedAt:
+          updatedAt != null ? _formatDateTime(updatedAt) : '—',
+      daysLate: daysLate,
+    );
+  }
+
+  factory PaymentRecord.pendingFor(TenancyRecord tenancy) {
+    final dueDate = _assumedDueDate(tenancy.startDate, null);
+    final daysLate = _daysBetween(dueDate, DateTime.now()).clamp(0, 9999);
+    return PaymentRecord(
+      tenancyId: tenancy.id,
+      tenantName: tenancy.tenantName.isEmpty ? 'Tenant' : tenancy.tenantName,
+      tenantPhone: tenancy.tenantPhone ?? '—',
+      tenantEmail: tenancy.tenantEmail ?? '—',
+      unit: tenancy.unitNumber,
+      property: tenancy.propertyName,
+      amount: tenancy.rentAmount.toInt(),
+      status: 'Pending',
+      method: 'M-Pesa',
+      transactionRef: 'Pending',
+      dueDate: _formatDate(dueDate),
+      paidAt: null,
+      createdAt: '—',
+      updatedAt: '—',
+      daysLate: daysLate,
+    );
+  }
+
+  static DateTime _assumedDueDate(DateTime? tenancyStart, DateTime? paymentDate) {
+    final reference = paymentDate ?? DateTime.now();
+    final dueDay = tenancyStart?.day ?? 25;
+    final day = dueDay.clamp(1, 28);
+    return DateTime(reference.year, reference.month, day);
+  }
+
+  static int _daysBetween(DateTime from, DateTime to) {
+    final a = DateTime(from.year, from.month, from.day);
+    final b = DateTime(to.year, to.month, to.day);
+    return b.difference(a).inDays;
+  }
 }
 
 class PropertyData {
