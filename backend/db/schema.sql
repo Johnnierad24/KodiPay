@@ -116,6 +116,15 @@ CREATE TABLE IF NOT EXISTS notifications (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Caretaker assignments (a caretaker is assigned to a specific property)
+CREATE TABLE IF NOT EXISTS caretaker_assignments (
+    id SERIAL PRIMARY KEY,
+    property_id INTEGER NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+    caretaker_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (property_id, caretaker_id)
+);
+
 -- Chatbot logs table
 CREATE TABLE IF NOT EXISTS chatbot_logs (
     id SERIAL PRIMARY KEY,

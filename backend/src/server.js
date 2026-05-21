@@ -30,6 +30,7 @@ app.use('/api/reports', authMiddleware, require('./routes/report.routes'));
 app.use('/api/chatbot', authMiddleware, require('./routes/chatbot.routes'));
 app.use('/api/upload', authMiddleware, require('./routes/upload.routes'));
 app.use('/api/documents', authMiddleware, require('./routes/document.routes'));
+app.use('/api/caretakers', authMiddleware, require('./routes/caretaker.routes'));
 
 const setupCronJobs = require('./cron');
 setupCronJobs();

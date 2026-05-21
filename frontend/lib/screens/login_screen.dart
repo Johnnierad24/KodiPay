@@ -70,7 +70,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 controller: _emailController,
                 label: 'Email or Phone',
                 icon: Icons.email_outlined,
-                keyboardType: TextInputType.emailAddress,
+                keyboardType: TextInputType.text,
               ),
               const SizedBox(height: 14),
               _AuthField(

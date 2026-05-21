@@ -112,3 +112,39 @@ ALTER TABLE maintenance_requests ADD CONSTRAINT maintenance_requests_category_ch
 ALTER TABLE maintenance_requests DROP CONSTRAINT IF EXISTS maintenance_requests_priority_check;
 ALTER TABLE maintenance_requests ADD CONSTRAINT maintenance_requests_priority_check
     CHECK (priority IN ('low', 'medium', 'high', 'urgent', 'emergency'));
+
+-- Caretaker assignments (property-scoped)
+DO $$
+BEGIN
+    -- If legacy landlord-scoped table exists, drop it (no data preserved by design)
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='caretaker_assignments' AND column_name='landlord_id') THEN
+        DROP TABLE caretaker_assignments;
+    END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS caretaker_assignments (
+    id SERIAL PRIMARY KEY,
+    property_id INTEGER NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+    caretaker_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (property_id, caretaker_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_caretaker_assignments_property ON caretaker_assignments(property_id);
+CREATE INDEX IF NOT EXISTS idx_caretaker_assignments_caretaker ON caretaker_assignments(caretaker_id);
+
+-- Password reset OTPs table (for phone-based and email-based OTP reset flow)
+CREATE TABLE IF NOT EXISTS password_reset_otps (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    identifier VARCHAR(255) NOT NULL,
+    otp_hash VARCHAR(64) NOT NULL,
+    method VARCHAR(10) NOT NULL CHECK (method IN ('email', 'phone')),
+    expires_at TIMESTAMP NOT NULL,
+    used_at TIMESTAMP,
+    attempted INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_password_reset_otps_identifier ON password_reset_otps(identifier);
+CREATE INDEX IF NOT EXISTS idx_password_reset_otps_user ON password_reset_otps(user_id);

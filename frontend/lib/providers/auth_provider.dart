@@ -4,18 +4,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/user.dart';
 import '../services/api_service.dart';
 
-class PasswordResetRequestResult {
-  final bool success;
-  final String message;
-  final String? resetToken;
-
-  const PasswordResetRequestResult({
-    required this.success,
-    required this.message,
-    this.resetToken,
-  });
-}
-
 class AuthProvider with ChangeNotifier {
   User? _user;
   String? _token;
@@ -66,13 +54,13 @@ class AuthProvider with ChangeNotifier {
     return false;
   }
 
-  Future<bool> login(String email, String password) async {
+  Future<bool> login(String identifier, String password) async {
     _isLoading = true;
     notifyListeners();
 
     try {
       final response = await _apiService.post('/auth/login', {
-        'email': email,
+        'email': identifier,
         'password': password,
       });
 
@@ -94,54 +82,130 @@ class AuthProvider with ChangeNotifier {
     return false;
   }
 
-  Future<PasswordResetRequestResult> requestPasswordReset(String email) async {
+  Future<Map<String, dynamic>> sendOtp({
+    required String identifier,
+    required String method,
+  }) async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      final response = await _apiService.post('/auth/forgot-password', {
-        'email': email.trim(),
+      final response = await _apiService.post('/auth/send-otp', {
+        'identifier': identifier.trim(),
+        'method': method,
       });
-      final data = jsonDecode(response.body);
 
+      final data = jsonDecode(response.body);
       _isLoading = false;
       notifyListeners();
 
-      return PasswordResetRequestResult(
-        success: response.statusCode == 200,
-        message: data['message'] ?? 'Password reset request processed.',
-        resetToken: data['reset_token'],
-      );
+      return {
+        'success': response.statusCode < 400,
+        'message': data['message'] ?? 'OTP sent.',
+        if (data['dev_otp'] != null) 'dev_otp': data['dev_otp'].toString(),
+      };
     } catch (e) {
-      debugPrint('Password reset request error: $e');
+      debugPrint('Send OTP error: $e');
     }
 
     _isLoading = false;
     notifyListeners();
-    return const PasswordResetRequestResult(
-      success: false,
-      message: 'Failed to request password reset.',
-    );
+    return {'success': false, 'message': 'Failed to send OTP.'};
   }
 
-  Future<bool> resetPassword({
-    required String token,
+  Future<Map<String, dynamic>> verifyOtp({
+    required String identifier,
+    required String otp,
+  }) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final response = await _apiService.post('/auth/verify-otp', {
+        'identifier': identifier.trim(),
+        'otp': otp,
+      });
+
+      final data = jsonDecode(response.body);
+      _isLoading = false;
+      notifyListeners();
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': data['message'] ?? 'OTP verified.',
+          'reset_token': data['reset_token'] ?? '',
+        };
+      }
+      return {'success': false, 'message': data['error'] ?? 'OTP verification failed.'};
+    } catch (e) {
+      debugPrint('Verify OTP error: $e');
+    }
+
+    _isLoading = false;
+    notifyListeners();
+    return {'success': false, 'message': 'Failed to verify OTP.'};
+  }
+
+  Future<Map<String, dynamic>> resetPasswordWithOtp({
+    required String identifier,
+    required String otp,
     required String password,
   }) async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      final response = await _apiService.post('/auth/reset-password', {
-        'token': token.trim(),
+      final response = await _apiService.post('/auth/reset-password-with-otp', {
+        'identifier': identifier.trim(),
+        'otp': otp,
         'password': password,
       });
 
+      final data = jsonDecode(response.body);
       _isLoading = false;
       notifyListeners();
-      return response.statusCode == 200;
+
+      return {
+        'success': response.statusCode == 200,
+        'message': data['message'] ?? 'Password reset.',
+      };
     } catch (e) {
-      debugPrint('Password reset error: $e');
+      debugPrint('Reset password with OTP error: $e');
+    }
+
+    _isLoading = false;
+    notifyListeners();
+    return {'success': false, 'message': 'Failed to reset password.'};
+  }
+
+  Future<bool> updateProfile({
+    String? firstName,
+    String? lastName,
+    String? email,
+    String? phone,
+  }) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final body = <String, dynamic>{};
+      if (firstName != null) body['first_name'] = firstName.trim();
+      if (lastName != null) body['last_name'] = lastName.trim();
+      if (email != null) body['email'] = email.trim();
+      if (phone != null) body['phone'] = phone.trim();
+
+      final response = await _apiService.put('/auth/profile', body);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        _user = User.fromJson(data['user']);
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      }
+    } catch (e) {
+      debugPrint('Update profile error: $e');
     }
 
     _isLoading = false;

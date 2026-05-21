@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:html' as html;
 import '../providers/auth_provider.dart';
 import '../services/pdf_report_service.dart';
@@ -11,7 +12,6 @@ import 'dart:convert';
 import '../widgets/dashboard_components.dart';
 import '../widgets/kodi_pay_logo.dart';
 import 'documents_screen.dart';
-import 'forgot_password_screen.dart';
 import 'units_screen.dart';
 
 class PropertyListScreen extends StatefulWidget {
@@ -387,7 +387,10 @@ class _TenantListScreenState extends State<TenantListScreen> {
       accentColor: AppColors.kodiGreen,
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.kodiGreen,
-        onPressed: () => showTenantSheet(context),
+        onPressed: () async {
+          final changed = await showTenantSheet(context);
+          if (changed == true) _reload();
+        },
         child:
             const Icon(Icons.person_add_alt_1_rounded, color: AppColors.white),
       ),
@@ -754,6 +757,7 @@ class TenantDetailScreen extends StatefulWidget {
 class _TenantDetailScreenState extends State<TenantDetailScreen> {
   final ApiService _api = ApiService();
   Future<List<_PaymentSummary>>? _paymentsFuture;
+  bool _removing = false;
 
   @override
   void initState() {
@@ -768,6 +772,61 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
     return data
         .map((item) => _PaymentSummary.fromJson(item as Map<String, dynamic>))
         .toList();
+  }
+
+  Future<void> _removeTenant() async {
+    final t = widget.tenancy;
+    final name = t.tenantName.isEmpty ? 'this tenant' : t.tenantName;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.warning_amber_rounded,
+            color: AppColors.danger, size: 44),
+        title: const Text('Remove tenant?'),
+        content: Text(
+          'This will end $name\'s tenancy on Unit ${t.unitNumber} of ${t.propertyName} '
+          'and mark the unit vacant. Their payment history is kept. This cannot be undone from the app.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    if (!mounted) return;
+
+    setState(() => _removing = true);
+    try {
+      final response = await _api.delete('/tenancies/${t.id}/end');
+      if (!mounted) return;
+      if (response.statusCode == 200) {
+        _showSnack(context, '$name removed from Unit ${t.unitNumber}.');
+        Navigator.pop(context, true);
+      } else {
+        Map<String, dynamic>? data;
+        try {
+          data = jsonDecode(response.body) as Map<String, dynamic>;
+        } catch (_) {}
+        setState(() => _removing = false);
+        _showSnack(
+          context,
+          data?['error']?.toString() ??
+              'Failed to remove tenant (${response.statusCode}).',
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _removing = false);
+      _showSnack(context, 'Failed to remove tenant: $e');
+    }
   }
 
   @override
@@ -921,6 +980,28 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
               ),
             ],
           ),
+          if (widget.tenancy.status == 'active') ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _removing ? null : _removeTenant,
+                icon: _removing
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: AppColors.danger),
+                      )
+                    : const Icon(Icons.person_remove_outlined),
+                label: Text(_removing ? 'Removing...' : 'Remove tenant'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.danger,
+                  side: const BorderSide(color: AppColors.danger),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 18),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 4),
@@ -1151,11 +1232,10 @@ class _LandlordPaymentsScreenState extends State<LandlordPaymentsScreen> {
       }
 
       final now = DateTime.now();
-      final paidThisMonth = payments.any((p) {
-        final status = (p['status'] ?? '').toString().toLowerCase();
-        final date = _parseDate(p['payment_date']);
-        return status == 'completed' &&
-            date != null &&
+      final hasPaymentThisMonth = payments.any((p) {
+        final date = _parseDate(p['payment_date']) ??
+            _parseDate(p['created_at']);
+        return date != null &&
             date.year == now.year &&
             date.month == now.month;
       });
@@ -1164,7 +1244,10 @@ class _LandlordPaymentsScreenState extends State<LandlordPaymentsScreen> {
         records.add(PaymentRecord.fromTenancyAndPayment(tenancy, payment));
       }
 
-      if (!paidThisMonth && tenancy.status == 'active') {
+      // Only synthesize a "Pending" row when there is no payment at all
+      // this month — otherwise the existing pending payment row already
+      // represents this month's rent.
+      if (!hasPaymentThisMonth && tenancy.status == 'active') {
         records.add(PaymentRecord.pendingFor(tenancy));
       }
     }
@@ -3019,6 +3102,9 @@ class _MaintenanceItem {
   final String category;
   final String propertyName;
   final String unitNumber;
+  final String tenantName;
+  final String? tenantPhone;
+  final String? tenantEmail;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -3031,11 +3117,20 @@ class _MaintenanceItem {
     required this.category,
     required this.propertyName,
     required this.unitNumber,
+    required this.tenantName,
+    required this.tenantPhone,
+    required this.tenantEmail,
     required this.createdAt,
     required this.updatedAt,
   });
 
+  bool get isEmergency => priority.toLowerCase() == 'emergency';
+  bool get isResolved => status.toLowerCase() == 'completed';
+
   factory _MaintenanceItem.fromJson(Map<String, dynamic> json) {
+    final first = (json['tenant_first_name'] ?? '').toString();
+    final last = (json['tenant_last_name'] ?? '').toString();
+    final fullName = '$first $last'.trim();
     return _MaintenanceItem(
       id: _toInt(json['id']),
       title: (json['title'] ?? '').toString(),
@@ -3045,6 +3140,9 @@ class _MaintenanceItem {
       category: (json['category'] ?? 'other').toString(),
       propertyName: (json['property_name'] ?? '').toString(),
       unitNumber: (json['unit_number'] ?? '').toString(),
+      tenantName: fullName,
+      tenantPhone: json['tenant_phone']?.toString(),
+      tenantEmail: json['tenant_email']?.toString(),
       createdAt:
           DateTime.tryParse(json['created_at']?.toString() ?? '') ??
               DateTime.now(),
@@ -3685,92 +3783,803 @@ class CaretakerTasksScreen extends StatefulWidget {
 }
 
 class _CaretakerTasksScreenState extends State<CaretakerTasksScreen> {
-  final Set<String> _completed = {};
+  final ApiService _api = ApiService();
+  Future<List<_MaintenanceItem>>? _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  void _reload() {
+    setState(() {
+      _future = _fetch();
+    });
+  }
+
+  Future<List<_MaintenanceItem>> _fetch() async {
+    final response = await _api.get('/maintenance/mine');
+    if (response.statusCode != 200) {
+      throw Exception('Could not load tasks (${response.statusCode})');
+    }
+    final all = (jsonDecode(response.body) as List<dynamic>)
+        .map((item) =>
+            _MaintenanceItem.fromJson(item as Map<String, dynamic>))
+        .where((m) => !m.isEmergency && !m.isResolved)
+        .toList();
+    return all;
+  }
+
+  Future<void> _open(_MaintenanceItem item) async {
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CaretakerTaskDetailScreen(item: item),
+      ),
+    );
+    if (changed == true) _reload();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final tasks = [
-      const _TaskData('Broken Tap', 'House 12B', 'High'),
-      const _TaskData('Electrical Fault', 'House 8A', 'Medium'),
-      const _TaskData('Door Lock Repair', 'House 5C', 'Low'),
-    ];
-
     return _FeatureScaffold(
       title: 'Tasks',
       accentColor: AppColors.kodiOrange,
-      child: ListView.separated(
-        padding: const EdgeInsets.all(18),
-        itemCount: tasks.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (context, index) {
-          final task = tasks[index];
-          final done = _completed.contains(task.title);
-          return _TappableCard(
-            onTap: () => _showSnack(context, '${task.title} details opened'),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.handyman_rounded,
-                        color: AppColors.kodiOrange),
-                    const SizedBox(width: 10),
-                    Expanded(child: Text(task.title, style: _titleStyle)),
-                    StatusPill(
-                        label: done ? 'Done' : task.priority,
-                        color:
-                            done ? AppColors.kodiGreen : AppColors.kodiOrange),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(task.location, style: AppStyles.caption),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      setState(() => _completed.add(task.title));
-                      _showSnack(context, '${task.title} marked complete');
-                    },
-                    icon: const Icon(Icons.check_circle_outline_rounded),
-                    label: const Text('Mark as Complete'),
+      child: RefreshIndicator(
+        onRefresh: () async => _reload(),
+        child: FutureBuilder<List<_MaintenanceItem>>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return ListView(
+                padding: const EdgeInsets.all(30),
+                children: [
+                  const SizedBox(height: 60),
+                  const Icon(Icons.error_outline_rounded,
+                      size: 56, color: AppColors.danger),
+                  const SizedBox(height: 12),
+                  Center(
+                    child: Text(
+                      snapshot.error.toString(),
+                      textAlign: TextAlign.center,
+                      style: AppStyles.bodyMedium,
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 14),
+                  Center(
+                    child: OutlinedButton.icon(
+                      onPressed: _reload,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Retry'),
+                    ),
+                  ),
+                ],
+              );
+            }
+            final items = snapshot.data ?? const <_MaintenanceItem>[];
+            if (items.isEmpty) {
+              return ListView(
+                padding: const EdgeInsets.all(30),
+                children: const [
+                  SizedBox(height: 60),
+                  Icon(Icons.task_alt_rounded,
+                      size: 72, color: AppColors.muted),
+                  SizedBox(height: 14),
+                  Center(
+                    child: Text(
+                      'No open tasks',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textDark,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 6),
+                  Center(
+                    child: Text(
+                      'Non-emergency issues reported by tenants will show up here.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: AppColors.textLight),
+                    ),
+                  ),
+                ],
+              );
+            }
+            final groups = _groupByProperty(items);
+            return ListView(
+              padding: const EdgeInsets.all(18),
+              children: [
+                for (final entry in groups.entries) ...[
+                  _PropertyGroupHeader(
+                      name: entry.key, count: entry.value.length),
+                  const SizedBox(height: 10),
+                  for (var i = 0; i < entry.value.length; i++) ...[
+                    if (i > 0) const SizedBox(height: 12),
+                    _CaretakerTaskCard(
+                      item: entry.value[i],
+                      onTap: () => _open(entry.value[i]),
+                    ),
+                  ],
+                  const SizedBox(height: 18),
+                ],
               ],
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
 }
 
-class CaretakerAlertsScreen extends StatelessWidget {
+class CaretakerAlertsScreen extends StatefulWidget {
   const CaretakerAlertsScreen({super.key});
+
+  @override
+  State<CaretakerAlertsScreen> createState() => _CaretakerAlertsScreenState();
+}
+
+class _CaretakerAlertsScreenState extends State<CaretakerAlertsScreen> {
+  final ApiService _api = ApiService();
+  Future<List<_MaintenanceItem>>? _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  void _reload() {
+    setState(() {
+      _future = _fetch();
+    });
+  }
+
+  Future<List<_MaintenanceItem>> _fetch() async {
+    final response =
+        await _api.get('/maintenance/mine', query: {'priority': 'emergency'});
+    if (response.statusCode != 200) {
+      throw Exception('Could not load alerts (${response.statusCode})');
+    }
+    return (jsonDecode(response.body) as List<dynamic>)
+        .map((item) =>
+            _MaintenanceItem.fromJson(item as Map<String, dynamic>))
+        .where((m) => !m.isResolved)
+        .toList();
+  }
+
+  Future<void> _open(_MaintenanceItem item) async {
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            CaretakerTaskDetailScreen(item: item, isEmergency: true),
+      ),
+    );
+    if (changed == true) _reload();
+  }
 
   @override
   Widget build(BuildContext context) {
     return _FeatureScaffold(
       title: 'Alerts',
-      accentColor: AppColors.kodiOrange,
-      child: ListView(
-        padding: const EdgeInsets.all(18),
-        children: const [
-          _AlertCard(
-              title: 'Water Leakage', location: 'House 3D', type: 'Emergency'),
-          _AlertCard(
-              title: 'Power Outage',
-              location: 'Greenfield Heights',
-              type: 'General'),
-          _AlertCard(
-              title: 'Fire Alarm Triggered',
-              location: 'House 7A',
-              type: 'Emergency'),
-          _AlertCard(
-              title: 'Gas Smell Reported',
-              location: 'House 2B',
-              type: 'Emergency'),
+      accentColor: AppColors.danger,
+      child: RefreshIndicator(
+        onRefresh: () async => _reload(),
+        child: FutureBuilder<List<_MaintenanceItem>>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return ListView(
+                padding: const EdgeInsets.all(30),
+                children: [
+                  const SizedBox(height: 60),
+                  const Icon(Icons.error_outline_rounded,
+                      size: 56, color: AppColors.danger),
+                  const SizedBox(height: 12),
+                  Center(
+                    child: Text(
+                      snapshot.error.toString(),
+                      textAlign: TextAlign.center,
+                      style: AppStyles.bodyMedium,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Center(
+                    child: OutlinedButton.icon(
+                      onPressed: _reload,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Retry'),
+                    ),
+                  ),
+                ],
+              );
+            }
+            final items = snapshot.data ?? const <_MaintenanceItem>[];
+            if (items.isEmpty) {
+              return ListView(
+                padding: const EdgeInsets.all(30),
+                children: const [
+                  SizedBox(height: 60),
+                  Icon(Icons.shield_outlined,
+                      size: 72, color: AppColors.kodiGreen),
+                  SizedBox(height: 14),
+                  Center(
+                    child: Text(
+                      'No active emergencies',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textDark,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 6),
+                  Center(
+                    child: Text(
+                      'Emergencies reported by tenants will appear here.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: AppColors.textLight),
+                    ),
+                  ),
+                ],
+              );
+            }
+            final groups = _groupByProperty(items);
+            return ListView(
+              padding: const EdgeInsets.all(18),
+              children: [
+                for (final entry in groups.entries) ...[
+                  _PropertyGroupHeader(
+                      name: entry.key,
+                      count: entry.value.length,
+                      accent: AppColors.danger),
+                  const SizedBox(height: 10),
+                  for (var i = 0; i < entry.value.length; i++) ...[
+                    if (i > 0) const SizedBox(height: 12),
+                    _CaretakerEmergencyCard(
+                      item: entry.value[i],
+                      onTap: () => _open(entry.value[i]),
+                    ),
+                  ],
+                  const SizedBox(height: 18),
+                ],
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+Map<String, List<_MaintenanceItem>> _groupByProperty(
+    List<_MaintenanceItem> items) {
+  final groups = <String, List<_MaintenanceItem>>{};
+  for (final item in items) {
+    final key = item.propertyName.trim().isEmpty
+        ? 'Unassigned'
+        : item.propertyName;
+    groups.putIfAbsent(key, () => []).add(item);
+  }
+  return groups;
+}
+
+class _PropertyGroupHeader extends StatelessWidget {
+  final String name;
+  final int count;
+  final Color accent;
+  const _PropertyGroupHeader({
+    required this.name,
+    required this.count,
+    this.accent = AppColors.kodiOrange,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(Icons.apartment_rounded, color: accent, size: 18),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            name,
+            style: const TextStyle(
+              color: AppColors.textDark,
+              fontWeight: FontWeight.w800,
+              fontSize: 14,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: accent.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            count.toString(),
+            style: TextStyle(
+              color: accent,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CaretakerTaskCard extends StatelessWidget {
+  final _MaintenanceItem item;
+  final VoidCallback onTap;
+  const _CaretakerTaskCard({required this.item, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final statusColor = _maintenanceStatusColor(item.status);
+    final statusLabel = _maintenanceStatusLabel(item.status);
+    return _TappableCard(
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppColors.kodiOrange.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.handyman_rounded,
+                    color: AppColors.kodiOrange),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(item.title, style: _titleStyle),
+                    const SizedBox(height: 3),
+                    Text(
+                      item.unitNumber.isEmpty
+                          ? item.propertyName
+                          : '${item.propertyName} • Unit ${item.unitNumber}',
+                      style: AppStyles.caption,
+                    ),
+                  ],
+                ),
+              ),
+              StatusPill(label: statusLabel, color: statusColor),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              _MaintenanceTag(
+                  label: _capitalizeWord(item.category),
+                  color: AppColors.kodiNavy),
+              const SizedBox(width: 8),
+              _MaintenanceTag(
+                label: _capitalizeWord(item.priority),
+                color: _maintenancePriorityColor(item.priority),
+              ),
+              const Spacer(),
+              Text(_relativeTime(item.createdAt), style: AppStyles.caption),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _CaretakerEmergencyCard extends StatelessWidget {
+  final _MaintenanceItem item;
+  final VoidCallback onTap;
+  const _CaretakerEmergencyCard({required this.item, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return _TappableCard(
+      onTap: onTap,
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppColors.danger.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.warning_rounded, color: AppColors.danger),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(item.title, style: _titleStyle),
+                const SizedBox(height: 3),
+                Text(
+                  item.unitNumber.isEmpty
+                      ? item.propertyName
+                      : '${item.propertyName} • Unit ${item.unitNumber}',
+                  style: AppStyles.caption,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _relativeTime(item.createdAt),
+                  style: AppStyles.caption,
+                ),
+              ],
+            ),
+          ),
+          const StatusPill(label: 'Emergency', color: AppColors.danger),
+        ],
+      ),
+    );
+  }
+}
+
+class CaretakerTaskDetailScreen extends StatefulWidget {
+  final _MaintenanceItem item;
+  final bool isEmergency;
+  const CaretakerTaskDetailScreen({
+    super.key,
+    required this.item,
+    this.isEmergency = false,
+  });
+
+  @override
+  State<CaretakerTaskDetailScreen> createState() =>
+      _CaretakerTaskDetailScreenState();
+}
+
+class _CaretakerTaskDetailScreenState extends State<CaretakerTaskDetailScreen> {
+  final ApiService _api = ApiService();
+  late _MaintenanceItem _item;
+  bool _submitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _item = widget.item;
+  }
+
+  Future<void> _setStatus(String status, String label) async {
+    setState(() => _submitting = true);
+    try {
+      final response = await _api
+          .put('/maintenance/${_item.id}/status', {'status': status});
+      if (!mounted) return;
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        setState(() {
+          _item = _MaintenanceItem(
+            id: _item.id,
+            title: _item.title,
+            description: _item.description,
+            status: (data['status'] ?? status).toString(),
+            priority: _item.priority,
+            category: _item.category,
+            propertyName: _item.propertyName,
+            unitNumber: _item.unitNumber,
+            tenantName: _item.tenantName,
+            tenantPhone: _item.tenantPhone,
+            tenantEmail: _item.tenantEmail,
+            createdAt: _item.createdAt,
+            updatedAt: DateTime.tryParse(data['updated_at']?.toString() ?? '') ??
+                DateTime.now(),
+          );
+          _submitting = false;
+        });
+        _showSnack(context, '$label.');
+      } else {
+        setState(() => _submitting = false);
+        _showSnack(context,
+            'Failed to update status (${response.statusCode}).');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      _showSnack(context, 'Failed to update status: $e');
+    }
+  }
+
+  Future<void> _copy(String label, String value) async {
+    await Clipboard.setData(ClipboardData(text: value));
+    if (!mounted) return;
+    _showSnack(context, '$label copied to clipboard');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final statusColor = _maintenanceStatusColor(_item.status);
+    final statusLabel = _maintenanceStatusLabel(_item.status);
+    final accent =
+        widget.isEmergency ? AppColors.danger : AppColors.kodiOrange;
+    final phone = _item.tenantPhone?.trim();
+    final email = _item.tenantEmail?.trim();
+    final tenantName = _item.tenantName.isEmpty ? 'Tenant' : _item.tenantName;
+
+    return PopScope<Object?>(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        Navigator.pop(context, _item.status != widget.item.status);
+      },
+      child: _FeatureScaffold(
+        title: widget.isEmergency ? 'Emergency' : 'Task',
+        accentColor: accent,
+        child: ListView(
+          padding: const EdgeInsets.all(18),
+          children: [
+            _TappableCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: accent.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Icon(
+                          widget.isEmergency
+                              ? Icons.warning_rounded
+                              : Icons.handyman_rounded,
+                          color: accent,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(_item.title, style: AppStyles.heading2),
+                            const SizedBox(height: 4),
+                            Text(
+                              _item.unitNumber.isEmpty
+                                  ? _item.propertyName
+                                  : '${_item.propertyName} • Unit ${_item.unitNumber}',
+                              style: AppStyles.caption,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      StatusPill(label: statusLabel, color: statusColor),
+                      _MaintenanceTag(
+                        label: _capitalizeWord(_item.priority),
+                        color: _maintenancePriorityColor(_item.priority),
+                      ),
+                      _MaintenanceTag(
+                        label: _capitalizeWord(_item.category),
+                        color: AppColors.kodiNavy,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            _TappableCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Description', style: _titleStyle),
+                  const SizedBox(height: 8),
+                  Text(
+                    _item.description.isEmpty
+                        ? 'No description provided.'
+                        : _item.description,
+                    style: const TextStyle(
+                        color: AppColors.textDark, height: 1.45),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            _TappableCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Reported by', style: _titleStyle),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 18,
+                        backgroundColor: accent.withValues(alpha: 0.12),
+                        child: Text(
+                          tenantName.isNotEmpty
+                              ? tenantName.characters.first.toUpperCase()
+                              : '?',
+                          style: TextStyle(
+                              color: accent,
+                              fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(tenantName,
+                            style: const TextStyle(
+                                color: AppColors.textDark,
+                                fontWeight: FontWeight.w700)),
+                      ),
+                    ],
+                  ),
+                  if (phone != null && phone.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    _ContactRow(
+                      icon: Icons.call_outlined,
+                      label: phone,
+                      onTap: () => _copy('Phone number', phone),
+                    ),
+                  ],
+                  if (email != null && email.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    _ContactRow(
+                      icon: Icons.mail_outline_rounded,
+                      label: email,
+                      onTap: () => _copy('Email', email),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            _TappableCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Timeline', style: _titleStyle),
+                  const SizedBox(height: 12),
+                  _MaintenanceTimelineRow(
+                    icon: Icons.report_problem_outlined,
+                    color: AppColors.kodiBlue,
+                    label: 'Reported',
+                    time: _item.createdAt,
+                  ),
+                  if (_item.updatedAt != _item.createdAt)
+                    _MaintenanceTimelineRow(
+                      icon: _item.isResolved
+                          ? Icons.check_circle_outline
+                          : Icons.timelapse_outlined,
+                      color: statusColor,
+                      label: 'Last updated ($statusLabel)',
+                      time: _item.updatedAt,
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+            if (_item.isResolved)
+              _TappableCard(
+                child: Row(
+                  children: const [
+                    Icon(Icons.check_circle_rounded,
+                        color: AppColors.kodiGreen),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'This has been marked completed. The tenant has been notified.',
+                        style: TextStyle(
+                            color: AppColors.textDark,
+                            fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else ...[
+              if (_item.status.toLowerCase() == 'pending')
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: OutlinedButton.icon(
+                    onPressed: _submitting
+                        ? null
+                        : () => _setStatus('in_progress', 'Marked in progress'),
+                    icon: const Icon(Icons.play_arrow_rounded),
+                    label: const Text('Start working on this'),
+                  ),
+                ),
+              if (_item.status.toLowerCase() == 'pending')
+                const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton.icon(
+                  onPressed: _submitting
+                      ? null
+                      : () => _setStatus(
+                            'completed',
+                            widget.isEmergency
+                                ? 'Emergency resolved'
+                                : 'Task completed',
+                          ),
+                  icon: _submitting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: AppColors.white),
+                        )
+                      : Icon(widget.isEmergency
+                          ? Icons.health_and_safety_outlined
+                          : Icons.check_circle_outline_rounded),
+                  label: Text(
+                    widget.isEmergency
+                        ? 'Mark Emergency Resolved'
+                        : 'Mark Task Complete',
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: accent,
+                    foregroundColor: AppColors.white,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ContactRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  const _ContactRow({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            Icon(icon, color: AppColors.kodiBlue, size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(label,
+                  style: const TextStyle(
+                      color: AppColors.textDark,
+                      fontWeight: FontWeight.w600)),
+            ),
+            const Icon(Icons.copy_rounded, color: AppColors.muted, size: 16),
+          ],
+        ),
       ),
     );
   }
@@ -3818,19 +4627,28 @@ class ProfileScreen extends StatelessWidget {
     await context.read<AuthProvider>().logout();
   }
 
-  Future<void> _sendPasswordReset(BuildContext context, String email) async {
-    if (email.isEmpty || email == '—') {
-      _showSnack(context, 'No email on file — contact support to update it.');
-      return;
-    }
-    final result =
-        await context.read<AuthProvider>().requestPasswordReset(email);
-    if (!context.mounted) return;
-    _showSnack(context, result.message);
-    if (result.success && result.resetToken != null) {
-      Navigator.pushNamed(context, '/reset-password',
-          arguments: result.resetToken);
-    }
+  Future<void> _openChangePasswordSheet(BuildContext context) async {
+    await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => _ChangePasswordSheet(accentColor: accentColor),
+    );
+  }
+
+  Future<void> _openEditProfileSheet(BuildContext context) async {
+    await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => _EditProfileSheet(accentColor: accentColor),
+    );
   }
 
   @override
@@ -3910,6 +4728,13 @@ class ProfileScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 18),
+          _SettingsTile(
+            icon: Icons.edit_outlined,
+            title: 'Edit profile',
+            subtitle: 'Update your name, email, or phone number',
+            onTap: () => _openEditProfileSheet(context),
+          ),
+          const SizedBox(height: 18),
           const Padding(
             padding: EdgeInsets.only(left: 4, bottom: 4),
             child: Text('Security', style: _smallBoldStyle),
@@ -3917,18 +4742,8 @@ class ProfileScreen extends StatelessWidget {
           _SettingsTile(
             icon: Icons.lock_reset_rounded,
             title: 'Change password',
-            subtitle: 'Send a reset link to $email',
-            onTap: () => _sendPasswordReset(context, email),
-          ),
-          _SettingsTile(
-            icon: Icons.mail_outline_rounded,
-            title: 'Forgot password flow',
-            subtitle: 'Use the standard reset screen instead',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (_) => const ForgotPasswordScreen()),
-            ),
+            subtitle: 'Set a new password without signing out',
+            onTap: () => _openChangePasswordSheet(context),
           ),
           _SettingsTile(
             icon: Icons.copy_all_outlined,
@@ -3987,6 +4802,26 @@ class MoreScreen extends StatelessWidget {
             ),
           ),
           _SettingsTile(
+            icon: Icons.engineering_outlined,
+            title: 'Caretakers',
+            subtitle: 'Add or remove caretakers for your properties',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CaretakersScreen()),
+            ),
+          ),
+          _SettingsTile(
+            icon: Icons.gavel_outlined,
+            title: 'Your Rights',
+            subtitle: 'Landlord & tenant rights, plain English',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const RightsScreen(role: 'landlord'),
+              ),
+            ),
+          ),
+          _SettingsTile(
             icon: Icons.help_outline_rounded,
             title: 'Support',
             subtitle: 'Get help with payments or reports',
@@ -4005,6 +4840,1034 @@ class MoreScreen extends StatelessWidget {
   }
 }
 
+class CaretakersScreen extends StatefulWidget {
+  const CaretakersScreen({super.key});
+
+  @override
+  State<CaretakersScreen> createState() => _CaretakersScreenState();
+}
+
+class _CaretakersScreenState extends State<CaretakersScreen> {
+  final ApiService _api = ApiService();
+  Future<List<_CaretakerEntry>>? _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  void _reload() {
+    setState(() {
+      _future = _fetch();
+    });
+  }
+
+  Future<List<_CaretakerEntry>> _fetch() async {
+    final response = await _api.get('/caretakers');
+    if (response.statusCode != 200) {
+      throw Exception('Could not load caretakers (${response.statusCode})');
+    }
+    return (jsonDecode(response.body) as List<dynamic>)
+        .map((item) => _CaretakerEntry.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> _onAdd() async {
+    final added = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => const _AddCaretakerSheet(),
+    );
+    if (added == true) _reload();
+  }
+
+  Future<void> _onRemove(_CaretakerEntry entry) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.warning_amber_rounded,
+            color: AppColors.danger, size: 44),
+        title: const Text('Remove caretaker?'),
+        content: Text(
+          '${entry.fullName.isEmpty ? entry.email : entry.fullName} will lose access to your properties\' maintenance requests. Their KodiPay account stays active.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    if (!mounted) return;
+    try {
+      final response = await _api.delete('/caretakers/${entry.assignmentId}');
+      if (!mounted) return;
+      if (response.statusCode == 200) {
+        _showSnack(context, 'Caretaker removed.');
+        _reload();
+      } else {
+        Map<String, dynamic>? data;
+        try {
+          data = jsonDecode(response.body) as Map<String, dynamic>;
+        } catch (_) {}
+        _showSnack(context,
+            data?['error']?.toString() ??
+                'Failed to remove caretaker (${response.statusCode}).');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack(context, 'Failed to remove caretaker: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _FeatureScaffold(
+      title: 'Caretakers',
+      accentColor: AppColors.kodiGreen,
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: AppColors.kodiGreen,
+        onPressed: _onAdd,
+        icon: const Icon(Icons.person_add_alt_1_rounded,
+            color: AppColors.white),
+        label: const Text('Add Caretaker',
+            style: TextStyle(color: AppColors.white)),
+      ),
+      child: RefreshIndicator(
+        onRefresh: () async => _reload(),
+        child: FutureBuilder<List<_CaretakerEntry>>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return ListView(
+                padding: const EdgeInsets.all(30),
+                children: [
+                  const SizedBox(height: 60),
+                  const Icon(Icons.error_outline_rounded,
+                      size: 56, color: AppColors.danger),
+                  const SizedBox(height: 12),
+                  Center(
+                    child: Text(
+                      snapshot.error.toString(),
+                      textAlign: TextAlign.center,
+                      style: AppStyles.bodyMedium,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Center(
+                    child: OutlinedButton.icon(
+                      onPressed: _reload,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Retry'),
+                    ),
+                  ),
+                ],
+              );
+            }
+            final items = snapshot.data ?? const <_CaretakerEntry>[];
+            if (items.isEmpty) {
+              return ListView(
+                padding: const EdgeInsets.all(30),
+                children: const [
+                  SizedBox(height: 60),
+                  Icon(Icons.engineering_outlined,
+                      size: 72, color: AppColors.muted),
+                  SizedBox(height: 14),
+                  Center(
+                    child: Text(
+                      'No caretakers yet',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textDark,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 6),
+                  Center(
+                    child: Text(
+                      'Tap "Add Caretaker" to invite one. They\'ll see maintenance requests across all your properties.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: AppColors.textLight),
+                    ),
+                  ),
+                ],
+              );
+            }
+            final groups = <String, List<_CaretakerEntry>>{};
+            for (final e in items) {
+              final key = e.propertyName.isEmpty
+                  ? 'Unassigned'
+                  : e.propertyName;
+              groups.putIfAbsent(key, () => []).add(e);
+            }
+            return ListView(
+              padding: const EdgeInsets.all(18),
+              children: [
+                for (final entry in groups.entries) ...[
+                  _PropertyGroupHeader(
+                    name: entry.key,
+                    count: entry.value.length,
+                    accent: AppColors.kodiGreen,
+                  ),
+                  const SizedBox(height: 10),
+                  for (var i = 0; i < entry.value.length; i++) ...[
+                    if (i > 0) const SizedBox(height: 12),
+                    _CaretakerCard(
+                      entry: entry.value[i],
+                      onRemove: () => _onRemove(entry.value[i]),
+                    ),
+                  ],
+                  const SizedBox(height: 18),
+                ],
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _CaretakerEntry {
+  final int assignmentId;
+  final int caretakerId;
+  final String email;
+  final String firstName;
+  final String lastName;
+  final String? phone;
+  final int propertyId;
+  final String propertyName;
+  final String propertyAddress;
+
+  const _CaretakerEntry({
+    required this.assignmentId,
+    required this.caretakerId,
+    required this.email,
+    required this.firstName,
+    required this.lastName,
+    required this.phone,
+    required this.propertyId,
+    required this.propertyName,
+    required this.propertyAddress,
+  });
+
+  String get fullName => '$firstName $lastName'.trim();
+
+  factory _CaretakerEntry.fromJson(Map<String, dynamic> json) {
+    return _CaretakerEntry(
+      assignmentId: _toInt(json['assignment_id']),
+      caretakerId: _toInt(json['caretaker_id']),
+      email: (json['email'] ?? '').toString(),
+      firstName: (json['first_name'] ?? '').toString(),
+      lastName: (json['last_name'] ?? '').toString(),
+      phone: json['phone']?.toString(),
+      propertyId: _toInt(json['property_id']),
+      propertyName: (json['property_name'] ?? '').toString(),
+      propertyAddress: (json['property_address'] ?? '').toString(),
+    );
+  }
+}
+
+class _CaretakerCard extends StatelessWidget {
+  final _CaretakerEntry entry;
+  final VoidCallback onRemove;
+  const _CaretakerCard({required this.entry, required this.onRemove});
+
+  @override
+  Widget build(BuildContext context) {
+    final name = entry.fullName.isEmpty ? entry.email : entry.fullName;
+    final initial = name.isNotEmpty ? name.characters.first.toUpperCase() : '?';
+    return _TappableCard(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => CaretakerDetailScreen(
+            entry: entry,
+            onRemove: onRemove,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 22,
+            backgroundColor: AppColors.kodiOrange.withValues(alpha: 0.12),
+            child: Text(
+              initial,
+              style: const TextStyle(
+                color: AppColors.kodiOrange,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name, style: _titleStyle),
+                const SizedBox(height: 3),
+                Text(entry.email, style: AppStyles.caption),
+                if ((entry.phone?.trim().isNotEmpty ?? false)) ...[
+                  const SizedBox(height: 2),
+                  Text(entry.phone!, style: AppStyles.caption),
+                ],
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+        ],
+      ),
+    );
+  }
+}
+
+class CaretakerDetailScreen extends StatelessWidget {
+  final _CaretakerEntry entry;
+  final VoidCallback onRemove;
+  const CaretakerDetailScreen({
+    super.key,
+    required this.entry,
+    required this.onRemove,
+  });
+
+  Future<void> _copy(BuildContext context, String label, String value) async {
+    await Clipboard.setData(ClipboardData(text: value));
+    if (!context.mounted) return;
+    _showSnack(context, '$label copied');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final name = entry.fullName.isEmpty ? entry.email : entry.fullName;
+    final initials = entry.fullName.isEmpty
+        ? entry.email.characters.first.toUpperCase()
+        : entry.fullName
+            .split(' ')
+            .where((p) => p.isNotEmpty)
+            .take(2)
+            .map((p) => p[0])
+            .join()
+            .toUpperCase();
+    final phone = entry.phone?.trim();
+    return _FeatureScaffold(
+      title: 'Caretaker',
+      accentColor: AppColors.kodiOrange,
+      child: ListView(
+        padding: const EdgeInsets.all(18),
+        children: [
+          _TappableCard(
+            child: Column(
+              children: [
+                CircleAvatar(
+                  radius: 36,
+                  backgroundColor:
+                      AppColors.kodiOrange.withValues(alpha: 0.12),
+                  child: Text(
+                    initials,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.kodiOrange,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(name, style: AppStyles.heading2),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.kodiOrange.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: const Text(
+                    'Caretaker',
+                    style: TextStyle(
+                      color: AppColors.kodiOrange,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          _DetailSection(
+            title: 'Contact',
+            rows: [
+              _DetailRowData('Full name', name),
+              _DetailRowData('Email', entry.email),
+              _DetailRowData(
+                  'Phone',
+                  (phone?.isNotEmpty ?? false) ? phone! : 'Not added'),
+            ],
+          ),
+          const SizedBox(height: 14),
+          _DetailSection(
+            title: 'Assigned property',
+            rows: [
+              _DetailRowData(
+                  'Property',
+                  entry.propertyName.isEmpty ? '—' : entry.propertyName),
+              _DetailRowData(
+                  'Address',
+                  entry.propertyAddress.isEmpty
+                      ? '—'
+                      : entry.propertyAddress),
+            ],
+          ),
+          const SizedBox(height: 14),
+          _SettingsTile(
+            icon: Icons.copy_all_outlined,
+            title: 'Copy email',
+            subtitle: entry.email,
+            onTap: () => _copy(context, 'Email', entry.email),
+          ),
+          if (phone != null && phone.isNotEmpty)
+            _SettingsTile(
+              icon: Icons.call_outlined,
+              title: 'Copy phone',
+              subtitle: phone,
+              onTap: () => _copy(context, 'Phone', phone),
+            ),
+          const SizedBox(height: 18),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                onRemove();
+              },
+              icon: const Icon(Icons.person_remove_outlined),
+              label: Text(
+                  'Remove from ${entry.propertyName.isEmpty ? "this property" : entry.propertyName}'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.danger,
+                side: const BorderSide(color: AppColors.danger),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Removing only removes this caretaker from this property. Other property assignments stay intact.',
+            style: AppStyles.caption,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AddCaretakerSheet extends StatefulWidget {
+  const _AddCaretakerSheet();
+
+  @override
+  State<_AddCaretakerSheet> createState() => _AddCaretakerSheetState();
+}
+
+class _AddCaretakerSheetState extends State<_AddCaretakerSheet> {
+  final ApiService _api = ApiService();
+  final _emailController = TextEditingController();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
+  final _phoneController = TextEditingController();
+  bool _submitting = false;
+  String? _tempPassword;
+
+  List<PropertyData> _properties = const [];
+  int? _propertyId;
+  String? _selectedPropertyName;
+  bool _loadingProperties = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProperties();
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadProperties() async {
+    try {
+      final response = await _api.get('/properties');
+      if (!mounted) return;
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as List<dynamic>;
+        setState(() {
+          _properties = data
+              .map((item) =>
+                  PropertyData.fromJson(item as Map<String, dynamic>))
+              .where((p) => p.id != null)
+              .toList();
+          _loadingProperties = false;
+          if (_properties.length == 1) {
+            _propertyId = _properties.first.id;
+            _selectedPropertyName = _properties.first.name;
+          }
+        });
+      } else {
+        setState(() => _loadingProperties = false);
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingProperties = false);
+    }
+  }
+
+  Future<void> _submit() async {
+    final email = _emailController.text.trim();
+    final firstName = _firstNameController.text.trim();
+    final lastName = _lastNameController.text.trim();
+    final phone = _phoneController.text.trim();
+    if (_propertyId == null) {
+      _showSnack(context, 'Pick a property first.');
+      return;
+    }
+    if (email.isEmpty) {
+      _showSnack(context, 'Email is required.');
+      return;
+    }
+
+    setState(() => _submitting = true);
+    try {
+      final response = await _api.post('/caretakers', {
+        'property_id': _propertyId,
+        'email': email,
+        if (firstName.isNotEmpty) 'first_name': firstName,
+        if (lastName.isNotEmpty) 'last_name': lastName,
+        if (phone.isNotEmpty) 'phone': phone,
+      });
+      if (!mounted) return;
+      if (response.statusCode == 201) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final tempPassword = data['temp_password']?.toString();
+        if (tempPassword != null && tempPassword.isNotEmpty) {
+          setState(() {
+            _tempPassword = tempPassword;
+            _submitting = false;
+          });
+        } else {
+          Navigator.pop(context, true);
+          _showSnack(context, 'Caretaker added.');
+        }
+      } else {
+        Map<String, dynamic>? data;
+        try {
+          data = jsonDecode(response.body) as Map<String, dynamic>;
+        } catch (_) {}
+        setState(() => _submitting = false);
+        _showSnack(context,
+            data?['error']?.toString() ??
+                'Failed to add caretaker (${response.statusCode}).');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      _showSnack(context, 'Failed to add caretaker: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tempPassword = _tempPassword;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+          18, 18, 18, MediaQuery.of(context).viewInsets.bottom + 18),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (tempPassword != null) ...[
+              const Text('Caretaker invited', style: AppStyles.heading2),
+              const SizedBox(height: 8),
+              Text(
+                'Share this temporary password with ${_emailController.text.trim()}. They should change it after first sign-in.',
+                style: AppStyles.caption,
+              ),
+              const SizedBox(height: 14),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.kodiGreen.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.kodiGreen),
+                ),
+                child: Text(
+                  tempPassword,
+                  style: const TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textDark,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        await Clipboard.setData(
+                            ClipboardData(text: tempPassword));
+                        if (!mounted) return;
+                        _showSnack(context, 'Password copied');
+                      },
+                      icon: const Icon(Icons.copy_rounded),
+                      label: const Text('Copy'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => Navigator.pop(context, true),
+                      icon: const Icon(Icons.check_rounded),
+                      label: const Text('Done'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.kodiGreen,
+                        foregroundColor: AppColors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ] else ...[
+              const Text('Add Caretaker', style: AppStyles.heading2),
+              const SizedBox(height: 6),
+              Text(
+                _selectedPropertyName == null
+                    ? 'Pick the property this caretaker will handle, then enter their email. If they already have a KodiPay caretaker account we link them; otherwise we create one and give you a temporary password.'
+                    : 'Assigning to "$_selectedPropertyName". You can repeat this for other properties.',
+                style: AppStyles.caption,
+              ),
+              const SizedBox(height: 16),
+              const Text('Property', style: AppStyles.caption),
+              const SizedBox(height: 6),
+              if (_loadingProperties)
+                const LinearProgressIndicator()
+              else if (_properties.isEmpty)
+                const Text(
+                  'You have no properties yet. Add one first, then come back here.',
+                  style: AppStyles.caption,
+                )
+              else
+                DropdownButtonFormField<int>(
+                  value: _propertyId,
+                  isExpanded: true,
+                  items: [
+                    for (final p in _properties)
+                      if (p.id != null)
+                        DropdownMenuItem<int>(
+                          value: p.id,
+                          child: Text(p.name),
+                        ),
+                  ],
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() {
+                      _propertyId = value;
+                      _selectedPropertyName = _properties
+                          .firstWhere((p) => p.id == value)
+                          .name;
+                    });
+                  },
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _firstNameController,
+                      decoration: const InputDecoration(
+                        labelText: 'First name',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextField(
+                      controller: _lastNameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Last name',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _phoneController,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'Phone (optional)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Name fields are required only if no account exists for this email yet.',
+                style: AppStyles.caption,
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton.icon(
+                  onPressed: _submitting ? null : _submit,
+                  icon: _submitting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: AppColors.white),
+                        )
+                      : const Icon(Icons.person_add_alt_1_rounded),
+                  label: Text(_submitting ? 'Adding...' : 'Add caretaker'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.kodiGreen,
+                    foregroundColor: AppColors.white,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class RightsScreen extends StatelessWidget {
+  final String role;
+  const RightsScreen({super.key, required this.role});
+
+  bool get _isLandlord => role.toLowerCase() == 'landlord';
+  Color get _accent =>
+      _isLandlord ? AppColors.kodiGreen : AppColors.kodiBlue;
+
+  static const List<_RightsTopic> _topics = [
+    _RightsTopic(
+      icon: Icons.payments_outlined,
+      title: 'Rent & rent increases',
+      landlord: [
+        'You set rent by agreement. If a tenant disputes it, the Tribunal can set a fair rent based on comparable lettings.',
+        'You can raise rent only after at least 12 months since the previous increase (residential), and only after giving 90 days\' written notice.',
+        'Permitted reasons include capital improvements, a new or extra service you provide, or inflation tracked to the Consumer Price Index.',
+        'A rent increase that has not been notified in writing is void.',
+      ],
+      tenant: [
+        'Rent is fixed by the agreement you signed. If you think it\'s unfair, you can ask the Tribunal to assess it.',
+        'A rent increase needs 90 days\' written notice and cannot happen more than once every 12 months (residential).',
+        'If your landlord stops providing a service that was part of the rent (e.g. water, security), you can ask for a proportional rent reduction.',
+        'Any increase without proper written notice is not enforceable.',
+      ],
+      source: 'Rent Restriction Act ss.9–13 · Landlord & Tenant Bill 2021 ss.17–22',
+    ),
+    _RightsTopic(
+      icon: Icons.exit_to_app_rounded,
+      title: 'Eviction & notice to quit',
+      landlord: [
+        'You can only end a tenancy on specific grounds (e.g. unpaid rent, breach, you reasonably need the unit, repairs/demolition, or a fixed term ending).',
+        'Notice must be in writing, state the reason, and give at least 2 months for residential premises (3 months for business).',
+        'For "I need the unit for myself or family", you must act in good faith and give a minimum of 60 days.',
+        'You may never lock out, harass, or evict a tenant without a Tribunal order — that is a criminal offence.',
+      ],
+      tenant: [
+        'You can only be evicted on legal grounds (mostly unpaid rent, breach, or the landlord legitimately needing the premises).',
+        'Eviction always requires a written termination notice of at least 2 months (residential) and, if you don\'t leave, a Tribunal order.',
+        'A landlord who locks you out, removes your belongings, cuts services, or harasses you to leave commits an offence.',
+        'You can give your landlord at least 1 month\'s written notice to end your own tenancy.',
+      ],
+      source: 'Rent Restriction Act ss.14–15 · Landlord & Tenant Bill 2021 ss.19, 24–29, 47',
+    ),
+    _RightsTopic(
+      icon: Icons.handyman_outlined,
+      title: 'Repairs & habitability',
+      landlord: [
+        'You are responsible for keeping the premises structurally sound, weather-proof, and fit for human habitation.',
+        'You must repair roofs, main walls, drainage, main electrical wiring, and the common parts of the building.',
+        'If you don\'t do a repair you are liable for, the Tribunal can order it done at your cost — including authorising the tenant to do it and deduct from rent.',
+      ],
+      tenant: [
+        'Your landlord must keep the building structurally sound and fit to live in — including roof, walls, main wiring, plumbing, and common areas.',
+        'You are responsible for normal internal upkeep — fair wear and tear is not your fault.',
+        'If your landlord ignores a repair they owe you, you can apply to the Tribunal; the Tribunal can authorise you to do it and deduct the cost from your rent.',
+      ],
+      source: 'Rent Restriction Act s.26 · Landlord & Tenant Bill 2021 s.45 & Schedule',
+    ),
+    _RightsTopic(
+      icon: Icons.money_off_outlined,
+      title: 'Deposits, key money & receipts',
+      landlord: [
+        'You may not demand a "premium", "key money", or any extra payment as a condition of letting — only rent and lawful deposits.',
+        'Charging key money is an offence punishable by up to 12 months\' imprisonment.',
+        'If you intend to deduct from a security deposit (for damages or unpaid rent), you must give the tenant receipts for the expenses.',
+        'You must keep a rent record and provide the tenant with a copy.',
+      ],
+      tenant: [
+        'It is illegal for a landlord to ask for "key money", a premium, or any payment in addition to rent and a normal deposit.',
+        'If you paid one already, you can recover it from your landlord through the Tribunal within 2 years.',
+        'When your landlord deducts from your deposit, they must show you receipts for what they\'re charging you for.',
+        'You\'re entitled to a rent record/rent book showing each payment.',
+      ],
+      source: 'Rent Restriction Act ss.17, 19, 21 · Landlord & Tenant Bill 2021 ss.40, 45',
+    ),
+    _RightsTopic(
+      icon: Icons.swap_horiz_rounded,
+      title: 'Subletting & assignment',
+      landlord: [
+        'A tenant cannot sublet or assign the tenancy without your written consent — but you cannot unreasonably refuse.',
+        'If you refuse unreasonably and the tenant goes to the Tribunal, the Tribunal can grant the assignment over your refusal.',
+        'If you discover an unauthorised sublet, it is a ground to terminate the tenancy.',
+      ],
+      tenant: [
+        'You need the landlord\'s written consent before subletting or assigning your tenancy — but the landlord cannot refuse unreasonably.',
+        'If consent is unreasonably refused, you can apply to the Tribunal to allow the sublet or assignment.',
+        'Subletting without consent is a ground for the landlord to terminate your tenancy.',
+      ],
+      source: 'Rent Restriction Act ss.27–28 · Landlord & Tenant Bill 2021 ss.30–32',
+    ),
+    _RightsTopic(
+      icon: Icons.power_settings_new_rounded,
+      title: 'Services & lockouts',
+      landlord: [
+        'You cannot cut off water, light, sanitation, or any other service to force a tenant to leave or pay — even if they are in arrears.',
+        'Doing so is an offence with a fine of up to KSh 10,000 or up to 6 months\' imprisonment.',
+        'Distress (seizing property) for unpaid rent requires legal process — you cannot do it on your own.',
+      ],
+      tenant: [
+        'Your landlord cannot disconnect your water, electricity, drainage, or any service to pressure you to leave or pay rent.',
+        'If they do, that\'s an offence. You can report it and the Tribunal can order the service restored.',
+        'A landlord cannot seize your property for unpaid rent without going through legal process.',
+      ],
+      source: 'Rent Restriction Act ss.16, 23, 29 · Landlord & Tenant Bill 2021 ss.42, 48, 57',
+    ),
+    _RightsTopic(
+      icon: Icons.balance_outlined,
+      title: 'Disputes & where to go',
+      landlord: [
+        'Rent, eviction, repair, deposit, and service disputes are handled by the Landlord and Tenant Tribunal (which replaces the older Rent Tribunal).',
+        'You must obey Tribunal orders. Ignoring one is an offence.',
+        'You can appeal a Tribunal decision to the Environment and Land Court only on points of law.',
+      ],
+      tenant: [
+        'You can take any rent, eviction, repair, deposit, or service complaint to the Landlord and Tenant Tribunal.',
+        'Filing fees are small. The Tribunal aims to decide within 3 months.',
+        'If you disagree with the Tribunal\'s decision on a point of law, you can appeal to the Environment and Land Court.',
+      ],
+      source: 'Rent Restriction Act ss.4–8 · Landlord & Tenant Bill 2021 ss.4–7',
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return _FeatureScaffold(
+      title: 'Your Rights',
+      accentColor: _accent,
+      child: ListView(
+        padding: const EdgeInsets.all(18),
+        children: [
+          _TappableCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.gavel_outlined, color: _accent),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _isLandlord
+                            ? 'What landlords need to know'
+                            : 'What tenants need to know',
+                        style: _titleStyle,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Plain-English summary of the Rent Restriction Act (Cap. 296) and the Landlord and Tenant Bill 2021. This is for orientation only — it is not legal advice.',
+                  style: AppStyles.caption,
+                ),
+                const SizedBox(height: 10),
+                InkWell(
+                  onTap: () => launchUrl(
+                    Uri.parse('https://www.kenyalaw.org'),
+                    mode: LaunchMode.externalApplication,
+                  ),
+                  child: Row(
+                    children: const [
+                      Icon(Icons.open_in_new_rounded,
+                          color: AppColors.kodiBlue, size: 16),
+                      SizedBox(width: 6),
+                      Text(
+                        'Read the official text on kenyalaw.org',
+                        style: TextStyle(
+                          color: AppColors.kodiBlue,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          for (final topic in _topics) ...[
+            _RightsTopicCard(
+              topic: topic,
+              accent: _accent,
+              isLandlord: _isLandlord,
+            ),
+            const SizedBox(height: 12),
+          ],
+          const SizedBox(height: 6),
+          Text(
+            'This summary may not reflect the latest amendments. When in doubt, refer to the published Act on kenyalaw.org or consult a lawyer.',
+            style: AppStyles.caption.copyWith(fontStyle: FontStyle.italic),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RightsTopic {
+  final IconData icon;
+  final String title;
+  final List<String> landlord;
+  final List<String> tenant;
+  final String source;
+  const _RightsTopic({
+    required this.icon,
+    required this.title,
+    required this.landlord,
+    required this.tenant,
+    required this.source,
+  });
+}
+
+class _RightsTopicCard extends StatelessWidget {
+  final _RightsTopic topic;
+  final Color accent;
+  final bool isLandlord;
+  const _RightsTopicCard({
+    required this.topic,
+    required this.accent,
+    required this.isLandlord,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bullets = isLandlord ? topic.landlord : topic.tenant;
+    return _TappableCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(topic.icon, color: accent),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(topic.title, style: _titleStyle),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          for (final bullet in bullets)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Container(
+                      width: 5,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: accent,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      bullet,
+                      style: const TextStyle(
+                        color: AppColors.textDark,
+                        height: 1.45,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 4),
+          Text(
+            topic.source,
+            style: AppStyles.caption.copyWith(fontStyle: FontStyle.italic),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class SupportScreen extends StatefulWidget {
   final Color accentColor;
   const SupportScreen({super.key, this.accentColor = AppColors.kodiBlue});
@@ -4016,7 +5879,7 @@ class SupportScreen extends StatefulWidget {
 class _SupportScreenState extends State<SupportScreen> {
   static const String _supportEmail = 'support@kodipay.co.ke';
   static const String _supportPhone = '+254 700 123 456';
-  static const String _supportWhatsApp = '+254 700 123 456';
+  static const String _supportWhatsAppDigits = '254700123456';
 
   final _subjectController = TextEditingController();
   final _messageController = TextEditingController();
@@ -4029,29 +5892,76 @@ class _SupportScreenState extends State<SupportScreen> {
     super.dispose();
   }
 
-  Future<void> _copy(String label, String value) async {
-    await Clipboard.setData(ClipboardData(text: value));
+  Future<void> _launch(Uri uri, {String fallbackCopy = ''}) async {
+    try {
+      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (ok) return;
+    } catch (_) {
+      // fallthrough to clipboard
+    }
     if (!mounted) return;
-    _showSnack(context, '$label copied to clipboard');
+    if (fallbackCopy.isNotEmpty) {
+      await Clipboard.setData(ClipboardData(text: fallbackCopy));
+      if (!mounted) return;
+      _showSnack(context, 'Could not open app — copied "$fallbackCopy" instead.');
+    } else {
+      _showSnack(context, 'Could not open the requested app.');
+    }
   }
 
-  Future<void> _prepareEmail() async {
+  Future<void> _openEmail({String? subject, String? body}) async {
+    final query = <String, String>{};
+    if (subject != null && subject.isNotEmpty) query['subject'] = subject;
+    if (body != null && body.isNotEmpty) query['body'] = body;
+    final uri = Uri(
+      scheme: 'mailto',
+      path: _supportEmail,
+      query: query.isEmpty
+          ? null
+          : query.entries
+              .map((e) =>
+                  '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
+              .join('&'),
+    );
+    await _launch(uri, fallbackCopy: _supportEmail);
+  }
+
+  Future<void> _openDialer() async {
+    final uri = Uri(scheme: 'tel', path: _supportPhone.replaceAll(' ', ''));
+    await _launch(uri, fallbackCopy: _supportPhone);
+  }
+
+  Future<void> _openWhatsApp({String? text}) async {
+    final base = 'https://wa.me/$_supportWhatsAppDigits';
+    final uri = (text == null || text.isEmpty)
+        ? Uri.parse(base)
+        : Uri.parse('$base?text=${Uri.encodeQueryComponent(text)}');
+    await _launch(uri, fallbackCopy: '+$_supportWhatsAppDigits');
+  }
+
+  Future<void> _sendMessage() async {
     final subject = _subjectController.text.trim();
     final message = _messageController.text.trim();
     if (subject.isEmpty || message.isEmpty) {
       _showSnack(context, 'Please add a subject and a message.');
       return;
     }
-    final body = 'Category: $_category\n\n$message';
-    final mailto = 'mailto:$_supportEmail'
-        '?subject=${Uri.encodeComponent('[$_category] $subject')}'
-        '&body=${Uri.encodeComponent(body)}';
-    await Clipboard.setData(ClipboardData(text: mailto));
-    if (!mounted) return;
-    _showSnack(context,
-        'Mail link copied — paste into your browser or write to $_supportEmail');
-    _subjectController.clear();
-    _messageController.clear();
+    await _openEmail(
+      subject: '[$_category] $subject',
+      body: 'Category: $_category\n\n$message',
+    );
+  }
+
+  Future<void> _sendOnWhatsApp() async {
+    final subject = _subjectController.text.trim();
+    final message = _messageController.text.trim();
+    if (subject.isEmpty || message.isEmpty) {
+      _showSnack(context, 'Please add a subject and a message.');
+      return;
+    }
+    await _openWhatsApp(
+      text: 'KodiPay support — $_category\n$subject\n\n$message',
+    );
   }
 
   @override
@@ -4098,19 +6008,19 @@ class _SupportScreenState extends State<SupportScreen> {
             icon: Icons.email_outlined,
             title: 'Email support',
             subtitle: _supportEmail,
-            onTap: () => _copy('Email', _supportEmail),
+            onTap: () => _openEmail(),
           ),
           _SettingsTile(
             icon: Icons.call_outlined,
             title: 'Call us',
             subtitle: _supportPhone,
-            onTap: () => _copy('Phone number', _supportPhone),
+            onTap: _openDialer,
           ),
           _SettingsTile(
             icon: Icons.chat_bubble_outline_rounded,
             title: 'WhatsApp',
-            subtitle: _supportWhatsApp,
-            onTap: () => _copy('WhatsApp number', _supportWhatsApp),
+            subtitle: '+$_supportWhatsAppDigits',
+            onTap: () => _openWhatsApp(),
           ),
           const SizedBox(height: 18),
           const Padding(
@@ -4166,22 +6076,42 @@ class _SupportScreenState extends State<SupportScreen> {
                   ),
                 ),
                 const SizedBox(height: 14),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton.icon(
-                    onPressed: _prepareEmail,
-                    icon: const Icon(Icons.send_rounded),
-                    label: const Text('Prepare email to support'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: widget.accentColor,
-                      foregroundColor: AppColors.white,
+                Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: 48,
+                        child: ElevatedButton.icon(
+                          onPressed: _sendMessage,
+                          icon: const Icon(Icons.email_outlined),
+                          label: const Text('Email'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: widget.accentColor,
+                            foregroundColor: AppColors.white,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: SizedBox(
+                        height: 48,
+                        child: OutlinedButton.icon(
+                          onPressed: _sendOnWhatsApp,
+                          icon: const Icon(Icons.chat_bubble_outline_rounded),
+                          label: const Text('WhatsApp'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF25D366),
+                            side: const BorderSide(color: Color(0xFF25D366)),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  "We'll copy a mail link to your clipboard — paste it in your browser, or email us directly at $_supportEmail.",
+                  'Opens your email app or WhatsApp with the message prefilled. If neither opens, the address is copied to your clipboard.',
                   style: AppStyles.caption,
                 ),
               ],
@@ -5440,6 +7370,315 @@ Future<bool?> showAnnouncementSheet(BuildContext context) {
   );
 }
 
+class _EditProfileSheet extends StatefulWidget {
+  final Color accentColor;
+  const _EditProfileSheet({required this.accentColor});
+
+  @override
+  State<_EditProfileSheet> createState() => _EditProfileSheetState();
+}
+
+class _EditProfileSheetState extends State<_EditProfileSheet> {
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
+  bool _submitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final user = context.read<AuthProvider>().user;
+    _firstNameController.text = user?.firstName ?? '';
+    _lastNameController.text = user?.lastName ?? '';
+    _emailController.text = user?.email ?? '';
+    _phoneController.text = user?.phone ?? '';
+  }
+
+  @override
+  void dispose() {
+    _firstNameController.dispose();
+    _lastNameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final firstName = _firstNameController.text.trim();
+    final lastName = _lastNameController.text.trim();
+    final email = _emailController.text.trim();
+    final phone = _phoneController.text.trim();
+
+    if (firstName.isEmpty ||
+        lastName.isEmpty ||
+        email.isEmpty) {
+      _showSnack(context, 'First name, last name, and email are required.');
+      return;
+    }
+
+    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
+      _showSnack(context, 'Enter a valid email address.');
+      return;
+    }
+
+    setState(() => _submitting = true);
+    final success = await context.read<AuthProvider>().updateProfile(
+          firstName: firstName,
+          lastName: lastName,
+          email: email,
+          phone: phone,
+        );
+    if (!mounted) return;
+    setState(() => _submitting = false);
+
+    if (success) {
+      Navigator.pop(context, true);
+      _showSnack(context, 'Profile updated.');
+    } else {
+      _showSnack(context, 'Failed to update profile.');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+          18, 18, 18, MediaQuery.of(context).viewInsets.bottom + 18),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Edit profile', style: AppStyles.heading2),
+            const SizedBox(height: 6),
+            const Text(
+              'Update your name, email, or phone number.',
+              style: AppStyles.caption,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _firstNameController,
+              decoration: const InputDecoration(
+                labelText: 'First name',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _lastNameController,
+              decoration: const InputDecoration(
+                labelText: 'Last name',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: 'Email',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _phoneController,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(
+                labelText: 'Phone',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton.icon(
+                onPressed: _submitting ? null : _submit,
+                icon: _submitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: AppColors.white),
+                      )
+                    : const Icon(Icons.save_rounded),
+                label: Text(_submitting ? 'Saving...' : 'Save changes'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.kodiGreen,
+                  foregroundColor: AppColors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ChangePasswordSheet extends StatefulWidget {
+  final Color accentColor;
+  const _ChangePasswordSheet({required this.accentColor});
+
+  @override
+  State<_ChangePasswordSheet> createState() => _ChangePasswordSheetState();
+}
+
+class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
+  final ApiService _api = ApiService();
+  final _currentController = TextEditingController();
+  final _newController = TextEditingController();
+  final _confirmController = TextEditingController();
+  bool _showCurrent = false;
+  bool _showNew = false;
+  bool _showConfirm = false;
+  bool _submitting = false;
+
+  @override
+  void dispose() {
+    _currentController.dispose();
+    _newController.dispose();
+    _confirmController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final current = _currentController.text;
+    final next = _newController.text;
+    final confirm = _confirmController.text;
+    if (current.isEmpty || next.isEmpty || confirm.isEmpty) {
+      _showSnack(context, 'Fill in all three fields.');
+      return;
+    }
+    if (next.length < 6) {
+      _showSnack(context, 'New password must be at least 6 characters.');
+      return;
+    }
+    if (next != confirm) {
+      _showSnack(context, 'New password and confirmation do not match.');
+      return;
+    }
+    if (next == current) {
+      _showSnack(context, 'New password must be different from the current one.');
+      return;
+    }
+
+    setState(() => _submitting = true);
+    try {
+      final response = await _api.post('/auth/change-password', {
+        'current_password': current,
+        'new_password': next,
+      });
+      if (!mounted) return;
+      if (response.statusCode == 200) {
+        Navigator.pop(context, true);
+        _showSnack(context, 'Password updated.');
+        return;
+      }
+      Map<String, dynamic>? data;
+      try {
+        data = jsonDecode(response.body) as Map<String, dynamic>;
+      } catch (_) {}
+      setState(() => _submitting = false);
+      _showSnack(
+        context,
+        data?['error']?.toString() ??
+            'Failed to change password (${response.statusCode}).',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      _showSnack(context, 'Failed to change password: $e');
+    }
+  }
+
+  Widget _passwordField({
+    required String label,
+    required TextEditingController controller,
+    required bool obscure,
+    required VoidCallback onToggle,
+  }) {
+    return TextField(
+      controller: controller,
+      obscureText: obscure,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+        suffixIcon: IconButton(
+          icon: Icon(obscure ? Icons.visibility_off : Icons.visibility),
+          onPressed: onToggle,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+          18, 18, 18, MediaQuery.of(context).viewInsets.bottom + 18),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Change password', style: AppStyles.heading2),
+            const SizedBox(height: 6),
+            const Text(
+              'Set a new password using your current one. You will stay signed in.',
+              style: AppStyles.caption,
+            ),
+            const SizedBox(height: 16),
+            _passwordField(
+              label: 'Current password',
+              controller: _currentController,
+              obscure: !_showCurrent,
+              onToggle: () => setState(() => _showCurrent = !_showCurrent),
+            ),
+            const SizedBox(height: 12),
+            _passwordField(
+              label: 'New password',
+              controller: _newController,
+              obscure: !_showNew,
+              onToggle: () => setState(() => _showNew = !_showNew),
+            ),
+            const SizedBox(height: 12),
+            _passwordField(
+              label: 'Confirm new password',
+              controller: _confirmController,
+              obscure: !_showConfirm,
+              onToggle: () => setState(() => _showConfirm = !_showConfirm),
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton.icon(
+                onPressed: _submitting ? null : _submit,
+                icon: _submitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: AppColors.white),
+                      )
+                    : const Icon(Icons.lock_reset_rounded),
+                label: Text(_submitting ? 'Updating...' : 'Update password'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: widget.accentColor,
+                  foregroundColor: AppColors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _AnnouncementSheet extends StatefulWidget {
   const _AnnouncementSheet();
 
@@ -6543,49 +8782,6 @@ class _FilterChip extends StatelessWidget {
 }
 
 
-class _AlertCard extends StatelessWidget {
-  final String title;
-  final String location;
-  final String type;
-
-  const _AlertCard({
-    required this.title,
-    required this.location,
-    required this.type,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final emergency = type == 'Emergency';
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: _TappableCard(
-        onTap: () => _showSnack(context, '$title assigned'),
-        child: Row(
-          children: [
-            Icon(emergency ? Icons.warning_rounded : Icons.info_outline_rounded,
-                color: emergency ? AppColors.danger : AppColors.kodiOrange),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: _titleStyle),
-                  const SizedBox(height: 3),
-                  Text(location, style: AppStyles.caption),
-                ],
-              ),
-            ),
-            StatusPill(
-                label: type,
-                color: emergency ? AppColors.danger : AppColors.kodiOrange),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _PreferenceSwitch extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -6833,14 +9029,6 @@ String _formatKsh(num value) {
   return formatted;
 }
 
-
-class _TaskData {
-  final String title;
-  final String location;
-  final String priority;
-
-  const _TaskData(this.title, this.location, this.priority);
-}
 
 class _DetailRowData {
   final String label;
