@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:html' as html;
+import 'package:web/web.dart' as web;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -572,7 +572,7 @@ class _UploadDocumentSheetState extends State<UploadDocumentSheet> {
                     color: AppColors.textDark)),
             const SizedBox(height: 18),
             DropdownButtonFormField<String>(
-              value: _type,
+              initialValue: _type,
               decoration: const InputDecoration(labelText: 'Type'),
               items: const [
                 DropdownMenuItem(value: _kCategoryLease, child: Text('Lease')),
@@ -746,7 +746,7 @@ class _GenerateLeaseSheetState extends State<GenerateLeaseSheet> {
                   );
                 }
                 return DropdownButtonFormField<_TenancyOption>(
-                  value: _selected,
+                  initialValue: _selected,
                   decoration: const InputDecoration(labelText: 'Tenancy'),
                   isExpanded: true,
                   items: tenancies
@@ -834,7 +834,7 @@ class _DocumentDetailScreenState extends State<DocumentDetailScreen> {
   bool _deleting = false;
 
   void _openInNewTab() {
-    html.window.open(widget.document.fileUrl, '_blank');
+    web.window.open(widget.document.fileUrl, '_blank');
   }
 
   Future<void> _share() async {

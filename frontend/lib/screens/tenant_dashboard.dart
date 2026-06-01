@@ -502,8 +502,8 @@ class _TenantDashboardState extends State<TenantDashboard> {
           color: AppColors.white,
           borderRadius: BorderRadius.circular(16),
         ),
-        child: Row(
-          children: const [
+        child: const Row(
+          children: [
             Icon(Icons.receipt_long_outlined, color: AppColors.muted),
             SizedBox(width: 10),
             Expanded(

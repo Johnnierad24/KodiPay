@@ -1,8 +1,7 @@
-import 'dart:html' as html;
-import 'dart:typed_data';
+import 'dart:js_interop';
+import 'package:web/web.dart' as web;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import '../utils/app_config.dart';
 
 class PdfReportService {
   Future<void> generatePaymentReport({
@@ -49,12 +48,16 @@ class PdfReportService {
     );
 
     final bytes = await pdf.save();
-    final blob = html.Blob([bytes], 'application/pdf');
-    final url = html.Url.createObjectUrlFromBlob(blob);
-    final anchor = html.AnchorElement(href: url)
+    final blob = web.Blob(
+      [bytes.toJS].toJS,
+      web.BlobPropertyBag(type: 'application/pdf'),
+    );
+    final url = web.URL.createObjectURL(blob);
+    web.HTMLAnchorElement()
+      ..href = url
       ..setAttribute('download', 'payment_report_$period.pdf')
       ..click();
-    html.Url.revokeObjectUrl(url);
+    web.URL.revokeObjectURL(url);
   }
 
   pw.Widget _buildHeader(String period) {
@@ -68,15 +71,15 @@ class PdfReportService {
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
                 pw.Text('KodiPay', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold, color: PdfColors.green800)),
-                pw.Text('Pay Rent. Stay Worry-Free.', style: pw.TextStyle(fontSize: 10, color: PdfColors.grey600)),
+                pw.Text('Pay Rent. Stay Worry-Free.', style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey600)),
               ],
             ),
             pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.end,
               children: [
                 pw.Text('Payment Report', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
-                pw.Text('Generated: ${_currentDate()}', style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600)),
-                pw.Text('Period: $period', style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600)),
+                pw.Text('Generated: ${_currentDate()}', style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600)),
+                pw.Text('Period: $period', style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600)),
               ],
             ),
           ],
@@ -89,19 +92,19 @@ class PdfReportService {
   pw.Widget _buildLandlordInfo(String name, String email, String phone, int propertyCount) {
     return pw.Container(
       padding: const pw.EdgeInsets.all(12),
-      decoration: pw.BoxDecoration(
+      decoration: const pw.BoxDecoration(
         color: PdfColors.grey100,
-        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+        borderRadius: pw.BorderRadius.all(pw.Radius.circular(6)),
       ),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Text('Landlord Information', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12)),
           pw.SizedBox(height: 6),
-          pw.Text('Name: $name', style: pw.TextStyle(fontSize: 10)),
-          pw.Text('Email: $email', style: pw.TextStyle(fontSize: 10)),
-          pw.Text('Phone: $phone', style: pw.TextStyle(fontSize: 10)),
-          pw.Text('Properties: $propertyCount', style: pw.TextStyle(fontSize: 10)),
+          pw.Text('Name: $name', style: const pw.TextStyle(fontSize: 10)),
+          pw.Text('Email: $email', style: const pw.TextStyle(fontSize: 10)),
+          pw.Text('Phone: $phone', style: const pw.TextStyle(fontSize: 10)),
+          pw.Text('Properties: $propertyCount', style: const pw.TextStyle(fontSize: 10)),
         ],
       ),
     );
@@ -150,13 +153,13 @@ class PdfReportService {
           pw.Text('Charts', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12)),
           pw.SizedBox(height: 12),
           if (barData != null) ...[
-            pw.Text('Collection per Property', style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+            pw.Text('Collection per Property', style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
             pw.SizedBox(height: 8),
             _buildBarChart(barData),
           ],
           if (pieCollected != null && piePending != null) ...[
             pw.SizedBox(height: 16),
-            pw.Text('Paid vs Pending', style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+            pw.Text('Paid vs Pending', style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
             pw.SizedBox(height: 8),
             _buildPieChart(pieCollected, piePending),
           ],
@@ -176,23 +179,23 @@ class PdfReportService {
           padding: const pw.EdgeInsets.symmetric(vertical: 2),
           child: pw.Row(
             children: [
-              pw.SizedBox(width: 100, child: pw.Text(label, style: pw.TextStyle(fontSize: 8))),
+              pw.SizedBox(width: 100, child: pw.Text(label, style: const pw.TextStyle(fontSize: 8))),
               pw.Expanded(
                 child: pw.Stack(
                   children: [
                     pw.Container(
                       height: 14,
-                      decoration: pw.BoxDecoration(
+                      decoration: const pw.BoxDecoration(
                         color: PdfColors.grey200,
-                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(3)),
+                        borderRadius: pw.BorderRadius.all(pw.Radius.circular(3)),
                       ),
                     ),
                     pw.Container(
                       height: 14,
                       width: ratio * 240,
-                      decoration: pw.BoxDecoration(
+                      decoration: const pw.BoxDecoration(
                         color: PdfColors.green,
-                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(3)),
+                        borderRadius: pw.BorderRadius.all(pw.Radius.circular(3)),
                       ),
                     ),
                   ],
@@ -224,17 +227,17 @@ class PdfReportService {
           children: [
             pw.Container(
               height: 20,
-              decoration: pw.BoxDecoration(
+              decoration: const pw.BoxDecoration(
                 color: PdfColors.grey300,
-                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                borderRadius: pw.BorderRadius.all(pw.Radius.circular(4)),
               ),
             ),
             pw.Container(
               height: 20,
               width: collectedRatio * 280,
-              decoration: pw.BoxDecoration(
+              decoration: const pw.BoxDecoration(
                 color: PdfColors.green,
-                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                borderRadius: pw.BorderRadius.all(pw.Radius.circular(4)),
               ),
             ),
           ],
@@ -243,7 +246,7 @@ class PdfReportService {
         pw.Align(
           alignment: pw.Alignment.centerRight,
           child: pw.Text('${(collectedRatio * 100).toStringAsFixed(0)}% collected',
-              style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
+              style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
         ),
       ],
     );
@@ -258,7 +261,7 @@ class PdfReportService {
           decoration: pw.BoxDecoration(color: color, shape: pw.BoxShape.circle),
         ),
         pw.SizedBox(width: 6),
-        pw.Text(label, style: pw.TextStyle(fontSize: 9)),
+        pw.Text(label, style: const pw.TextStyle(fontSize: 9)),
         pw.SizedBox(width: 8),
         pw.Text(value, style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
       ],
@@ -274,7 +277,7 @@ class PdfReportService {
       ),
       child: pw.Column(
         children: [
-          pw.Text(label, style: pw.TextStyle(fontSize: 8, color: PdfColors.grey200)),
+          pw.Text(label, style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey200)),
           pw.SizedBox(height: 4),
           pw.Text(value, style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.white)),
         ],
@@ -325,7 +328,7 @@ class PdfReportService {
           border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
           children: [
             pw.TableRow(
-              decoration: pw.BoxDecoration(color: PdfColors.grey100),
+              decoration: const pw.BoxDecoration(color: PdfColors.grey100),
               children: columns.map((col) => pw.Padding(
                 padding: const pw.EdgeInsets.all(6),
                 child: pw.Text(col, style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
@@ -334,7 +337,7 @@ class PdfReportService {
             ...rows.map((row) => pw.TableRow(
               children: row.map((cell) => pw.Padding(
                 padding: const pw.EdgeInsets.all(6),
-                child: pw.Text(cell, style: pw.TextStyle(fontSize: 8)),
+                child: pw.Text(cell, style: const pw.TextStyle(fontSize: 8)),
               )).toList(),
             )),
           ],
@@ -351,8 +354,8 @@ class PdfReportService {
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            pw.Text('Generated by KodiPay', style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
-            pw.Text('support@kodipay.co.ke', style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
+            pw.Text('Generated by KodiPay', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
+            pw.Text('support@kodipay.co.ke', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
           ],
         ),
       ],

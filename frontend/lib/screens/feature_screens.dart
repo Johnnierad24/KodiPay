@@ -3,7 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'dart:html' as html;
+import 'dart:js_interop';
+import 'package:web/web.dart' as web;
 import '../providers/auth_provider.dart';
 import '../services/pdf_report_service.dart';
 import '../utils/constants.dart';
@@ -1561,7 +1562,7 @@ class PaymentReportScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _PaymentReportHeader(
+                const _PaymentReportHeader(
                   generatedDate: '19 May 2026',
                   period: 'May 2026',
                 ),
@@ -1663,12 +1664,12 @@ class PaymentReportScreen extends StatelessWidget {
                     for (final p in payments) {
                       csv.writeln('${p.tenantName},${p.unit},${p.property},${p.amount},${p.status},${p.paidAt ?? '-'}');
                     }
-                    final blob = html.Blob([csv.toString()], 'text/csv');
-                    final url = html.Url.createObjectUrlFromBlob(blob);
-                    final anchor = html.AnchorElement(href: url)
+                    final blob = web.Blob([csv.toString().toJS].toJS, web.BlobPropertyBag(type: 'text/csv'));
+                    final url = web.URL.createObjectURL(blob);
+                    web.HTMLAnchorElement()..href = url
                       ..setAttribute('download', 'payment_report_May2026.csv')
                       ..click();
-                    html.Url.revokeObjectUrl(url);
+                    web.URL.revokeObjectURL(url);
                   },
                   icon: const Icon(Icons.table_chart_outlined),
                   label: const Text('CSV'),
@@ -1781,12 +1782,12 @@ class _LandlordReportsScreenState extends State<LandlordReportsScreen> {
               ]) {
                 csv.writeln(row.join(','));
               }
-              final blob = html.Blob([csv.toString()], 'text/csv');
-              final url = html.Url.createObjectUrlFromBlob(blob);
-              html.AnchorElement(href: url)
+              final blob = web.Blob([csv.toString().toJS].toJS, web.BlobPropertyBag(type: 'text/csv'));
+              final url = web.URL.createObjectURL(blob);
+              web.HTMLAnchorElement()..href = url
                 ..setAttribute('download', 'report_${_period.replaceAll(' ', '_')}.csv')
                 ..click();
-              html.Url.revokeObjectUrl(url);
+              web.URL.revokeObjectURL(url);
             },
             onSendReminders: () =>
                 _showSnack(context, 'Reminders queued for overdue tenants.'),
@@ -2515,46 +2516,6 @@ class _ReportActions extends StatelessWidget {
   }
 }
 
-void _showExportSheet(BuildContext context, String type) {
-  showModalBottomSheet<void>(
-    context: context,
-    backgroundColor: AppColors.white,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-    ),
-    builder: (context) {
-      return Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Export $type Report', style: AppStyles.heading2),
-            const SizedBox(height: 10),
-            const Text(
-              'Includes filters, summaries, arrears, property performance, maintenance, and transactions.',
-              style: AppStyles.bodyMedium,
-            ),
-            const SizedBox(height: 18),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _showSnack(context, '$type export generated.');
-                },
-                icon: const Icon(Icons.download_rounded),
-                label: const Text('Download'),
-              ),
-            ),
-          ],
-        ),
-      );
-    },
-  );
-}
-
 class TenantPaymentsScreen extends StatefulWidget {
   const TenantPaymentsScreen({super.key});
 
@@ -2624,13 +2585,13 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
         _csvField(p.status),
       ].join(','));
     }
-    final blob = html.Blob([csv.toString()], 'text/csv');
-    final url = html.Url.createObjectUrlFromBlob(blob);
+    final blob = web.Blob([csv.toString().toJS].toJS, web.BlobPropertyBag(type: 'text/csv'));
+    final url = web.URL.createObjectURL(blob);
     final name = tenancy?.propertyName ?? 'tenant';
-    html.AnchorElement(href: url)
+    web.HTMLAnchorElement()..href = url
       ..setAttribute('download', 'my_payments_${name.replaceAll(' ', '_')}.csv')
       ..click();
-    html.Url.revokeObjectUrl(url);
+    web.URL.revokeObjectURL(url);
   }
 
   @override
@@ -2956,7 +2917,7 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
     }
     final items = (jsonDecode(response.body) as List<dynamic>)
         .map((item) =>
-            _MaintenanceItem.fromJson(item as Map<String, dynamic>))
+            MaintenanceItem.fromJson(item as Map<String, dynamic>))
         .toList();
     return _TenantMaintenanceBundle(
       items: items,
@@ -2974,7 +2935,7 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
     if (created == true) _reload();
   }
 
-  Future<void> _openDetail(_MaintenanceItem item) async {
+  Future<void> _openDetail(MaintenanceItem item) async {
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => MaintenanceDetailScreen(item: item)),
@@ -3035,7 +2996,7 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
               );
             }
             final bundle = snapshot.data;
-            final items = bundle?.items ?? const <_MaintenanceItem>[];
+            final items = bundle?.items ?? const <MaintenanceItem>[];
             if (items.isEmpty) {
               return ListView(
                 padding: const EdgeInsets.all(30),
@@ -3083,7 +3044,7 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
 }
 
 class _TenantMaintenanceBundle {
-  final List<_MaintenanceItem> items;
+  final List<MaintenanceItem> items;
   final _TenantTenancySummary? tenancy;
   final int? unitId;
   const _TenantMaintenanceBundle({
@@ -3093,7 +3054,7 @@ class _TenantMaintenanceBundle {
   });
 }
 
-class _MaintenanceItem {
+class MaintenanceItem {
   final int id;
   final String title;
   final String description;
@@ -3108,7 +3069,7 @@ class _MaintenanceItem {
   final DateTime createdAt;
   final DateTime updatedAt;
 
-  const _MaintenanceItem({
+  const MaintenanceItem({
     required this.id,
     required this.title,
     required this.description,
@@ -3127,11 +3088,11 @@ class _MaintenanceItem {
   bool get isEmergency => priority.toLowerCase() == 'emergency';
   bool get isResolved => status.toLowerCase() == 'completed';
 
-  factory _MaintenanceItem.fromJson(Map<String, dynamic> json) {
+  factory MaintenanceItem.fromJson(Map<String, dynamic> json) {
     final first = (json['tenant_first_name'] ?? '').toString();
     final last = (json['tenant_last_name'] ?? '').toString();
     final fullName = '$first $last'.trim();
-    return _MaintenanceItem(
+    return MaintenanceItem(
       id: _toInt(json['id']),
       title: (json['title'] ?? '').toString(),
       description: (json['description'] ?? '').toString(),
@@ -3199,7 +3160,7 @@ String _capitalizeWord(String value) {
 }
 
 class _MaintenanceItemCard extends StatelessWidget {
-  final _MaintenanceItem item;
+  final MaintenanceItem item;
   final VoidCallback onTap;
   const _MaintenanceItemCard({required this.item, required this.onTap});
 
@@ -3289,7 +3250,7 @@ class _MaintenanceTag extends StatelessWidget {
 }
 
 class MaintenanceDetailScreen extends StatelessWidget {
-  final _MaintenanceItem item;
+  final MaintenanceItem item;
   const MaintenanceDetailScreen({super.key, required this.item});
 
   @override
@@ -3464,7 +3425,7 @@ class TenantNoticesScreen extends StatefulWidget {
 
 class _TenantNoticesScreenState extends State<TenantNoticesScreen> {
   final ApiService _api = ApiService();
-  Future<List<_NotificationItem>>? _future;
+  Future<List<NotificationItem>>? _future;
 
   @override
   void initState() {
@@ -3478,18 +3439,18 @@ class _TenantNoticesScreenState extends State<TenantNoticesScreen> {
     });
   }
 
-  Future<List<_NotificationItem>> _fetch() async {
+  Future<List<NotificationItem>> _fetch() async {
     final response = await _api.get('/notifications');
     if (response.statusCode != 200) {
       throw Exception('Could not load notices (${response.statusCode})');
     }
     final data = jsonDecode(response.body) as List<dynamic>;
     return data
-        .map((item) => _NotificationItem.fromJson(item as Map<String, dynamic>))
+        .map((item) => NotificationItem.fromJson(item as Map<String, dynamic>))
         .toList();
   }
 
-  Future<void> _openNotice(_NotificationItem item) async {
+  Future<void> _openNotice(NotificationItem item) async {
     if (!item.isRead) {
       try {
         await _api.put('/notifications/${item.id}/read');
@@ -3512,7 +3473,7 @@ class _TenantNoticesScreenState extends State<TenantNoticesScreen> {
       accentColor: AppColors.kodiBlue,
       child: RefreshIndicator(
         onRefresh: () async => _reload(),
-        child: FutureBuilder<List<_NotificationItem>>(
+        child: FutureBuilder<List<NotificationItem>>(
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -3544,7 +3505,7 @@ class _TenantNoticesScreenState extends State<TenantNoticesScreen> {
                 ],
               );
             }
-            final items = snapshot.data ?? const <_NotificationItem>[];
+            final items = snapshot.data ?? const <NotificationItem>[];
             if (items.isEmpty) {
               return ListView(
                 padding: const EdgeInsets.all(40),
@@ -3592,7 +3553,7 @@ class _TenantNoticesScreenState extends State<TenantNoticesScreen> {
 }
 
 class _TenantNoticeCard extends StatelessWidget {
-  final _NotificationItem item;
+  final NotificationItem item;
   final VoidCallback onTap;
 
   const _TenantNoticeCard({required this.item, required this.onTap});
@@ -3659,7 +3620,7 @@ class _TenantNoticeCard extends StatelessWidget {
 }
 
 class NoticeDetailScreen extends StatelessWidget {
-  final _NotificationItem item;
+  final NotificationItem item;
   const NoticeDetailScreen({super.key, required this.item});
 
   @override
@@ -3784,7 +3745,7 @@ class CaretakerTasksScreen extends StatefulWidget {
 
 class _CaretakerTasksScreenState extends State<CaretakerTasksScreen> {
   final ApiService _api = ApiService();
-  Future<List<_MaintenanceItem>>? _future;
+  Future<List<MaintenanceItem>>? _future;
 
   @override
   void initState() {
@@ -3798,20 +3759,20 @@ class _CaretakerTasksScreenState extends State<CaretakerTasksScreen> {
     });
   }
 
-  Future<List<_MaintenanceItem>> _fetch() async {
+  Future<List<MaintenanceItem>> _fetch() async {
     final response = await _api.get('/maintenance/mine');
     if (response.statusCode != 200) {
       throw Exception('Could not load tasks (${response.statusCode})');
     }
     final all = (jsonDecode(response.body) as List<dynamic>)
         .map((item) =>
-            _MaintenanceItem.fromJson(item as Map<String, dynamic>))
+            MaintenanceItem.fromJson(item as Map<String, dynamic>))
         .where((m) => !m.isEmergency && !m.isResolved)
         .toList();
     return all;
   }
 
-  Future<void> _open(_MaintenanceItem item) async {
+  Future<void> _open(MaintenanceItem item) async {
     final changed = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
@@ -3828,7 +3789,7 @@ class _CaretakerTasksScreenState extends State<CaretakerTasksScreen> {
       accentColor: AppColors.kodiOrange,
       child: RefreshIndicator(
         onRefresh: () async => _reload(),
-        child: FutureBuilder<List<_MaintenanceItem>>(
+        child: FutureBuilder<List<MaintenanceItem>>(
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -3860,7 +3821,7 @@ class _CaretakerTasksScreenState extends State<CaretakerTasksScreen> {
                 ],
               );
             }
-            final items = snapshot.data ?? const <_MaintenanceItem>[];
+            final items = snapshot.data ?? const <MaintenanceItem>[];
             if (items.isEmpty) {
               return ListView(
                 padding: const EdgeInsets.all(30),
@@ -3925,7 +3886,7 @@ class CaretakerAlertsScreen extends StatefulWidget {
 
 class _CaretakerAlertsScreenState extends State<CaretakerAlertsScreen> {
   final ApiService _api = ApiService();
-  Future<List<_MaintenanceItem>>? _future;
+  Future<List<MaintenanceItem>>? _future;
 
   @override
   void initState() {
@@ -3939,7 +3900,7 @@ class _CaretakerAlertsScreenState extends State<CaretakerAlertsScreen> {
     });
   }
 
-  Future<List<_MaintenanceItem>> _fetch() async {
+  Future<List<MaintenanceItem>> _fetch() async {
     final response =
         await _api.get('/maintenance/mine', query: {'priority': 'emergency'});
     if (response.statusCode != 200) {
@@ -3947,12 +3908,12 @@ class _CaretakerAlertsScreenState extends State<CaretakerAlertsScreen> {
     }
     return (jsonDecode(response.body) as List<dynamic>)
         .map((item) =>
-            _MaintenanceItem.fromJson(item as Map<String, dynamic>))
+            MaintenanceItem.fromJson(item as Map<String, dynamic>))
         .where((m) => !m.isResolved)
         .toList();
   }
 
-  Future<void> _open(_MaintenanceItem item) async {
+  Future<void> _open(MaintenanceItem item) async {
     final changed = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
@@ -3970,7 +3931,7 @@ class _CaretakerAlertsScreenState extends State<CaretakerAlertsScreen> {
       accentColor: AppColors.danger,
       child: RefreshIndicator(
         onRefresh: () async => _reload(),
-        child: FutureBuilder<List<_MaintenanceItem>>(
+        child: FutureBuilder<List<MaintenanceItem>>(
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -4002,7 +3963,7 @@ class _CaretakerAlertsScreenState extends State<CaretakerAlertsScreen> {
                 ],
               );
             }
-            final items = snapshot.data ?? const <_MaintenanceItem>[];
+            final items = snapshot.data ?? const <MaintenanceItem>[];
             if (items.isEmpty) {
               return ListView(
                 padding: const EdgeInsets.all(30),
@@ -4060,9 +4021,9 @@ class _CaretakerAlertsScreenState extends State<CaretakerAlertsScreen> {
   }
 }
 
-Map<String, List<_MaintenanceItem>> _groupByProperty(
-    List<_MaintenanceItem> items) {
-  final groups = <String, List<_MaintenanceItem>>{};
+Map<String, List<MaintenanceItem>> _groupByProperty(
+    List<MaintenanceItem> items) {
+  final groups = <String, List<MaintenanceItem>>{};
   for (final item in items) {
     final key = item.propertyName.trim().isEmpty
         ? 'Unassigned'
@@ -4121,7 +4082,7 @@ class _PropertyGroupHeader extends StatelessWidget {
 }
 
 class _CaretakerTaskCard extends StatelessWidget {
-  final _MaintenanceItem item;
+  final MaintenanceItem item;
   final VoidCallback onTap;
   const _CaretakerTaskCard({required this.item, required this.onTap});
 
@@ -4187,7 +4148,7 @@ class _CaretakerTaskCard extends StatelessWidget {
 }
 
 class _CaretakerEmergencyCard extends StatelessWidget {
-  final _MaintenanceItem item;
+  final MaintenanceItem item;
   final VoidCallback onTap;
   const _CaretakerEmergencyCard({required this.item, required this.onTap});
 
@@ -4235,7 +4196,7 @@ class _CaretakerEmergencyCard extends StatelessWidget {
 }
 
 class CaretakerTaskDetailScreen extends StatefulWidget {
-  final _MaintenanceItem item;
+  final MaintenanceItem item;
   final bool isEmergency;
   const CaretakerTaskDetailScreen({
     super.key,
@@ -4250,7 +4211,7 @@ class CaretakerTaskDetailScreen extends StatefulWidget {
 
 class _CaretakerTaskDetailScreenState extends State<CaretakerTaskDetailScreen> {
   final ApiService _api = ApiService();
-  late _MaintenanceItem _item;
+  late MaintenanceItem _item;
   bool _submitting = false;
 
   @override
@@ -4268,7 +4229,7 @@ class _CaretakerTaskDetailScreenState extends State<CaretakerTaskDetailScreen> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         setState(() {
-          _item = _MaintenanceItem(
+          _item = MaintenanceItem(
             id: _item.id,
             title: _item.title,
             description: _item.description,
@@ -4477,9 +4438,9 @@ class _CaretakerTaskDetailScreenState extends State<CaretakerTaskDetailScreen> {
             ),
             const SizedBox(height: 18),
             if (_item.isResolved)
-              _TappableCard(
+              const _TappableCard(
                 child: Row(
-                  children: const [
+                  children: [
                     Icon(Icons.check_circle_rounded,
                         color: AppColors.kodiGreen),
                     SizedBox(width: 10),
@@ -4849,7 +4810,7 @@ class CaretakersScreen extends StatefulWidget {
 
 class _CaretakersScreenState extends State<CaretakersScreen> {
   final ApiService _api = ApiService();
-  Future<List<_CaretakerEntry>>? _future;
+  Future<List<CaretakerEntry>>? _future;
 
   @override
   void initState() {
@@ -4863,13 +4824,13 @@ class _CaretakersScreenState extends State<CaretakersScreen> {
     });
   }
 
-  Future<List<_CaretakerEntry>> _fetch() async {
+  Future<List<CaretakerEntry>> _fetch() async {
     final response = await _api.get('/caretakers');
     if (response.statusCode != 200) {
       throw Exception('Could not load caretakers (${response.statusCode})');
     }
     return (jsonDecode(response.body) as List<dynamic>)
-        .map((item) => _CaretakerEntry.fromJson(item as Map<String, dynamic>))
+        .map((item) => CaretakerEntry.fromJson(item as Map<String, dynamic>))
         .toList();
   }
 
@@ -4886,7 +4847,7 @@ class _CaretakersScreenState extends State<CaretakersScreen> {
     if (added == true) _reload();
   }
 
-  Future<void> _onRemove(_CaretakerEntry entry) async {
+  Future<void> _onRemove(CaretakerEntry entry) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -4947,7 +4908,7 @@ class _CaretakersScreenState extends State<CaretakersScreen> {
       ),
       child: RefreshIndicator(
         onRefresh: () async => _reload(),
-        child: FutureBuilder<List<_CaretakerEntry>>(
+        child: FutureBuilder<List<CaretakerEntry>>(
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -4979,7 +4940,7 @@ class _CaretakersScreenState extends State<CaretakersScreen> {
                 ],
               );
             }
-            final items = snapshot.data ?? const <_CaretakerEntry>[];
+            final items = snapshot.data ?? const <CaretakerEntry>[];
             if (items.isEmpty) {
               return ListView(
                 padding: const EdgeInsets.all(30),
@@ -5009,7 +4970,7 @@ class _CaretakersScreenState extends State<CaretakersScreen> {
                 ],
               );
             }
-            final groups = <String, List<_CaretakerEntry>>{};
+            final groups = <String, List<CaretakerEntry>>{};
             for (final e in items) {
               final key = e.propertyName.isEmpty
                   ? 'Unassigned'
@@ -5044,7 +5005,7 @@ class _CaretakersScreenState extends State<CaretakersScreen> {
   }
 }
 
-class _CaretakerEntry {
+class CaretakerEntry {
   final int assignmentId;
   final int caretakerId;
   final String email;
@@ -5055,7 +5016,7 @@ class _CaretakerEntry {
   final String propertyName;
   final String propertyAddress;
 
-  const _CaretakerEntry({
+  const CaretakerEntry({
     required this.assignmentId,
     required this.caretakerId,
     required this.email,
@@ -5069,8 +5030,8 @@ class _CaretakerEntry {
 
   String get fullName => '$firstName $lastName'.trim();
 
-  factory _CaretakerEntry.fromJson(Map<String, dynamic> json) {
-    return _CaretakerEntry(
+  factory CaretakerEntry.fromJson(Map<String, dynamic> json) {
+    return CaretakerEntry(
       assignmentId: _toInt(json['assignment_id']),
       caretakerId: _toInt(json['caretaker_id']),
       email: (json['email'] ?? '').toString(),
@@ -5085,7 +5046,7 @@ class _CaretakerEntry {
 }
 
 class _CaretakerCard extends StatelessWidget {
-  final _CaretakerEntry entry;
+  final CaretakerEntry entry;
   final VoidCallback onRemove;
   const _CaretakerCard({required this.entry, required this.onRemove});
 
@@ -5139,7 +5100,7 @@ class _CaretakerCard extends StatelessWidget {
 }
 
 class CaretakerDetailScreen extends StatelessWidget {
-  final _CaretakerEntry entry;
+  final CaretakerEntry entry;
   final VoidCallback onRemove;
   const CaretakerDetailScreen({
     super.key,
@@ -5438,7 +5399,7 @@ class _AddCaretakerSheetState extends State<_AddCaretakerSheet> {
                       onPressed: () async {
                         await Clipboard.setData(
                             ClipboardData(text: tempPassword));
-                        if (!mounted) return;
+                        if (!context.mounted) return;
                         _showSnack(context, 'Password copied');
                       },
                       icon: const Icon(Icons.copy_rounded),
@@ -5480,7 +5441,7 @@ class _AddCaretakerSheetState extends State<_AddCaretakerSheet> {
                 )
               else
                 DropdownButtonFormField<int>(
-                  value: _propertyId,
+                  initialValue: _propertyId,
                   isExpanded: true,
                   items: [
                     for (final p in _properties)
@@ -5738,8 +5699,8 @@ class RightsScreen extends StatelessWidget {
                     Uri.parse('https://www.kenyalaw.org'),
                     mode: LaunchMode.externalApplication,
                   ),
-                  child: Row(
-                    children: const [
+                  child: const Row(
+                    children: [
                       Icon(Icons.open_in_new_rounded,
                           color: AppColors.kodiBlue, size: 16),
                       SizedBox(width: 6),
@@ -5932,7 +5893,7 @@ class _SupportScreenState extends State<SupportScreen> {
   }
 
   Future<void> _openWhatsApp({String? text}) async {
-    final base = 'https://wa.me/$_supportWhatsAppDigits';
+    const base = 'https://wa.me/$_supportWhatsAppDigits';
     final uri = (text == null || text.isEmpty)
         ? Uri.parse(base)
         : Uri.parse('$base?text=${Uri.encodeQueryComponent(text)}');
@@ -6035,7 +5996,7 @@ class _SupportScreenState extends State<SupportScreen> {
                     style: AppStyles.caption),
                 const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
-                  value: _category,
+                  initialValue: _category,
                   isExpanded: true,
                   items: const [
                     DropdownMenuItem(
@@ -6110,7 +6071,7 @@ class _SupportScreenState extends State<SupportScreen> {
                   ],
                 ),
                 const SizedBox(height: 6),
-                Text(
+                const Text(
                   'Opens your email app or WhatsApp with the message prefilled. If neither opens, the address is copied to your clipboard.',
                   style: AppStyles.caption,
                 ),
@@ -6122,10 +6083,10 @@ class _SupportScreenState extends State<SupportScreen> {
             padding: EdgeInsets.only(left: 4, bottom: 4),
             child: Text('Quick answers', style: _smallBoldStyle),
           ),
-          _TappableCard(
+          const _TappableCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
+              children: [
                 _HelpRow(
                   icon: Icons.payments_outlined,
                   title: 'Payment not showing up?',
@@ -6187,7 +6148,7 @@ class LandlordNotificationsScreen extends StatefulWidget {
 class _LandlordNotificationsScreenState
     extends State<LandlordNotificationsScreen> {
   final ApiService _api = ApiService();
-  Future<List<_NotificationItem>>? _future;
+  Future<List<NotificationItem>>? _future;
   bool _markingAll = false;
   bool _changed = false;
 
@@ -6203,14 +6164,14 @@ class _LandlordNotificationsScreenState
     });
   }
 
-  Future<List<_NotificationItem>> _fetch() async {
+  Future<List<NotificationItem>> _fetch() async {
     final response = await _api.get('/notifications');
     if (response.statusCode != 200) {
       throw Exception('Could not load notifications (${response.statusCode})');
     }
     final data = jsonDecode(response.body) as List<dynamic>;
     return data
-        .map((item) => _NotificationItem.fromJson(item as Map<String, dynamic>))
+        .map((item) => NotificationItem.fromJson(item as Map<String, dynamic>))
         .where((item) => !item.isRead)
         .toList();
   }
@@ -6258,7 +6219,7 @@ class _LandlordNotificationsScreenState
         accentColor: AppColors.kodiBlue,
         child: RefreshIndicator(
           onRefresh: () async => _reload(),
-          child: FutureBuilder<List<_NotificationItem>>(
+          child: FutureBuilder<List<NotificationItem>>(
             future: _future,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
@@ -6290,16 +6251,16 @@ class _LandlordNotificationsScreenState
                   ],
                 );
               }
-              final items = snapshot.data ?? const <_NotificationItem>[];
+              final items = snapshot.data ?? const <NotificationItem>[];
               if (items.isEmpty) {
                 return ListView(
                   padding: const EdgeInsets.all(40),
-                  children: [
-                    const SizedBox(height: 80),
-                    const Icon(Icons.notifications_none_rounded,
+                  children: const [
+                    SizedBox(height: 80),
+                    Icon(Icons.notifications_none_rounded,
                         size: 72, color: AppColors.muted),
-                    const SizedBox(height: 16),
-                    const Center(
+                    SizedBox(height: 16),
+                    Center(
                       child: Text(
                         'You\'re all caught up',
                         style: TextStyle(
@@ -6308,8 +6269,8 @@ class _LandlordNotificationsScreenState
                             fontSize: 16),
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    const Center(
+                    SizedBox(height: 6),
+                    Center(
                       child: Text(
                         'New activity will show up here.',
                         style: TextStyle(color: AppColors.textLight),
@@ -6349,7 +6310,7 @@ class _LandlordNotificationsScreenState
   }
 }
 
-class _NotificationItem {
+class NotificationItem {
   final int id;
   final String type;
   final String title;
@@ -6357,7 +6318,7 @@ class _NotificationItem {
   final bool isRead;
   final DateTime createdAt;
 
-  const _NotificationItem({
+  const NotificationItem({
     required this.id,
     required this.type,
     required this.title,
@@ -6366,8 +6327,8 @@ class _NotificationItem {
     required this.createdAt,
   });
 
-  factory _NotificationItem.fromJson(Map<String, dynamic> json) {
-    return _NotificationItem(
+  factory NotificationItem.fromJson(Map<String, dynamic> json) {
+    return NotificationItem(
       id: json['id'] as int,
       type: (json['type'] ?? 'system').toString(),
       title: (json['title'] ?? '').toString(),
@@ -6380,7 +6341,7 @@ class _NotificationItem {
 }
 
 class _NotificationApiCard extends StatelessWidget {
-  final _NotificationItem item;
+  final NotificationItem item;
   final VoidCallback onMarkRead;
 
   const _NotificationApiCard({required this.item, required this.onMarkRead});
@@ -6849,13 +6810,19 @@ class _AddTenantSheetState extends State<_AddTenantSheet> {
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       final tempPassword = body['temp_password'] as String?;
       if (!mounted) return;
-      Navigator.pop(context, true);
+      // Capture the parent navigator's context before popping this screen, so
+      // the dialog below shows on a still-mounted context and doesn't read the
+      // tenant-form controllers after they've been disposed.
+      final navigator = Navigator.of(context);
+      final rootContext = navigator.context;
+      final tenantName = '${_firstName.text.trim()} ${_lastName.text.trim()}';
+      navigator.pop(true);
 
       if (tempPassword != null) {
         await Future<void>.delayed(const Duration(milliseconds: 100));
-        if (!context.mounted) return;
+        if (!rootContext.mounted) return;
         await showDialog<void>(
-          context: context,
+          context: rootContext,
           builder: (ctx) => AlertDialog(
             title: const Text('Tenant added'),
             content: Column(
@@ -6863,7 +6830,7 @@ class _AddTenantSheetState extends State<_AddTenantSheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${_firstName.text.trim()} ${_lastName.text.trim()} can now log in with:',
+                  '$tenantName can now log in with:',
                 ),
                 const SizedBox(height: 12),
                 _PasswordBox(password: tempPassword),
@@ -6929,7 +6896,7 @@ class _AddTenantSheetState extends State<_AddTenantSheet> {
                   );
                 }
                 return DropdownButtonFormField<PropertyData>(
-                  value: _selectedProperty,
+                  initialValue: _selectedProperty,
                   isExpanded: true,
                   decoration: const InputDecoration(labelText: 'Property'),
                   items: properties
@@ -6965,7 +6932,7 @@ class _AddTenantSheetState extends State<_AddTenantSheet> {
               )
             else if (_vacantUnits.isNotEmpty)
               DropdownButtonFormField<_VacantUnit>(
-                value: _selectedUnit,
+                initialValue: _selectedUnit,
                 isExpanded: true,
                 decoration: const InputDecoration(labelText: 'Vacant unit'),
                 items: _vacantUnits
@@ -7257,7 +7224,7 @@ class _ReportIssueSheetState extends State<_ReportIssueSheet> {
             const Text('Category', style: AppStyles.caption),
             const SizedBox(height: 6),
             DropdownButtonFormField<String>(
-              value: _category,
+              initialValue: _category,
               isExpanded: true,
               items: const [
                 DropdownMenuItem(
@@ -7280,7 +7247,7 @@ class _ReportIssueSheetState extends State<_ReportIssueSheet> {
             const Text('Urgency', style: AppStyles.caption),
             const SizedBox(height: 6),
             DropdownButtonFormField<String>(
-              value: _urgency,
+              initialValue: _urgency,
               isExpanded: true,
               items: const [
                 DropdownMenuItem(
@@ -7793,7 +7760,7 @@ class _AnnouncementSheetState extends State<_AnnouncementSheet> {
               const LinearProgressIndicator()
             else
               DropdownButtonFormField<int?>(
-                value: _propertyId,
+                initialValue: _propertyId,
                 isExpanded: true,
                 items: [
                   const DropdownMenuItem<int?>(
@@ -8142,9 +8109,9 @@ class _PaymentReportHeader extends StatelessWidget {
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         const KodiPayLogo(iconSize: 38, fontSize: 18),
-        Column(
+        const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
+          children: [
             Text(
               'KodiPay',
               style: TextStyle(
