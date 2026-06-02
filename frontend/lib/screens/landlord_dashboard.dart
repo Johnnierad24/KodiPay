@@ -6,6 +6,7 @@ import '../services/api_service.dart';
 import '../utils/constants.dart';
 import '../widgets/dashboard_components.dart';
 import 'feature_screens.dart';
+import 'chatbot_screen.dart';
 
 class LandlordDashboard extends StatefulWidget {
   const LandlordDashboard({super.key});
@@ -79,6 +80,21 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
     final lastName = user?.lastName ?? 'Njenga';
 
     return Scaffold(
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: AppColors.kodiGreen,
+        foregroundColor: Colors.white,
+        tooltip: 'Ask KodiBot',
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const ChatbotScreen(
+              role: 'Landlord',
+              accentColor: AppColors.kodiGreen,
+            ),
+          ),
+        ),
+        child: const Icon(Icons.smart_toy_outlined),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),

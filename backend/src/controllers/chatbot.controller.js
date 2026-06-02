@@ -12,7 +12,7 @@ exports.chat = async (req, res) => {
       return res.status(400).json({ error: 'Message is too long (max 1000 characters)' });
     }
     
-    const result = await processQuery(req.user.id, message);
+    const result = await processQuery(req.user, message);
 
     if (!result.success) {
       // Differentiate between user-facing errors and server errors

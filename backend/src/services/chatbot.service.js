@@ -1,39 +1,25 @@
 const OpenAI = require('openai');
 const openaiConfig = require('../config/openai');
 const pool = require('../config/db');
+const { buildSystemPrompt } = require('./chatbot.prompts');
+const { getToolsForRole } = require('./chatbot.tools');
 
-const openai = openaiConfig.isConfigured() 
-  ? new OpenAI({ apiKey: openaiConfig.apiKey, timeout: 15000 }) // 15s timeout
+const openai = openaiConfig.isConfigured()
+  ? new OpenAI({ apiKey: openaiConfig.apiKey, timeout: 30000 }) // 30s timeout (tool round-trips)
   : null;
 
-const SYSTEM_PROMPT = `You are KodiBot, an AI assistant for KodiPay - a rental management platform for landlords, tenants, and caretakers.
+// Max tool-calling round-trips before we force a final answer (cost/abuse guard).
+const MAX_TOOL_ROUNDS = 4;
 
-Your role is to:
-1. Help users navigate the app (properties, tenants, payments, maintenance)
-2. Answer questions about rental management features
-3. Assist with accessibility needs (screen reader friendly responses)
-4. Provide quick answers to FAQs about rent, payments, and maintenance
-5. Guide users through common tasks
-
-Keep responses concise, clear, and helpful. Use simple language for accessibility.
-If you don't know something, say so and suggest contacting support.`;
-
-async function getUserContext(userId) {
+async function getUserProfile(userId) {
   try {
-    const userResult = await pool.query(
-      `SELECT u.role, u.first_name,
-              p.name as property_name, un.unit_number, un.rent_amount,
-              (SELECT SUM(amount) FROM invoices WHERE tenancy_id = t.id AND status = 'pending') as pending_balance
-       FROM users u
-       LEFT JOIN tenancies t ON u.id = t.tenant_id AND t.status = 'active'
-       LEFT JOIN units un ON t.unit_id = un.id
-       LEFT JOIN properties p ON un.property_id = p.id
-       WHERE u.id = $1`,
+    const result = await pool.query(
+      'SELECT first_name, role FROM users WHERE id = $1',
       [userId]
     );
-    return userResult.rows[0] || {};
+    return result.rows[0] || {};
   } catch (error) {
-    console.error('Error fetching user context:', error);
+    console.error('Error fetching user profile:', error);
     return {};
   }
 }
@@ -51,64 +37,105 @@ async function getChatHistory(userId, limit = 5) {
   }
 }
 
-async function processQuery(userId, message) {
+/**
+ * Run the chatbot for a logged-in user.
+ * @param {{ id: number, role: string }} user - authenticated user from the JWT
+ * @param {string} message
+ */
+async function processQuery(user, message) {
   try {
     if (!openai) {
-      return { 
-        success: true, 
+      return {
+        success: true,
         simulated: true,
-        response: "Chatbot is in demo mode. Configure OPENAI_API_KEY for full functionality. How can I help you with KodiPay today?"
+        response:
+          'KodiBot is in demo mode. Configure OPENAI_API_KEY on the server for full ' +
+          'functionality. How can I help you with KodiPay today?',
       };
     }
 
-    // 1. Get User Data Context
-    const userContext = await getUserContext(userId);
+    const profile = await getUserProfile(user.id);
+    const role = user.role || profile.role || 'tenant';
+    const history = await getChatHistory(user.id);
+    const { definitions, executors } = getToolsForRole(role);
 
-    // 2. Get Recent Conversation History
-    const history = await getChatHistory(userId);
-
-    // 3. Construct AI Messages
     const messages = [
-      { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'system', content: `Current User Context:
-        Name: ${userContext.first_name || 'User'}
-        Role: ${userContext.role || 'User'}
-        Property: ${userContext.property_name || 'N/A'}
-        Unit: ${userContext.unit_number || 'N/A'}
-        Rent Amount: ${userContext.rent_amount || 'N/A'}
-        Outstanding Balance: ${userContext.pending_balance || 0}`
-      }
+      { role: 'system', content: buildSystemPrompt(role, profile) },
     ];
 
-    // Add history to context
-    history.forEach(chat => {
+    history.forEach((chat) => {
       messages.push({ role: 'user', content: chat.message });
       messages.push({ role: 'assistant', content: chat.response });
     });
 
-    // Add current message
     messages.push({ role: 'user', content: message });
 
-    const completion = await openai.chat.completions.create({
-      model: openaiConfig.model,
-      max_tokens: openaiConfig.maxTokens,
-      messages: messages
-    });
+    // Tool-calling loop: let the model fetch data it needs, then answer.
+    let response = '';
+    for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
+      // On the final allowed round, drop tools so the model must produce text.
+      const allowTools = round < MAX_TOOL_ROUNDS && definitions.length > 0;
 
-    const response = completion.choices[0].message.content;
+      const completion = await openai.chat.completions.create({
+        model: openaiConfig.model,
+        max_tokens: openaiConfig.maxTokens,
+        messages,
+        ...(allowTools ? { tools: definitions } : {}),
+      });
 
-    // Async log to DB (don't block response)
-    pool.query(
-      'INSERT INTO chatbot_logs (user_id, message, response) VALUES ($1, $2, $3)',
-      [userId, message, response]
-    ).catch(err => console.error('Failed to log chat:', err));
+      const choice = completion.choices[0].message;
+
+      if (allowTools && choice.tool_calls && choice.tool_calls.length > 0) {
+        // Echo the assistant's tool-call message, then resolve each call.
+        messages.push(choice);
+        for (const call of choice.tool_calls) {
+          const executor = executors[call.function.name];
+          let toolResult;
+          if (!executor) {
+            toolResult = { error: `Unknown tool: ${call.function.name}` };
+          } else {
+            try {
+              const args = call.function.arguments ? JSON.parse(call.function.arguments) : {};
+              toolResult = await executor(args, user);
+            } catch (err) {
+              console.error(`Tool ${call.function.name} failed:`, err);
+              toolResult = { error: 'That information could not be retrieved right now.' };
+            }
+          }
+          messages.push({
+            role: 'tool',
+            tool_call_id: call.id,
+            content: JSON.stringify(toolResult),
+          });
+        }
+        continue; // ask the model again with tool results in context
+      }
+
+      response = choice.content || '';
+      break;
+    }
+
+    if (!response) {
+      response = "I'm sorry, I couldn't put together an answer just now. Please try rephrasing.";
+    }
+
+    // Async log to DB (don't block the response).
+    pool
+      .query(
+        'INSERT INTO chatbot_logs (user_id, message, response) VALUES ($1, $2, $3)',
+        [user.id, message, response]
+      )
+      .catch((err) => console.error('Failed to log chat:', err));
 
     return { success: true, response };
   } catch (error) {
     console.error('Chatbot service error:', error);
 
-    if (error.name === 'OpenAIError') {
-      return { success: false, error: 'The AI assistant is temporarily unavailable. Please try again in a moment.' };
+    if (error instanceof OpenAI.APIError) {
+      return {
+        success: false,
+        error: 'The AI assistant is temporarily unavailable. Please try again in a moment.',
+      };
     }
 
     return { success: false, error: 'Failed to process query' };

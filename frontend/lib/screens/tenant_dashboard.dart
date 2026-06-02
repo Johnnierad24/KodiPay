@@ -6,6 +6,7 @@ import '../services/api_service.dart';
 import '../utils/constants.dart';
 import '../widgets/dashboard_components.dart';
 import 'feature_screens.dart';
+import 'chatbot_screen.dart';
 
 class TenantDashboard extends StatefulWidget {
   const TenantDashboard({super.key});
@@ -136,6 +137,21 @@ class _TenantDashboardState extends State<TenantDashboard> {
     final lastName = user?.lastName ?? '';
 
     return Scaffold(
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: AppColors.kodiBlue,
+        foregroundColor: Colors.white,
+        tooltip: 'Ask KodiBot',
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const ChatbotScreen(
+              role: 'Tenant',
+              accentColor: AppColors.kodiBlue,
+            ),
+          ),
+        ),
+        child: const Icon(Icons.smart_toy_outlined),
+      ),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async => _reload(),
