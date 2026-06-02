@@ -6,6 +6,7 @@ import '../services/api_service.dart';
 import '../utils/constants.dart';
 import '../widgets/dashboard_components.dart';
 import 'feature_screens.dart';
+import 'chatbot_screen.dart';
 
 class CaretakerDashboard extends StatefulWidget {
   const CaretakerDashboard({super.key});
@@ -76,6 +77,21 @@ class _CaretakerDashboardState extends State<CaretakerDashboard> {
     final firstName = user?.firstName ?? 'Caretaker';
 
     return Scaffold(
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: AppColors.kodiOrange,
+        foregroundColor: Colors.white,
+        tooltip: 'Ask KodiBot',
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const ChatbotScreen(
+              role: 'Caretaker',
+              accentColor: AppColors.kodiOrange,
+            ),
+          ),
+        ),
+        child: const Icon(Icons.smart_toy_outlined),
+      ),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async => _reload(),
