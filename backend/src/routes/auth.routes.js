@@ -1,8 +1,18 @@
 const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
+const { rateLimit } = require('express-rate-limit');
 const authController = require('../controllers/auth.controller');
 const authMiddleware = require('../middleware/auth.middleware');
+
+// Throttle credential-guessing on sensitive auth endpoints (brute-force / OTP abuse).
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // 10 attempts per IP per window
+  message: { error: 'Too many attempts from this IP, please try again after 15 minutes' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 router.post('/register',
   body('email').isEmail(),

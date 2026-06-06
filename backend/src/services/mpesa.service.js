@@ -32,7 +32,7 @@ async function initiateSTKPush(phoneNumber, amount, accountReference, descriptio
       BusinessShortCode: mpesaConfig.businessShortCode,
       Password: password,
       Timestamp: timestamp,
-      TransactionType: 'CustomerPayBillOnline',
+      TransactionType: mpesaConfig.transactionType,
       Amount: amount,
       PartyA: phoneNumber,
       PartyB: mpesaConfig.businessShortCode,
@@ -119,8 +119,7 @@ async function queryTransactionStatus(checkoutRequestID) {
       CheckoutRequestID: checkoutRequestID
     };
 
-    const queryUrl = 'https://sandbox.safaricom.co.ke/mpesa/stkpushquery/v1/query';
-    const response = await axios.post(queryUrl, queryData, {
+    const response = await axios.post(mpesaConfig.stkQueryUrl, queryData, {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
 

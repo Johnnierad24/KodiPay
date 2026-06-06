@@ -6,8 +6,35 @@ require('dotenv').config();
 
 const app = express();
 
+// Behind a reverse proxy (Render/Railway/Nginx) the client IP arrives via
+// X-Forwarded-For. Trust one proxy hop so rate limiting and IP checks see
+// the real client IP. Enable with TRUST_PROXY=true in those environments.
+if (process.env.TRUST_PROXY === 'true') {
+  app.set('trust proxy', 1);
+}
+
+// CORS: restrict to an explicit allowlist in production.
+// CORS_ORIGINS is a comma-separated list of allowed origins.
+// When unset (typical local dev), all origins are allowed.
+const corsOrigins = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+const corsOptions = corsOrigins.length > 0
+  ? {
+      origin: (origin, callback) => {
+        // Allow non-browser clients (mobile apps, curl) that send no Origin.
+        if (!origin || corsOrigins.includes(origin)) {
+          return callback(null, true);
+        }
+        return callback(new Error('Not allowed by CORS'));
+      },
+    }
+  : {};
+
 app.use(helmet());
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(morgan('dev'));
 app.use(express.json());
 
@@ -43,6 +70,8 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 
 if (require.main === module) {
+  // Validate configuration before binding the port — fail fast on misconfig.
+  require('./config/validateEnv')();
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });
