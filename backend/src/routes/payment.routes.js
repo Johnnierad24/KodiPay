@@ -5,9 +5,14 @@ const paymentController = require('../controllers/payment.controller');
 const { processCallback } = require('../services/mpesa.service');
 const checkRole = require('../middleware/role.middleware');
 const authMiddleware = require('../middleware/auth.middleware');
+const verifyCallbackSource = require('../middleware/mpesa-callback.middleware');
 
-// M-Pesa callback/webhook endpoint (no auth required)
-router.post('/mpesa/callback', async (req, res) => {
+// M-Pesa callback/webhook endpoint. No JWT — Safaricom calls it machine-to-machine.
+// verifyCallbackSource gates it via secret path + optional IP allowlist instead.
+// Two routes share one handler: '/mpesa/callback/:token' (when a secret is set) and
+// the secret-less '/mpesa/callback' (legacy / no secret). Express 5 dropped the old
+// optional ':token?' syntax, so we register both explicitly.
+async function handleCallback(req, res) {
   try {
     await processCallback(req.body);
     res.json({ ResultCode: 0, ResultDesc: 'Success' });
@@ -15,7 +20,9 @@ router.post('/mpesa/callback', async (req, res) => {
     console.error('M-Pesa callback error:', error);
     res.json({ ResultCode: 1, ResultDesc: 'Failed' });
   }
-});
+}
+router.post('/mpesa/callback', verifyCallbackSource, handleCallback);
+router.post('/mpesa/callback/:token', verifyCallbackSource, handleCallback);
 
 router.use(authMiddleware);
 

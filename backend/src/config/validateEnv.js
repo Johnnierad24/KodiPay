@@ -36,6 +36,11 @@ function validateEnv() {
       MPESA_PRODUCTION_REQUIRED.forEach((key) => {
         if (!process.env[key]) missing.push(`${key} (required when MPESA_ENV=production)`);
       });
+      // Not fatal, but with real money flowing an unguarded public callback lets anyone
+      // forge payment confirmations. Strongly recommend a secret path in production.
+      if (!process.env.MPESA_CALLBACK_SECRET) {
+        console.warn('[startup] WARNING: MPESA_CALLBACK_SECRET not set — the M-Pesa callback is publicly reachable and unprotected by a secret path.');
+      }
     }
   }
 

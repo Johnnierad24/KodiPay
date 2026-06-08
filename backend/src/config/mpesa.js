@@ -17,12 +17,23 @@ const transactionType = shortCodeType === 'till'
   ? 'CustomerBuyGoodsOnline'
   : 'CustomerPayBillOnline';
 
+// The callback is a public webhook. If MPESA_CALLBACK_SECRET is set, append it as
+// an unguessable path segment so only Safaricom (which we hand the full URL to)
+// can reach it. The secret lives in ONE place (the env var); we build the public
+// URL from it here and validate the same value on the route — set MPESA_CALLBACK_URL
+// to the base path WITHOUT the secret.
+const callbackSecret = process.env.MPESA_CALLBACK_SECRET || '';
+const callbackBase = (process.env.MPESA_CALLBACK_URL || 'https://yourdomain.com/api/payments/mpesa/callback')
+  .replace(/\/+$/, '');
+const callbackUrl = callbackSecret ? `${callbackBase}/${callbackSecret}` : callbackBase;
+
 module.exports = {
   consumerKey: process.env.MPESA_CONSUMER_KEY || 'your_consumer_key',
   consumerSecret: process.env.MPESA_CONSUMER_SECRET || 'your_consumer_secret',
   businessShortCode: process.env.MPESA_SHORTCODE || '174379',
   passkey: process.env.MPESA_PASSKEY || 'your_passkey',
-  callbackUrl: process.env.MPESA_CALLBACK_URL || 'https://yourdomain.com/api/payments/mpesa/callback',
+  callbackUrl,
+  callbackSecret,
   baseUrl,
   authUrl: `${baseUrl}/oauth/v1/generate?grant_type=client_credentials`,
   stkPushUrl: `${baseUrl}/mpesa/stkpush/v1/processrequest`,
