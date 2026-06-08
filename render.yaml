@@ -1,0 +1,72 @@
+# Render blueprint for KodiPay backend + managed Postgres.
+# Deploy: push to GitHub, then "New > Blueprint" in the Render dashboard.
+# Secrets marked `sync: false` must be filled in via the dashboard, not committed.
+services:
+  - type: web
+    name: kodipay-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: starter
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Trust the Render proxy so rate limiting sees the real client IP
+      - key: TRUST_PROXY
+        value: "true"
+      # Managed Postgres requires SSL
+      - key: DB_SSL
+        value: "true"
+      # DB connection wired from the managed database below
+      - key: DB_HOST
+        fromDatabase:
+          name: kodipay-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: kodipay-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: kodipay-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: kodipay-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: kodipay-db
+          property: password
+      # Generated once by Render, then kept stable
+      - key: JWT_SECRET
+        generateValue: true
+      # --- Fill these in via the Render dashboard (sync: false) ---
+      - key: CORS_ORIGINS
+        sync: false
+      - key: MPESA_ENV
+        sync: false
+      - key: MPESA_CONSUMER_KEY
+        sync: false
+      - key: MPESA_CONSUMER_SECRET
+        sync: false
+      - key: MPESA_SHORTCODE
+        sync: false
+      - key: MPESA_PASSKEY
+        sync: false
+      - key: MPESA_CALLBACK_URL
+        sync: false
+      - key: SMS_API_KEY
+        sync: false
+      - key: SMS_USERNAME
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: FIREBASE_SERVICE_ACCOUNT
+        sync: false
+
+databases:
+  - name: kodipay-db
+    plan: starter
+    databaseName: kodipay
