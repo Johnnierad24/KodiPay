@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../utils/constants.dart';
+import '../widgets/glass.dart';
 
 /// Role-aware authentication screen reached after a user picks their role on
 /// the onboarding screen. Defaults to the login view, with a toggle to sign up
@@ -16,8 +17,6 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
-  static const String _backgroundAsset = 'assets/images/welcome_bg.jpg';
-
   // null until route arguments are read; once read, may still be null when the
   // user arrived via the generic "Already have an account?" link (no role).
   String? _role;
@@ -131,77 +130,34 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-    final media = MediaQuery.of(context);
-    final headerHeight = media.size.height * 0.30;
-    const topBarHeight = 56.0;
-    // Force the white sheet to reach the bottom of the screen so the background
-    // photo never peeks through below the form.
-    final sheetMinHeight = media.size.height -
-        media.padding.top -
-        topBarHeight -
-        headerHeight;
 
     return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Full-bleed branded background (matches the welcome screen).
-          Image.asset(
-            _backgroundAsset,
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => const DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [AppColors.kodiBlue, AppColors.kodiNavy],
+      body: GlassBackground(
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                        color: AppColors.white),
+                    onPressed: () => Navigator.pop(context),
+                  ),
                 ),
-              ),
+                const SizedBox(height: 8),
+                _buildHeader(),
+                const SizedBox(height: 22),
+                GlassPanel(
+                  padding: const EdgeInsets.fromLTRB(20, 22, 20, 24),
+                  child: _buildForm(auth),
+                ),
+              ],
             ),
           ),
-          // Scrim so the header text stays legible over the photo.
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0x66001220), Color(0x99001220)],
-              ),
-            ),
-          ),
-          SafeArea(
-            bottom: false,
-            child: SingleChildScrollView(
-              padding: EdgeInsets.zero,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: media.size.height - media.padding.top,
-                ),
-                child: Column(
-                  children: [
-                    SizedBox(height: topBarHeight, child: _buildTopBar()),
-                    SizedBox(
-                      height: headerHeight,
-                      child: _buildHeader(),
-                    ),
-                    _buildSheet(auth, sheetMinHeight),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTopBar() {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: IconButton(
-        icon: const Icon(Icons.arrow_back_ios_new_rounded,
-            color: AppColors.white),
-        onPressed: () => Navigator.pop(context),
+        ),
       ),
     );
   }
@@ -209,9 +165,8 @@ class _AuthScreenState extends State<AuthScreen> {
   Widget _buildHeader() {
     final meta = _role != null ? _roleMeta[_role] : null;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 4),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (meta != null)
@@ -220,7 +175,8 @@ class _AuthScreenState extends State<AuthScreen> {
               decoration: BoxDecoration(
                 color: AppColors.white.withValues(alpha: 0.18),
                 borderRadius: BorderRadius.circular(30),
-                border: Border.all(color: AppColors.white.withValues(alpha: 0.4)),
+                border:
+                    Border.all(color: AppColors.white.withValues(alpha: 0.4)),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -238,7 +194,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 ],
               ),
             ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           Text(
             _isSignUp ? 'Create your account' : 'Welcome back',
             style: const TextStyle(
@@ -262,49 +218,40 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  Widget _buildSheet(AuthProvider auth, double minHeight) {
-    return Container(
-      width: double.infinity,
-      constraints: BoxConstraints(minHeight: minHeight),
-      padding: const EdgeInsets.fromLTRB(24, 26, 24, 32),
-      decoration: const BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildToggle(),
-          const SizedBox(height: 22),
-          if (_isSignUp && _role == null) ...[
-            _buildRolePicker(),
-            const SizedBox(height: 16),
-          ],
-          if (_isSignUp) ..._buildSignUpFields() else ..._buildLoginFields(),
-          const SizedBox(height: 22),
-          SizedBox(
-            height: 54,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: _accent),
-              onPressed: auth.isLoading
-                  ? null
-                  : (_isSignUp ? _handleSignUp : _handleLogin),
-              child: auth.isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2),
-                    )
-                  : Text(_isSignUp ? 'Create Account' : 'Login'),
-            ),
-          ),
-          const SizedBox(height: 20),
-          _buildDivider(),
-          const SizedBox(height: 20),
-          _buildGoogleButton(),
+  Widget _buildForm(AuthProvider auth) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildToggle(),
+        const SizedBox(height: 22),
+        if (_isSignUp && _role == null) ...[
+          _buildRolePicker(),
+          const SizedBox(height: 16),
         ],
-      ),
+        if (_isSignUp) ..._buildSignUpFields() else ..._buildLoginFields(),
+        const SizedBox(height: 22),
+        SizedBox(
+          height: 54,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _accent),
+            onPressed: auth.isLoading
+                ? null
+                : (_isSignUp ? _handleSignUp : _handleLogin),
+            child: auth.isLoading
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2),
+                  )
+                : Text(_isSignUp ? 'Create Account' : 'Login'),
+          ),
+        ),
+        const SizedBox(height: 20),
+        _buildDivider(),
+        const SizedBox(height: 20),
+        _buildGoogleButton(),
+      ],
     );
   }
 
@@ -312,9 +259,9 @@ class _AuthScreenState extends State<AuthScreen> {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: AppColors.background,
+        color: AppColors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.white.withValues(alpha: 0.22)),
       ),
       child: Row(
         children: [
@@ -345,7 +292,9 @@ class _AuthScreenState extends State<AuthScreen> {
             label,
             style: TextStyle(
               fontWeight: FontWeight.w700,
-              color: selected ? AppColors.white : AppColors.textLight,
+              color: selected
+                  ? AppColors.white
+                  : AppColors.white.withValues(alpha: 0.7),
             ),
           ),
         ),
@@ -355,13 +304,13 @@ class _AuthScreenState extends State<AuthScreen> {
 
   List<Widget> _buildLoginFields() {
     return [
-      _AuthField(
+      GlassTextField(
         controller: _emailController,
         label: 'Email or Phone',
         icon: Icons.email_outlined,
       ),
       const SizedBox(height: 14),
-      _AuthField(
+      GlassTextField(
         controller: _passwordController,
         label: 'Password',
         icon: Icons.lock_outline_rounded,
@@ -372,6 +321,7 @@ class _AuthScreenState extends State<AuthScreen> {
         alignment: Alignment.centerRight,
         child: TextButton(
           onPressed: () => Navigator.pushNamed(context, '/forgot-password'),
+          style: TextButton.styleFrom(foregroundColor: AppColors.white),
           child: const Text('Forgot Password?'),
         ),
       ),
@@ -383,7 +333,7 @@ class _AuthScreenState extends State<AuthScreen> {
       Row(
         children: [
           Expanded(
-            child: _AuthField(
+            child: GlassTextField(
               controller: _firstNameController,
               label: 'First Name',
               icon: Icons.person_outline_rounded,
@@ -391,7 +341,7 @@ class _AuthScreenState extends State<AuthScreen> {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: _AuthField(
+            child: GlassTextField(
               controller: _lastNameController,
               label: 'Last Name',
               icon: Icons.person_outline_rounded,
@@ -400,21 +350,21 @@ class _AuthScreenState extends State<AuthScreen> {
         ],
       ),
       const SizedBox(height: 14),
-      _AuthField(
+      GlassTextField(
         controller: _emailController,
         label: 'Email',
         icon: Icons.email_outlined,
         keyboardType: TextInputType.emailAddress,
       ),
       const SizedBox(height: 14),
-      _AuthField(
+      GlassTextField(
         controller: _phoneController,
         label: 'Phone Number',
         icon: Icons.phone_outlined,
         keyboardType: TextInputType.phone,
       ),
       const SizedBox(height: 14),
-      _AuthField(
+      GlassTextField(
         controller: _passwordController,
         label: 'Password',
         icon: Icons.lock_outline_rounded,
@@ -430,7 +380,7 @@ class _AuthScreenState extends State<AuthScreen> {
         _obscurePassword
             ? Icons.visibility_outlined
             : Icons.visibility_off_outlined,
-        color: AppColors.muted,
+        color: AppColors.white.withValues(alpha: 0.7),
       ),
       onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
     );
@@ -442,7 +392,10 @@ class _AuthScreenState extends State<AuthScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('I am a', style: AppStyles.bodyMedium),
+        Text(
+          'I am a',
+          style: TextStyle(color: AppColors.white.withValues(alpha: 0.85)),
+        ),
         const SizedBox(height: 8),
         Row(
           children: _roleMeta.entries.map((entry) {
@@ -456,27 +409,27 @@ class _AuthScreenState extends State<AuthScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
                       color: selected
-                          ? entry.value.color.withValues(alpha: 0.1)
-                          : AppColors.white,
+                          ? entry.value.color.withValues(alpha: 0.85)
+                          : AppColors.white.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: selected ? entry.value.color : AppColors.border,
+                        color: selected
+                            ? entry.value.color
+                            : AppColors.white.withValues(alpha: 0.25),
                         width: selected ? 1.5 : 1,
                       ),
                     ),
                     child: Column(
                       children: [
                         Icon(entry.value.icon,
-                            color: entry.value.color, size: 22),
+                            color: AppColors.white, size: 22),
                         const SizedBox(height: 6),
                         Text(
                           entry.value.label,
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: selected
-                                ? entry.value.color
-                                : AppColors.textLight,
+                            color: AppColors.white,
                           ),
                         ),
                       ],
@@ -492,14 +445,21 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Widget _buildDivider() {
-    return const Row(
+    final line = AppColors.white.withValues(alpha: 0.25);
+    return Row(
       children: [
-        Expanded(child: Divider(color: AppColors.border)),
+        Expanded(child: Divider(color: line)),
         Padding(
-          padding: EdgeInsets.symmetric(horizontal: 12),
-          child: Text('or continue with', style: AppStyles.caption),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Text(
+            'or continue with',
+            style: TextStyle(
+              color: AppColors.white.withValues(alpha: 0.7),
+              fontSize: 12,
+            ),
+          ),
         ),
-        Expanded(child: Divider(color: AppColors.border)),
+        Expanded(child: Divider(color: line)),
       ],
     );
   }
@@ -510,8 +470,9 @@ class _AuthScreenState extends State<AuthScreen> {
       child: OutlinedButton.icon(
         onPressed: _handleGoogle,
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.textDark,
-          side: const BorderSide(color: AppColors.border),
+          foregroundColor: AppColors.white,
+          backgroundColor: AppColors.white.withValues(alpha: 0.08),
+          side: BorderSide(color: AppColors.white.withValues(alpha: 0.3)),
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
@@ -539,7 +500,6 @@ class _GoogleLogo extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: AppColors.border),
       ),
       child: const Text(
         'G',
@@ -548,38 +508,6 @@ class _GoogleLogo extends StatelessWidget {
           fontWeight: FontWeight.w800,
           fontSize: 15,
         ),
-      ),
-    );
-  }
-}
-
-class _AuthField extends StatelessWidget {
-  final TextEditingController controller;
-  final String label;
-  final IconData icon;
-  final bool obscureText;
-  final TextInputType? keyboardType;
-  final Widget? suffixIcon;
-
-  const _AuthField({
-    required this.controller,
-    required this.label,
-    required this.icon,
-    this.obscureText = false,
-    this.keyboardType,
-    this.suffixIcon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      obscureText: obscureText,
-      keyboardType: keyboardType,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon, color: AppColors.muted),
-        suffixIcon: suffixIcon,
       ),
     );
   }
