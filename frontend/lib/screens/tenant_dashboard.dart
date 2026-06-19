@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../utils/app_icons.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
+import '../widgets/animations.dart';
 import '../widgets/dashboard_components.dart';
 import 'feature_screens.dart';
 import 'chatbot_screen.dart';
@@ -150,7 +152,7 @@ class _TenantDashboardState extends State<TenantDashboard> {
             ),
           ),
         ),
-        child: const Icon(Icons.smart_toy_outlined),
+        child: const Icon(AppIcons.smart_toy_outlined),
       ),
       body: SafeArea(
         child: RefreshIndicator(
@@ -181,21 +183,40 @@ class _TenantDashboardState extends State<TenantDashboard> {
                       ),
                     ),
                     const SizedBox(height: 18),
-                    _buildTopPanel(snapshot),
+                    FadeSlideIn(
+                      delay: FadeSlideIn.stagger(0),
+                      child: _buildTopPanel(snapshot),
+                    ),
                     const SizedBox(height: 22),
-                    const SectionTitle(title: 'Quick Actions'),
-                    _buildQuickActions(context),
-                    const SizedBox(height: 22),
-                    SectionTitle(
-                      title: 'Recent Payments',
-                      actionLabel: 'View all',
-                      onAction: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const TenantPaymentsScreen()),
+                    FadeSlideIn(
+                      delay: FadeSlideIn.stagger(1),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SectionTitle(title: 'Quick Actions'),
+                          _buildQuickActions(context),
+                        ],
                       ),
                     ),
-                    _buildHistory(snapshot),
+                    const SizedBox(height: 22),
+                    FadeSlideIn(
+                      delay: FadeSlideIn.stagger(2),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SectionTitle(
+                            title: 'Recent Payments',
+                            actionLabel: 'View all',
+                            onAction: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const TenantPaymentsScreen()),
+                            ),
+                          ),
+                          _buildHistory(snapshot),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               );
@@ -224,15 +245,15 @@ class _TenantDashboardState extends State<TenantDashboard> {
         },
         items: const [
           BottomNavigationBarItem(
-              icon: Icon(Icons.home_rounded), label: 'Home'),
+              icon: Icon(AppIcons.home_rounded), label: 'Home'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.receipt_long_outlined), label: 'Payments'),
+              icon: Icon(AppIcons.receipt_long_outlined), label: 'Payments'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.handyman_outlined), label: 'Maintenance'),
+              icon: Icon(AppIcons.handyman_outlined), label: 'Maintenance'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.notifications_none_rounded), label: 'Notices'),
+              icon: Icon(AppIcons.notifications_none_rounded), label: 'Notices'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline_rounded), label: 'Profile'),
+              icon: Icon(AppIcons.person_outline_rounded), label: 'Profile'),
         ],
       ),
     );
@@ -363,7 +384,7 @@ class _TenantDashboardState extends State<TenantDashboard> {
         children: [
           Row(
             children: [
-              Icon(Icons.check_circle_rounded,
+              Icon(AppIcons.check_circle_rounded,
                   color: Colors.white.withValues(alpha: 0.95)),
               const SizedBox(width: 8),
               const Text(
@@ -400,7 +421,7 @@ class _TenantDashboardState extends State<TenantDashboard> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.campaign_outlined,
+                    const Icon(AppIcons.campaign_outlined,
                         color: AppColors.white),
                     const SizedBox(width: 10),
                     Expanded(
@@ -431,7 +452,7 @@ class _TenantDashboardState extends State<TenantDashboard> {
                         ],
                       ),
                     ),
-                    const Icon(Icons.chevron_right_rounded,
+                    const Icon(AppIcons.chevron_right_rounded,
                         color: AppColors.white),
                   ],
                 ),
@@ -454,13 +475,13 @@ class _TenantDashboardState extends State<TenantDashboard> {
       children: [
         QuickActionTile(
           label: 'Pay Rent',
-          icon: Icons.account_balance_wallet_outlined,
+          icon: AppIcons.account_balance_wallet_outlined,
           color: AppColors.kodiBlue,
           onTap: () => Navigator.pushNamed(context, '/pay-rent'),
         ),
         QuickActionTile(
           label: 'Maintenance',
-          icon: Icons.build_outlined,
+          icon: AppIcons.build_outlined,
           color: AppColors.kodiOrange,
           onTap: () => Navigator.push(
             context,
@@ -470,7 +491,7 @@ class _TenantDashboardState extends State<TenantDashboard> {
         ),
         QuickActionTile(
           label: 'Receipts',
-          icon: Icons.description_outlined,
+          icon: AppIcons.description_outlined,
           color: AppColors.kodiNavy,
           onTap: () => Navigator.push(
             context,
@@ -479,7 +500,7 @@ class _TenantDashboardState extends State<TenantDashboard> {
         ),
         QuickActionTile(
           label: 'Notices',
-          icon: Icons.campaign_outlined,
+          icon: AppIcons.campaign_outlined,
           color: AppColors.kodiNavy,
           onTap: () => Navigator.push(
             context,
@@ -488,7 +509,7 @@ class _TenantDashboardState extends State<TenantDashboard> {
         ),
         QuickActionTile(
           label: 'Your Rights',
-          icon: Icons.gavel_outlined,
+          icon: AppIcons.gavel_outlined,
           color: AppColors.kodiGreen,
           onTap: () => Navigator.push(
             context,
@@ -520,7 +541,7 @@ class _TenantDashboardState extends State<TenantDashboard> {
         ),
         child: const Row(
           children: [
-            Icon(Icons.receipt_long_outlined, color: AppColors.muted),
+            Icon(AppIcons.receipt_long_outlined, color: AppColors.muted),
             SizedBox(width: 10),
             Expanded(
               child: Text(

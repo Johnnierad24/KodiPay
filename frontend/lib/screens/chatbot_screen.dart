@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../utils/app_icons.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
 
@@ -169,7 +170,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             CircleAvatar(
               radius: 14,
               backgroundColor: Colors.white24,
-              child: Icon(Icons.smart_toy_outlined, size: 16, color: Colors.white),
+              child: Icon(AppIcons.smart_toy_outlined, size: 16, color: Colors.white),
             ),
             SizedBox(width: 10),
             Text('KodiBot', style: TextStyle(fontWeight: FontWeight.w700)),
@@ -211,7 +212,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             child: CircleAvatar(
               radius: 30,
               backgroundColor: widget.accentColor.withValues(alpha: 0.12),
-              child: Icon(Icons.smart_toy_outlined,
+              child: Icon(AppIcons.smart_toy_outlined,
                   size: 30, color: widget.accentColor),
             ),
           ),
@@ -363,7 +364,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Icon(
-                    _sending ? Icons.hourglass_top_rounded : Icons.send_rounded,
+                    _sending ? AppIcons.hourglass_top_rounded : AppIcons.send_rounded,
                     color: Colors.white,
                     size: 22,
                   ),

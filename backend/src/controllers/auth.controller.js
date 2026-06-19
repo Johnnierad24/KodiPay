@@ -2,7 +2,10 @@ const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
+const { OAuth2Client } = require('google-auth-library');
 const pool = require('../config/db');
+
+const googleClient = new OAuth2Client();
 
 function hashResetToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
@@ -54,6 +57,9 @@ exports.login = async (req, res) => {
     if (result.rows.length === 0) return res.status(401).json({ error: 'Invalid credentials' });
 
     const user = result.rows[0];
+    // Google-only accounts have no local password; treat as invalid credentials
+    // rather than letting bcrypt.compare reject on a null hash (which would 500).
+    if (!user.password_hash) return res.status(401).json({ error: 'Invalid credentials' });
     const validPassword = await bcrypt.compare(password, user.password_hash);
     if (!validPassword) return res.status(401).json({ error: 'Invalid credentials' });
 
@@ -64,6 +70,94 @@ exports.login = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ error: 'Login failed' });
+  }
+};
+
+// Sign in / sign up with a Google ID token issued to the mobile app.
+// Verifies the token against GOOGLE_CLIENT_ID, then links or creates the user.
+exports.googleAuth = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  if (!clientId) {
+    return res.status(503).json({ error: 'Google sign-in is not configured' });
+  }
+
+  try {
+    const { id_token, role } = req.body;
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken: id_token,
+      audience: clientId,
+    });
+    const payload = ticket.getPayload();
+
+    if (!payload || !payload.email) {
+      return res.status(401).json({ error: 'Invalid Google token' });
+    }
+    if (payload.email_verified === false) {
+      return res.status(401).json({ error: 'Google email is not verified' });
+    }
+
+    const sub = payload.sub;
+    const email = payload.email.toLowerCase();
+    const firstName =
+      payload.given_name || (payload.name ? payload.name.split(' ')[0] : 'KodiPay');
+    const lastName =
+      payload.family_name ||
+      (payload.name ? payload.name.split(' ').slice(1).join(' ') : '');
+    const allowedRoles = ['landlord', 'tenant', 'caretaker', 'agent'];
+    const safeRole = allowedRoles.includes(role) ? role : 'tenant';
+
+    // 1) Returning Google user (matched by stable subject id).
+    let result = await pool.query(
+      'SELECT id, email, first_name, last_name, phone, role FROM users WHERE google_sub = $1',
+      [sub]
+    );
+    let user = result.rows[0];
+
+    // 2) Existing account with this email — link Google to it.
+    if (!user) {
+      const byEmail = await pool.query(
+        'SELECT id, email, first_name, last_name, phone, role FROM users WHERE LOWER(email) = $1',
+        [email]
+      );
+      if (byEmail.rows.length > 0) {
+        user = byEmail.rows[0];
+        await pool.query(
+          `UPDATE users
+             SET google_sub = $1,
+                 auth_provider = CASE WHEN auth_provider = 'local' THEN 'google' ELSE auth_provider END,
+                 updated_at = CURRENT_TIMESTAMP
+           WHERE id = $2`,
+          [sub, user.id]
+        );
+      }
+    }
+
+    // 3) Brand-new passwordless Google account with the chosen role.
+    let created = false;
+    if (!user) {
+      const insert = await pool.query(
+        `INSERT INTO users (email, first_name, last_name, role, auth_provider, google_sub)
+         VALUES ($1, $2, $3, $4, 'google', $5)
+         RETURNING id, email, first_name, last_name, phone, role`,
+        [email, firstName, lastName, safeRole, sub]
+      );
+      user = insert.rows[0];
+      created = true;
+    }
+
+    const token = jwt.sign(
+      { id: user.id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+    res.status(created ? 201 : 200).json({ user, token });
+  } catch (error) {
+    console.error('Google auth failed:', error.message);
+    res.status(401).json({ error: 'Google sign-in failed' });
   }
 };
 

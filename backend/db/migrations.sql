@@ -148,3 +148,11 @@ CREATE TABLE IF NOT EXISTS password_reset_otps (
 
 CREATE INDEX IF NOT EXISTS idx_password_reset_otps_identifier ON password_reset_otps(identifier);
 CREATE INDEX IF NOT EXISTS idx_password_reset_otps_user ON password_reset_otps(user_id);
+
+-- Google sign-in (OAuth) support.
+-- OAuth accounts have no local password, so password_hash becomes optional, and
+-- we track the auth provider plus the Google subject id for stable linking.
+ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(20) NOT NULL DEFAULT 'local';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS google_sub VARCHAR(255) UNIQUE;
+CREATE INDEX IF NOT EXISTS idx_users_google_sub ON users(google_sub);

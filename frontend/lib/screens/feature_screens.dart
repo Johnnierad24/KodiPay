@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/app_icons.dart';
 import 'package:flutter/services.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:provider/provider.dart';
@@ -62,7 +63,7 @@ class _PropertyListScreenState extends State<PropertyListScreen> {
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.kodiGreen,
         onPressed: _onAdd,
-        child: const Icon(Icons.add_home_rounded, color: AppColors.white),
+        child: const Icon(AppIcons.add_home_rounded, color: AppColors.white),
       ),
       child: RefreshIndicator(
         onRefresh: () async => _reload(),
@@ -77,7 +78,7 @@ class _PropertyListScreenState extends State<PropertyListScreen> {
                 padding: const EdgeInsets.all(40),
                 children: [
                   const SizedBox(height: 60),
-                  const Icon(Icons.error_outline_rounded,
+                  const Icon(AppIcons.error_outline_rounded,
                       size: 56, color: AppColors.danger),
                   const SizedBox(height: 14),
                   Center(
@@ -91,7 +92,7 @@ class _PropertyListScreenState extends State<PropertyListScreen> {
                   Center(
                     child: OutlinedButton.icon(
                       onPressed: _reload,
-                      icon: const Icon(Icons.refresh_rounded),
+                      icon: const Icon(AppIcons.refresh_rounded),
                       label: const Text('Retry'),
                     ),
                   ),
@@ -104,7 +105,7 @@ class _PropertyListScreenState extends State<PropertyListScreen> {
                 padding: const EdgeInsets.all(40),
                 children: [
                   const SizedBox(height: 60),
-                  const Icon(Icons.home_work_outlined,
+                  const Icon(AppIcons.home_work_outlined,
                       size: 72, color: AppColors.muted),
                   const SizedBox(height: 14),
                   const Center(
@@ -128,7 +129,7 @@ class _PropertyListScreenState extends State<PropertyListScreen> {
                   Center(
                     child: ElevatedButton.icon(
                       onPressed: _onAdd,
-                      icon: const Icon(Icons.add_home_rounded),
+                      icon: const Icon(AppIcons.add_home_rounded),
                       label: const Text('Add Property'),
                     ),
                   ),
@@ -161,7 +162,7 @@ class _PropertyListScreenState extends State<PropertyListScreen> {
                           color: AppColors.kodiGreen.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        child: const Icon(Icons.apartment_rounded,
+                        child: const Icon(AppIcons.apartment_rounded,
                             color: AppColors.kodiGreen, size: 36),
                       ),
                       const SizedBox(width: 14),
@@ -185,7 +186,7 @@ class _PropertyListScreenState extends State<PropertyListScreen> {
                           ],
                         ),
                       ),
-                      const Icon(Icons.chevron_right_rounded,
+                      const Icon(AppIcons.chevron_right_rounded,
                           color: AppColors.muted),
                     ],
                   ),
@@ -253,7 +254,7 @@ class PropertyDetailScreen extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           _SettingsTile(
-            icon: Icons.meeting_room_outlined,
+            icon: AppIcons.meeting_room_outlined,
             title: 'Units',
             subtitle:
                 '${property.totalUnits} total • ${property.vacantUnits} vacant',
@@ -271,7 +272,7 @@ class PropertyDetailScreen extends StatelessWidget {
                     ),
           ),
           _SettingsTile(
-            icon: Icons.groups_2_outlined,
+            icon: AppIcons.groups_2_outlined,
             title: 'Tenants',
             subtitle:
                 '${property.activeTenants} active in this property',
@@ -289,7 +290,7 @@ class PropertyDetailScreen extends StatelessWidget {
                     ),
           ),
           _SettingsTile(
-            icon: Icons.receipt_long_outlined,
+            icon: AppIcons.receipt_long_outlined,
             title: 'Transactions',
             subtitle: 'KSh ${_formatKsh(property.thisMonthIncome)} this month',
             onTap: () => Navigator.push(
@@ -298,7 +299,7 @@ class PropertyDetailScreen extends StatelessWidget {
                     builder: (_) => const LandlordPaymentsScreen())),
           ),
           _SettingsTile(
-            icon: Icons.folder_copy_outlined,
+            icon: AppIcons.folder_copy_outlined,
             title: 'Documents',
             subtitle: 'Leases, receipts, agreements',
             onTap: propertyId == null
@@ -393,7 +394,7 @@ class _TenantListScreenState extends State<TenantListScreen> {
           if (changed == true) _reload();
         },
         child:
-            const Icon(Icons.person_add_alt_1_rounded, color: AppColors.white),
+            const Icon(AppIcons.person_add_alt_1_rounded, color: AppColors.white),
       ),
       child: RefreshIndicator(
         onRefresh: () async => _reload(),
@@ -408,7 +409,7 @@ class _TenantListScreenState extends State<TenantListScreen> {
                 padding: const EdgeInsets.all(40),
                 children: [
                   const SizedBox(height: 60),
-                  const Icon(Icons.error_outline_rounded,
+                  const Icon(AppIcons.error_outline_rounded,
                       size: 56, color: AppColors.danger),
                   const SizedBox(height: 14),
                   Center(
@@ -422,7 +423,7 @@ class _TenantListScreenState extends State<TenantListScreen> {
                   Center(
                     child: OutlinedButton.icon(
                       onPressed: _reload,
-                      icon: const Icon(Icons.refresh_rounded),
+                      icon: const Icon(AppIcons.refresh_rounded),
                       label: const Text('Retry'),
                     ),
                   ),
@@ -438,7 +439,7 @@ class _TenantListScreenState extends State<TenantListScreen> {
                 padding: const EdgeInsets.all(40),
                 children: [
                   const SizedBox(height: 60),
-                  const Icon(Icons.groups_2_outlined,
+                  const Icon(AppIcons.groups_2_outlined,
                       size: 72, color: AppColors.muted),
                   const SizedBox(height: 16),
                   Center(
@@ -472,11 +473,11 @@ class _TenantListScreenState extends State<TenantListScreen> {
                   onChanged: (value) => setState(() => _search = value.trim()),
                   decoration: InputDecoration(
                     hintText: 'Search tenants by name, unit, or phone...',
-                    prefixIcon: const Icon(Icons.search_rounded),
+                    prefixIcon: const Icon(AppIcons.search_rounded),
                     suffixIcon: _search.isEmpty
                         ? null
                         : IconButton(
-                            icon: const Icon(Icons.clear_rounded),
+                            icon: const Icon(AppIcons.clear_rounded),
                             onPressed: () {
                               _searchController.clear();
                               setState(() => _search = '');
@@ -521,7 +522,7 @@ class _TenantListScreenState extends State<TenantListScreen> {
           padding: const EdgeInsets.fromLTRB(2, 0, 2, 10),
           child: Row(
             children: [
-              const Icon(Icons.apartment_rounded,
+              const Icon(AppIcons.apartment_rounded,
                   size: 18, color: AppColors.kodiGreen),
               const SizedBox(width: 8),
               Expanded(
@@ -738,7 +739,7 @@ class _TenantTile extends StatelessWidget {
                 ],
               ),
               const SizedBox(width: 4),
-              const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+              const Icon(AppIcons.chevron_right_rounded, color: AppColors.muted),
             ],
           ),
         ),
@@ -781,7 +782,7 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        icon: const Icon(Icons.warning_amber_rounded,
+        icon: const Icon(AppIcons.warning_amber_rounded,
             color: AppColors.danger, size: 44),
         title: const Text('Remove tenant?'),
         content: Text(
@@ -890,13 +891,13 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
                   runSpacing: 6,
                   children: [
                     _DetailChip(
-                      icon: Icons.phone_rounded,
+                      icon: AppIcons.phone_rounded,
                       label: t.tenantPhone?.isNotEmpty == true
                           ? t.tenantPhone!
                           : 'No phone',
                     ),
                     _DetailChip(
-                      icon: Icons.email_rounded,
+                      icon: AppIcons.email_rounded,
                       label: t.tenantEmail?.isNotEmpty == true
                           ? t.tenantEmail!
                           : 'No email',
@@ -967,7 +968,7 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
                       ),
                     ),
                   ),
-                  icon: const Icon(Icons.folder_copy_outlined),
+                  icon: const Icon(AppIcons.folder_copy_outlined),
                   label: const Text('Documents'),
                 ),
               ),
@@ -975,7 +976,7 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: () => showReminderSheet(context),
-                  icon: const Icon(Icons.send_rounded),
+                  icon: const Icon(AppIcons.send_rounded),
                   label: const Text('Reminder'),
                 ),
               ),
@@ -994,7 +995,7 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: AppColors.danger),
                       )
-                    : const Icon(Icons.person_remove_outlined),
+                    : const Icon(AppIcons.person_remove_outlined),
                 label: Text(_removing ? 'Removing...' : 'Remove tenant'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.danger,
@@ -1064,7 +1065,7 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
                                     .withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              child: const Icon(Icons.payments_outlined,
+                              child: const Icon(AppIcons.payments_outlined,
                                   color: AppColors.kodiGreen, size: 18),
                             ),
                             const SizedBox(width: 12),
@@ -1303,7 +1304,7 @@ class _LandlordPaymentsScreenState extends State<LandlordPaymentsScreen> {
                 padding: const EdgeInsets.all(30),
                 children: [
                   const SizedBox(height: 60),
-                  const Icon(Icons.error_outline_rounded,
+                  const Icon(AppIcons.error_outline_rounded,
                       size: 56, color: AppColors.danger),
                   const SizedBox(height: 12),
                   Center(
@@ -1317,7 +1318,7 @@ class _LandlordPaymentsScreenState extends State<LandlordPaymentsScreen> {
                   Center(
                     child: OutlinedButton.icon(
                       onPressed: _reload,
-                      icon: const Icon(Icons.refresh_rounded),
+                      icon: const Icon(AppIcons.refresh_rounded),
                       label: const Text('Retry'),
                     ),
                   ),
@@ -1377,7 +1378,7 @@ class _LandlordPaymentsScreenState extends State<LandlordPaymentsScreen> {
                 const SizedBox(height: 16),
                 if (visiblePayments.isEmpty)
                   const _EmptyState(
-                    icon: Icons.receipt_long_outlined,
+                    icon: AppIcons.receipt_long_outlined,
                     title: 'No payments found',
                     subtitle: 'Try a different payment filter.',
                   )
@@ -1408,7 +1409,7 @@ class _LandlordPaymentsScreenState extends State<LandlordPaymentsScreen> {
                                   PaymentReportScreen(payments: allPayments),
                             ),
                           ),
-                  icon: const Icon(Icons.download_rounded),
+                  icon: const Icon(AppIcons.download_rounded),
                   label: const Text('Download Report'),
                 ),
               ],
@@ -1439,8 +1440,8 @@ class PaymentDetailScreen extends StatelessWidget {
               children: [
                 Icon(
                   payment.isPaid
-                      ? Icons.check_circle_rounded
-                      : Icons.pending_actions_rounded,
+                      ? AppIcons.check_circle_rounded
+                      : AppIcons.pending_actions_rounded,
                   color: _paymentStatusColor(payment.status),
                   size: 54,
                 ),
@@ -1520,7 +1521,7 @@ class PaymentDetailScreen extends StatelessWidget {
                           _showSnack(context, 'Reminder failed: $e');
                         }
                       },
-                icon: const Icon(Icons.notifications_active_outlined),
+                icon: const Icon(AppIcons.notifications_active_outlined),
                 label: Text(payment.tenancyId == null
                     ? 'Tenancy missing — cannot send reminder'
                     : 'Send Payment Reminder'),
@@ -1601,7 +1602,7 @@ class PaymentReportScreen extends StatelessWidget {
                         ),
                       ),
                     ),
-                    Text('support@kodipay.co.ke  |  Page 1'),
+                    Text('kodipay254@gmail.com  |  Page 1'),
                   ],
                 ),
               ],
@@ -1651,7 +1652,7 @@ class PaymentReportScreen extends StatelessWidget {
                       piePending: totalPending,
                     );
                   },
-                  icon: const Icon(Icons.picture_as_pdf_rounded),
+                  icon: const Icon(AppIcons.picture_as_pdf_rounded),
                   label: const Text('Download PDF'),
                 ),
               ),
@@ -1671,7 +1672,7 @@ class PaymentReportScreen extends StatelessWidget {
                       ..click();
                     web.URL.revokeObjectURL(url);
                   },
-                  icon: const Icon(Icons.table_chart_outlined),
+                  icon: const Icon(AppIcons.table_chart_outlined),
                   label: const Text('CSV'),
                 ),
               ),
@@ -2292,7 +2293,7 @@ class _ArrearsRow extends StatelessWidget {
             width: double.infinity,
             child: OutlinedButton.icon(
               onPressed: () => onReminder(tenant),
-              icon: const Icon(Icons.sms_outlined),
+              icon: const Icon(AppIcons.sms_outlined),
               label: const Text('Send Reminder'),
             ),
           ),
@@ -2488,7 +2489,7 @@ class _ReportActions extends StatelessWidget {
             Expanded(
               child: ElevatedButton.icon(
                 onPressed: onExportPdf,
-                icon: const Icon(Icons.picture_as_pdf_rounded),
+                icon: const Icon(AppIcons.picture_as_pdf_rounded),
                 label: const Text('PDF'),
               ),
             ),
@@ -2496,7 +2497,7 @@ class _ReportActions extends StatelessWidget {
             Expanded(
               child: OutlinedButton.icon(
                 onPressed: onExportCsv,
-                icon: const Icon(Icons.table_chart_outlined),
+                icon: const Icon(AppIcons.table_chart_outlined),
                 label: const Text('CSV'),
               ),
             ),
@@ -2507,7 +2508,7 @@ class _ReportActions extends StatelessWidget {
           width: double.infinity,
           child: OutlinedButton.icon(
             onPressed: onSendReminders,
-            icon: const Icon(Icons.notifications_active_outlined),
+            icon: const Icon(AppIcons.notifications_active_outlined),
             label: const Text('Send Arrears Reminders'),
           ),
         ),
@@ -2612,7 +2613,7 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
                 padding: const EdgeInsets.all(30),
                 children: [
                   const SizedBox(height: 60),
-                  const Icon(Icons.error_outline_rounded,
+                  const Icon(AppIcons.error_outline_rounded,
                       size: 56, color: AppColors.danger),
                   const SizedBox(height: 12),
                   Center(
@@ -2626,7 +2627,7 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
                   Center(
                     child: OutlinedButton.icon(
                       onPressed: _reload,
-                      icon: const Icon(Icons.refresh_rounded),
+                      icon: const Icon(AppIcons.refresh_rounded),
                       label: const Text('Retry'),
                     ),
                   ),
@@ -2696,14 +2697,14 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
                     ),
                     TextButton.icon(
                       onPressed: () => _downloadCsv(payments, tenancy),
-                      icon: const Icon(Icons.download_rounded),
+                      icon: const Icon(AppIcons.download_rounded),
                       label: const Text('Download'),
                     ),
                   ],
                 ),
                 if (payments.isEmpty)
                   const _EmptyState(
-                    icon: Icons.receipt_long_outlined,
+                    icon: AppIcons.receipt_long_outlined,
                     title: 'No payments yet',
                     subtitle:
                         'Your rent receipts will show up here once payments are recorded.',
@@ -2825,7 +2826,7 @@ class _TenantPaymentRow extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
-              isPaid ? Icons.check_circle_outline : Icons.pending_actions,
+              isPaid ? AppIcons.check_circle_outline : AppIcons.pending_actions,
               color: color,
               size: 18,
             ),
@@ -2955,7 +2956,7 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
           return FloatingActionButton.extended(
             backgroundColor: AppColors.kodiBlue,
             onPressed: bundle == null ? null : () => _onReport(bundle),
-            icon: const Icon(Icons.add_rounded, color: AppColors.white),
+            icon: const Icon(AppIcons.add_rounded, color: AppColors.white),
             label: const Text('Report Issue',
                 style: TextStyle(color: AppColors.white)),
           );
@@ -2974,7 +2975,7 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
                 padding: const EdgeInsets.all(30),
                 children: [
                   const SizedBox(height: 60),
-                  const Icon(Icons.error_outline_rounded,
+                  const Icon(AppIcons.error_outline_rounded,
                       size: 56, color: AppColors.danger),
                   const SizedBox(height: 12),
                   Center(
@@ -2988,7 +2989,7 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
                   Center(
                     child: OutlinedButton.icon(
                       onPressed: _reload,
-                      icon: const Icon(Icons.refresh_rounded),
+                      icon: const Icon(AppIcons.refresh_rounded),
                       label: const Text('Retry'),
                     ),
                   ),
@@ -3002,7 +3003,7 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
                 padding: const EdgeInsets.all(30),
                 children: const [
                   SizedBox(height: 60),
-                  Icon(Icons.handyman_outlined,
+                  Icon(AppIcons.handyman_outlined,
                       size: 72, color: AppColors.muted),
                   SizedBox(height: 14),
                   Center(
@@ -3184,7 +3185,7 @@ class _MaintenanceItemCard extends StatelessWidget {
                     color: statusColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(Icons.build_circle_outlined, color: statusColor),
+                  child: Icon(AppIcons.build_circle_outlined, color: statusColor),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -3276,7 +3277,7 @@ class MaintenanceDetailScreen extends StatelessWidget {
                         color: statusColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(14),
                       ),
-                      child: Icon(Icons.build_circle_outlined,
+                      child: Icon(AppIcons.build_circle_outlined,
                           color: statusColor),
                     ),
                     const SizedBox(width: 12),
@@ -3341,7 +3342,7 @@ class MaintenanceDetailScreen extends StatelessWidget {
                 const Text('Timeline', style: _titleStyle),
                 const SizedBox(height: 12),
                 _MaintenanceTimelineRow(
-                  icon: Icons.report_problem_outlined,
+                  icon: AppIcons.report_problem_outlined,
                   color: AppColors.kodiBlue,
                   label: 'Reported',
                   time: item.createdAt,
@@ -3349,8 +3350,8 @@ class MaintenanceDetailScreen extends StatelessWidget {
                 if (item.updatedAt != item.createdAt)
                   _MaintenanceTimelineRow(
                     icon: item.status.toLowerCase() == 'completed'
-                        ? Icons.check_circle_outline
-                        : Icons.timelapse_outlined,
+                        ? AppIcons.check_circle_outline
+                        : AppIcons.timelapse_outlined,
                     color: statusColor,
                     label: 'Last updated ($statusLabel)',
                     time: item.updatedAt,
@@ -3484,7 +3485,7 @@ class _TenantNoticesScreenState extends State<TenantNoticesScreen> {
                 padding: const EdgeInsets.all(30),
                 children: [
                   const SizedBox(height: 60),
-                  const Icon(Icons.error_outline_rounded,
+                  const Icon(AppIcons.error_outline_rounded,
                       size: 56, color: AppColors.danger),
                   const SizedBox(height: 12),
                   Center(
@@ -3498,7 +3499,7 @@ class _TenantNoticesScreenState extends State<TenantNoticesScreen> {
                   Center(
                     child: OutlinedButton.icon(
                       onPressed: _reload,
-                      icon: const Icon(Icons.refresh_rounded),
+                      icon: const Icon(AppIcons.refresh_rounded),
                       label: const Text('Retry'),
                     ),
                   ),
@@ -3511,7 +3512,7 @@ class _TenantNoticesScreenState extends State<TenantNoticesScreen> {
                 padding: const EdgeInsets.all(40),
                 children: const [
                   SizedBox(height: 80),
-                  Icon(Icons.notifications_none_rounded,
+                  Icon(AppIcons.notifications_none_rounded,
                       size: 72, color: AppColors.muted),
                   SizedBox(height: 16),
                   Center(
@@ -3611,7 +3612,7 @@ class _TenantNoticeCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+            const Icon(AppIcons.chevron_right_rounded, color: AppColors.muted),
           ],
         ),
       ),
@@ -3800,7 +3801,7 @@ class _CaretakerTasksScreenState extends State<CaretakerTasksScreen> {
                 padding: const EdgeInsets.all(30),
                 children: [
                   const SizedBox(height: 60),
-                  const Icon(Icons.error_outline_rounded,
+                  const Icon(AppIcons.error_outline_rounded,
                       size: 56, color: AppColors.danger),
                   const SizedBox(height: 12),
                   Center(
@@ -3814,7 +3815,7 @@ class _CaretakerTasksScreenState extends State<CaretakerTasksScreen> {
                   Center(
                     child: OutlinedButton.icon(
                       onPressed: _reload,
-                      icon: const Icon(Icons.refresh_rounded),
+                      icon: const Icon(AppIcons.refresh_rounded),
                       label: const Text('Retry'),
                     ),
                   ),
@@ -3827,7 +3828,7 @@ class _CaretakerTasksScreenState extends State<CaretakerTasksScreen> {
                 padding: const EdgeInsets.all(30),
                 children: const [
                   SizedBox(height: 60),
-                  Icon(Icons.task_alt_rounded,
+                  Icon(AppIcons.task_alt_rounded,
                       size: 72, color: AppColors.muted),
                   SizedBox(height: 14),
                   Center(
@@ -3942,7 +3943,7 @@ class _CaretakerAlertsScreenState extends State<CaretakerAlertsScreen> {
                 padding: const EdgeInsets.all(30),
                 children: [
                   const SizedBox(height: 60),
-                  const Icon(Icons.error_outline_rounded,
+                  const Icon(AppIcons.error_outline_rounded,
                       size: 56, color: AppColors.danger),
                   const SizedBox(height: 12),
                   Center(
@@ -3956,7 +3957,7 @@ class _CaretakerAlertsScreenState extends State<CaretakerAlertsScreen> {
                   Center(
                     child: OutlinedButton.icon(
                       onPressed: _reload,
-                      icon: const Icon(Icons.refresh_rounded),
+                      icon: const Icon(AppIcons.refresh_rounded),
                       label: const Text('Retry'),
                     ),
                   ),
@@ -3969,7 +3970,7 @@ class _CaretakerAlertsScreenState extends State<CaretakerAlertsScreen> {
                 padding: const EdgeInsets.all(30),
                 children: const [
                   SizedBox(height: 60),
-                  Icon(Icons.shield_outlined,
+                  Icon(AppIcons.shield_outlined,
                       size: 72, color: AppColors.kodiGreen),
                   SizedBox(height: 14),
                   Center(
@@ -4047,7 +4048,7 @@ class _PropertyGroupHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(Icons.apartment_rounded, color: accent, size: 18),
+        Icon(AppIcons.apartment_rounded, color: accent, size: 18),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
@@ -4104,7 +4105,7 @@ class _CaretakerTaskCard extends StatelessWidget {
                   color: AppColors.kodiOrange.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.handyman_rounded,
+                child: const Icon(AppIcons.handyman_rounded,
                     color: AppColors.kodiOrange),
               ),
               const SizedBox(width: 12),
@@ -4165,7 +4166,7 @@ class _CaretakerEmergencyCard extends StatelessWidget {
               color: AppColors.danger.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.warning_rounded, color: AppColors.danger),
+            child: const Icon(AppIcons.warning_rounded, color: AppColors.danger),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -4303,8 +4304,8 @@ class _CaretakerTaskDetailScreenState extends State<CaretakerTaskDetailScreen> {
                         ),
                         child: Icon(
                           widget.isEmergency
-                              ? Icons.warning_rounded
-                              : Icons.handyman_rounded,
+                              ? AppIcons.warning_rounded
+                              : AppIcons.handyman_rounded,
                           color: accent,
                         ),
                       ),
@@ -4395,7 +4396,7 @@ class _CaretakerTaskDetailScreenState extends State<CaretakerTaskDetailScreen> {
                   if (phone != null && phone.isNotEmpty) ...[
                     const SizedBox(height: 10),
                     _ContactRow(
-                      icon: Icons.call_outlined,
+                      icon: AppIcons.call_outlined,
                       label: phone,
                       onTap: () => _copy('Phone number', phone),
                     ),
@@ -4403,7 +4404,7 @@ class _CaretakerTaskDetailScreenState extends State<CaretakerTaskDetailScreen> {
                   if (email != null && email.isNotEmpty) ...[
                     const SizedBox(height: 10),
                     _ContactRow(
-                      icon: Icons.mail_outline_rounded,
+                      icon: AppIcons.mail_outline_rounded,
                       label: email,
                       onTap: () => _copy('Email', email),
                     ),
@@ -4419,7 +4420,7 @@ class _CaretakerTaskDetailScreenState extends State<CaretakerTaskDetailScreen> {
                   const Text('Timeline', style: _titleStyle),
                   const SizedBox(height: 12),
                   _MaintenanceTimelineRow(
-                    icon: Icons.report_problem_outlined,
+                    icon: AppIcons.report_problem_outlined,
                     color: AppColors.kodiBlue,
                     label: 'Reported',
                     time: _item.createdAt,
@@ -4427,8 +4428,8 @@ class _CaretakerTaskDetailScreenState extends State<CaretakerTaskDetailScreen> {
                   if (_item.updatedAt != _item.createdAt)
                     _MaintenanceTimelineRow(
                       icon: _item.isResolved
-                          ? Icons.check_circle_outline
-                          : Icons.timelapse_outlined,
+                          ? AppIcons.check_circle_outline
+                          : AppIcons.timelapse_outlined,
                       color: statusColor,
                       label: 'Last updated ($statusLabel)',
                       time: _item.updatedAt,
@@ -4441,7 +4442,7 @@ class _CaretakerTaskDetailScreenState extends State<CaretakerTaskDetailScreen> {
               const _TappableCard(
                 child: Row(
                   children: [
-                    Icon(Icons.check_circle_rounded,
+                    Icon(AppIcons.check_circle_rounded,
                         color: AppColors.kodiGreen),
                     SizedBox(width: 10),
                     Expanded(
@@ -4464,7 +4465,7 @@ class _CaretakerTaskDetailScreenState extends State<CaretakerTaskDetailScreen> {
                     onPressed: _submitting
                         ? null
                         : () => _setStatus('in_progress', 'Marked in progress'),
-                    icon: const Icon(Icons.play_arrow_rounded),
+                    icon: const Icon(AppIcons.play_arrow_rounded),
                     label: const Text('Start working on this'),
                   ),
                 ),
@@ -4490,8 +4491,8 @@ class _CaretakerTaskDetailScreenState extends State<CaretakerTaskDetailScreen> {
                               strokeWidth: 2, color: AppColors.white),
                         )
                       : Icon(widget.isEmergency
-                          ? Icons.health_and_safety_outlined
-                          : Icons.check_circle_outline_rounded),
+                          ? AppIcons.health_and_safety_outlined
+                          : AppIcons.check_circle_outline_rounded),
                   label: Text(
                     widget.isEmergency
                         ? 'Mark Emergency Resolved'
@@ -4538,7 +4539,7 @@ class _ContactRow extends StatelessWidget {
                       color: AppColors.textDark,
                       fontWeight: FontWeight.w600)),
             ),
-            const Icon(Icons.copy_rounded, color: AppColors.muted, size: 16),
+            const Icon(AppIcons.copy_rounded, color: AppColors.muted, size: 16),
           ],
         ),
       ),
@@ -4690,7 +4691,7 @@ class ProfileScreen extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           _SettingsTile(
-            icon: Icons.edit_outlined,
+            icon: AppIcons.edit_outlined,
             title: 'Edit profile',
             subtitle: 'Update your name, email, or phone number',
             onTap: () => _openEditProfileSheet(context),
@@ -4701,13 +4702,13 @@ class ProfileScreen extends StatelessWidget {
             child: Text('Security', style: _smallBoldStyle),
           ),
           _SettingsTile(
-            icon: Icons.lock_reset_rounded,
+            icon: AppIcons.lock_reset_rounded,
             title: 'Change password',
             subtitle: 'Set a new password without signing out',
             onTap: () => _openChangePasswordSheet(context),
           ),
           _SettingsTile(
-            icon: Icons.copy_all_outlined,
+            icon: AppIcons.copy_all_outlined,
             title: 'Copy email',
             subtitle: email,
             onTap: () async {
@@ -4717,7 +4718,7 @@ class ProfileScreen extends StatelessWidget {
             },
           ),
           _SettingsTile(
-            icon: Icons.logout_rounded,
+            icon: AppIcons.logout_rounded,
             title: 'Sign out',
             subtitle: 'End your KodiPay session on this device',
             onTap: () => _confirmAndSignOut(context),
@@ -4740,7 +4741,7 @@ class MoreScreen extends StatelessWidget {
         padding: const EdgeInsets.all(18),
         children: [
           _SettingsTile(
-            icon: Icons.settings_outlined,
+            icon: AppIcons.settings_outlined,
             title: 'Settings',
             subtitle: 'App preferences, alerts, and exports',
             onTap: () => Navigator.push(
@@ -4749,7 +4750,7 @@ class MoreScreen extends StatelessWidget {
             ),
           ),
           _SettingsTile(
-            icon: Icons.person_outline_rounded,
+            icon: AppIcons.person_outline_rounded,
             title: 'Profile',
             subtitle: 'Landlord account and security',
             onTap: () => Navigator.push(
@@ -4763,7 +4764,7 @@ class MoreScreen extends StatelessWidget {
             ),
           ),
           _SettingsTile(
-            icon: Icons.engineering_outlined,
+            icon: AppIcons.engineering_outlined,
             title: 'Caretakers',
             subtitle: 'Add or remove caretakers for your properties',
             onTap: () => Navigator.push(
@@ -4772,7 +4773,7 @@ class MoreScreen extends StatelessWidget {
             ),
           ),
           _SettingsTile(
-            icon: Icons.gavel_outlined,
+            icon: AppIcons.gavel_outlined,
             title: 'Your Rights',
             subtitle: 'Landlord & tenant rights, plain English',
             onTap: () => Navigator.push(
@@ -4783,7 +4784,7 @@ class MoreScreen extends StatelessWidget {
             ),
           ),
           _SettingsTile(
-            icon: Icons.help_outline_rounded,
+            icon: AppIcons.help_outline_rounded,
             title: 'Support',
             subtitle: 'Get help with payments or reports',
             onTap: () => Navigator.push(
@@ -4851,7 +4852,7 @@ class _CaretakersScreenState extends State<CaretakersScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        icon: const Icon(Icons.warning_amber_rounded,
+        icon: const Icon(AppIcons.warning_amber_rounded,
             color: AppColors.danger, size: 44),
         title: const Text('Remove caretaker?'),
         content: Text(
@@ -4901,7 +4902,7 @@ class _CaretakersScreenState extends State<CaretakersScreen> {
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: AppColors.kodiGreen,
         onPressed: _onAdd,
-        icon: const Icon(Icons.person_add_alt_1_rounded,
+        icon: const Icon(AppIcons.person_add_alt_1_rounded,
             color: AppColors.white),
         label: const Text('Add Caretaker',
             style: TextStyle(color: AppColors.white)),
@@ -4919,7 +4920,7 @@ class _CaretakersScreenState extends State<CaretakersScreen> {
                 padding: const EdgeInsets.all(30),
                 children: [
                   const SizedBox(height: 60),
-                  const Icon(Icons.error_outline_rounded,
+                  const Icon(AppIcons.error_outline_rounded,
                       size: 56, color: AppColors.danger),
                   const SizedBox(height: 12),
                   Center(
@@ -4933,7 +4934,7 @@ class _CaretakersScreenState extends State<CaretakersScreen> {
                   Center(
                     child: OutlinedButton.icon(
                       onPressed: _reload,
-                      icon: const Icon(Icons.refresh_rounded),
+                      icon: const Icon(AppIcons.refresh_rounded),
                       label: const Text('Retry'),
                     ),
                   ),
@@ -4946,7 +4947,7 @@ class _CaretakersScreenState extends State<CaretakersScreen> {
                 padding: const EdgeInsets.all(30),
                 children: const [
                   SizedBox(height: 60),
-                  Icon(Icons.engineering_outlined,
+                  Icon(AppIcons.engineering_outlined,
                       size: 72, color: AppColors.muted),
                   SizedBox(height: 14),
                   Center(
@@ -5092,7 +5093,7 @@ class _CaretakerCard extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+          const Icon(AppIcons.chevron_right_rounded, color: AppColors.muted),
         ],
       ),
     );
@@ -5198,14 +5199,14 @@ class CaretakerDetailScreen extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           _SettingsTile(
-            icon: Icons.copy_all_outlined,
+            icon: AppIcons.copy_all_outlined,
             title: 'Copy email',
             subtitle: entry.email,
             onTap: () => _copy(context, 'Email', entry.email),
           ),
           if (phone != null && phone.isNotEmpty)
             _SettingsTile(
-              icon: Icons.call_outlined,
+              icon: AppIcons.call_outlined,
               title: 'Copy phone',
               subtitle: phone,
               onTap: () => _copy(context, 'Phone', phone),
@@ -5218,7 +5219,7 @@ class CaretakerDetailScreen extends StatelessWidget {
                 Navigator.pop(context);
                 onRemove();
               },
-              icon: const Icon(Icons.person_remove_outlined),
+              icon: const Icon(AppIcons.person_remove_outlined),
               label: Text(
                   'Remove from ${entry.propertyName.isEmpty ? "this property" : entry.propertyName}'),
               style: OutlinedButton.styleFrom(
@@ -5402,7 +5403,7 @@ class _AddCaretakerSheetState extends State<_AddCaretakerSheet> {
                         if (!context.mounted) return;
                         _showSnack(context, 'Password copied');
                       },
-                      icon: const Icon(Icons.copy_rounded),
+                      icon: const Icon(AppIcons.copy_rounded),
                       label: const Text('Copy'),
                     ),
                   ),
@@ -5410,7 +5411,7 @@ class _AddCaretakerSheetState extends State<_AddCaretakerSheet> {
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () => Navigator.pop(context, true),
-                      icon: const Icon(Icons.check_rounded),
+                      icon: const Icon(AppIcons.check_rounded),
                       label: const Text('Done'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.kodiGreen,
@@ -5524,7 +5525,7 @@ class _AddCaretakerSheetState extends State<_AddCaretakerSheet> {
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: AppColors.white),
                         )
-                      : const Icon(Icons.person_add_alt_1_rounded),
+                      : const Icon(AppIcons.person_add_alt_1_rounded),
                   label: Text(_submitting ? 'Adding...' : 'Add caretaker'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.kodiGreen,
@@ -5550,7 +5551,7 @@ class RightsScreen extends StatelessWidget {
 
   static const List<_RightsTopic> _topics = [
     _RightsTopic(
-      icon: Icons.payments_outlined,
+      icon: AppIcons.payments_outlined,
       title: 'Rent & rent increases',
       landlord: [
         'You set rent by agreement. If a tenant disputes it, the Tribunal can set a fair rent based on comparable lettings.',
@@ -5567,7 +5568,7 @@ class RightsScreen extends StatelessWidget {
       source: 'Rent Restriction Act ss.9–13 · Landlord & Tenant Bill 2021 ss.17–22',
     ),
     _RightsTopic(
-      icon: Icons.exit_to_app_rounded,
+      icon: AppIcons.exit_to_app_rounded,
       title: 'Eviction & notice to quit',
       landlord: [
         'You can only end a tenancy on specific grounds (e.g. unpaid rent, breach, you reasonably need the unit, repairs/demolition, or a fixed term ending).',
@@ -5584,7 +5585,7 @@ class RightsScreen extends StatelessWidget {
       source: 'Rent Restriction Act ss.14–15 · Landlord & Tenant Bill 2021 ss.19, 24–29, 47',
     ),
     _RightsTopic(
-      icon: Icons.handyman_outlined,
+      icon: AppIcons.handyman_outlined,
       title: 'Repairs & habitability',
       landlord: [
         'You are responsible for keeping the premises structurally sound, weather-proof, and fit for human habitation.',
@@ -5599,7 +5600,7 @@ class RightsScreen extends StatelessWidget {
       source: 'Rent Restriction Act s.26 · Landlord & Tenant Bill 2021 s.45 & Schedule',
     ),
     _RightsTopic(
-      icon: Icons.money_off_outlined,
+      icon: AppIcons.money_off_outlined,
       title: 'Deposits, key money & receipts',
       landlord: [
         'You may not demand a "premium", "key money", or any extra payment as a condition of letting — only rent and lawful deposits.',
@@ -5616,7 +5617,7 @@ class RightsScreen extends StatelessWidget {
       source: 'Rent Restriction Act ss.17, 19, 21 · Landlord & Tenant Bill 2021 ss.40, 45',
     ),
     _RightsTopic(
-      icon: Icons.swap_horiz_rounded,
+      icon: AppIcons.swap_horiz_rounded,
       title: 'Subletting & assignment',
       landlord: [
         'A tenant cannot sublet or assign the tenancy without your written consent — but you cannot unreasonably refuse.',
@@ -5631,7 +5632,7 @@ class RightsScreen extends StatelessWidget {
       source: 'Rent Restriction Act ss.27–28 · Landlord & Tenant Bill 2021 ss.30–32',
     ),
     _RightsTopic(
-      icon: Icons.power_settings_new_rounded,
+      icon: AppIcons.power_settings_new_rounded,
       title: 'Services & lockouts',
       landlord: [
         'You cannot cut off water, light, sanitation, or any other service to force a tenant to leave or pay — even if they are in arrears.',
@@ -5646,7 +5647,7 @@ class RightsScreen extends StatelessWidget {
       source: 'Rent Restriction Act ss.16, 23, 29 · Landlord & Tenant Bill 2021 ss.42, 48, 57',
     ),
     _RightsTopic(
-      icon: Icons.balance_outlined,
+      icon: AppIcons.balance_outlined,
       title: 'Disputes & where to go',
       landlord: [
         'Rent, eviction, repair, deposit, and service disputes are handled by the Landlord and Tenant Tribunal (which replaces the older Rent Tribunal).',
@@ -5676,7 +5677,7 @@ class RightsScreen extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.gavel_outlined, color: _accent),
+                    Icon(AppIcons.gavel_outlined, color: _accent),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
@@ -5701,7 +5702,7 @@ class RightsScreen extends StatelessWidget {
                   ),
                   child: const Row(
                     children: [
-                      Icon(Icons.open_in_new_rounded,
+                      Icon(AppIcons.open_in_new_rounded,
                           color: AppColors.kodiBlue, size: 16),
                       SizedBox(width: 6),
                       Text(
@@ -5838,9 +5839,9 @@ class SupportScreen extends StatefulWidget {
 }
 
 class _SupportScreenState extends State<SupportScreen> {
-  static const String _supportEmail = 'support@kodipay.co.ke';
-  static const String _supportPhone = '+254 700 123 456';
-  static const String _supportWhatsAppDigits = '254700123456';
+  static const String _supportEmail = 'kodipay254@gmail.com';
+  static const String _supportPhone = '+254 112 104 319';
+  static const String _supportWhatsAppDigits = '254112104319';
 
   final _subjectController = TextEditingController();
   final _messageController = TextEditingController();
@@ -5943,7 +5944,7 @@ class _SupportScreenState extends State<SupportScreen> {
                       radius: 22,
                       backgroundColor:
                           widget.accentColor.withValues(alpha: 0.12),
-                      child: Icon(Icons.support_agent_rounded,
+                      child: Icon(AppIcons.support_agent_rounded,
                           color: widget.accentColor),
                     ),
                     const SizedBox(width: 12),
@@ -5966,19 +5967,19 @@ class _SupportScreenState extends State<SupportScreen> {
             child: Text('Contact KodiPay', style: _smallBoldStyle),
           ),
           _SettingsTile(
-            icon: Icons.email_outlined,
+            icon: AppIcons.email_outlined,
             title: 'Email support',
             subtitle: _supportEmail,
             onTap: () => _openEmail(),
           ),
           _SettingsTile(
-            icon: Icons.call_outlined,
+            icon: AppIcons.call_outlined,
             title: 'Call us',
             subtitle: _supportPhone,
             onTap: _openDialer,
           ),
           _SettingsTile(
-            icon: Icons.chat_bubble_outline_rounded,
+            icon: AppIcons.chat_bubble_outline_rounded,
             title: 'WhatsApp',
             subtitle: '+$_supportWhatsAppDigits',
             onTap: () => _openWhatsApp(),
@@ -6044,7 +6045,7 @@ class _SupportScreenState extends State<SupportScreen> {
                         height: 48,
                         child: ElevatedButton.icon(
                           onPressed: _sendMessage,
-                          icon: const Icon(Icons.email_outlined),
+                          icon: const Icon(AppIcons.email_outlined),
                           label: const Text('Email'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: widget.accentColor,
@@ -6059,7 +6060,7 @@ class _SupportScreenState extends State<SupportScreen> {
                         height: 48,
                         child: OutlinedButton.icon(
                           onPressed: _sendOnWhatsApp,
-                          icon: const Icon(Icons.chat_bubble_outline_rounded),
+                          icon: const Icon(AppIcons.chat_bubble_outline_rounded),
                           label: const Text('WhatsApp'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: const Color(0xFF25D366),
@@ -6088,14 +6089,14 @@ class _SupportScreenState extends State<SupportScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _HelpRow(
-                  icon: Icons.payments_outlined,
+                  icon: AppIcons.payments_outlined,
                   title: 'Payment not showing up?',
                   body:
                       'Confirm the tenant used the correct M-Pesa till and reference. Most receipts post within 2–3 minutes.',
                 ),
                 SizedBox(height: 12),
                 _HelpRow(
-                  icon: Icons.picture_as_pdf_outlined,
+                  icon: AppIcons.picture_as_pdf_outlined,
                   title: 'Report missing data?',
                   body:
                       'Make sure the date range covers the invoices, then re-download the PDF or CSV from Reports.',
@@ -6230,7 +6231,7 @@ class _LandlordNotificationsScreenState
                   padding: const EdgeInsets.all(40),
                   children: [
                     const SizedBox(height: 60),
-                    const Icon(Icons.error_outline_rounded,
+                    const Icon(AppIcons.error_outline_rounded,
                         size: 56, color: AppColors.danger),
                     const SizedBox(height: 14),
                     Center(
@@ -6244,7 +6245,7 @@ class _LandlordNotificationsScreenState
                     Center(
                       child: OutlinedButton.icon(
                         onPressed: _reload,
-                        icon: const Icon(Icons.refresh_rounded),
+                        icon: const Icon(AppIcons.refresh_rounded),
                         label: const Text('Retry'),
                       ),
                     ),
@@ -6257,7 +6258,7 @@ class _LandlordNotificationsScreenState
                   padding: const EdgeInsets.all(40),
                   children: const [
                     SizedBox(height: 80),
-                    Icon(Icons.notifications_none_rounded,
+                    Icon(AppIcons.notifications_none_rounded,
                         size: 72, color: AppColors.muted),
                     SizedBox(height: 16),
                     Center(
@@ -6295,7 +6296,7 @@ class _LandlordNotificationsScreenState
                             height: 16,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Icon(Icons.done_all_rounded),
+                        : const Icon(AppIcons.done_all_rounded),
                     label: Text(_markingAll
                         ? 'Marking...'
                         : 'Mark All as Read (${items.length})'),
@@ -6395,7 +6396,7 @@ class _NotificationApiCard extends StatelessWidget {
           IconButton(
             tooltip: 'Mark as read',
             onPressed: onMarkRead,
-            icon: const Icon(Icons.check_circle_outline_rounded,
+            icon: const Icon(AppIcons.check_circle_outline_rounded,
                 color: AppColors.kodiGreen),
           ),
         ],
@@ -6414,21 +6415,21 @@ _NotificationPalette _paletteForType(String type) {
   switch (type.toLowerCase()) {
     case 'reminder':
     case 'rent_reminder':
-      return const _NotificationPalette(AppColors.kodiBlue, Icons.sms_outlined);
+      return const _NotificationPalette(AppColors.kodiBlue, AppIcons.sms_outlined);
     case 'maintenance':
       return const _NotificationPalette(
-          AppColors.kodiOrange, Icons.build_outlined);
+          AppColors.kodiOrange, AppIcons.build_outlined);
     case 'payment':
     case 'mpesa':
       return const _NotificationPalette(
-          AppColors.kodiGreen, Icons.verified_outlined);
+          AppColors.kodiGreen, AppIcons.verified_outlined);
     case 'alert':
     case 'warning':
       return const _NotificationPalette(
-          AppColors.danger, Icons.warning_amber_rounded);
+          AppColors.danger, AppIcons.warning_amber_rounded);
     default:
       return const _NotificationPalette(
-          AppColors.kodiNavy, Icons.notifications_active_outlined);
+          AppColors.kodiNavy, AppIcons.notifications_active_outlined);
   }
 }
 
@@ -6527,7 +6528,7 @@ class _AppPreferencesScreenState extends State<AppPreferencesScreen> {
             height: 52,
             child: ElevatedButton.icon(
               onPressed: () => _showSnack(context, 'Preferences saved.'),
-              icon: const Icon(Icons.save_outlined),
+              icon: const Icon(AppIcons.save_outlined),
               label: const Text('Save Preferences'),
             ),
           ),
@@ -7067,7 +7068,7 @@ class _PasswordBox extends StatelessWidget {
           ),
           IconButton(
             tooltip: 'Copy',
-            icon: const Icon(Icons.copy_rounded, size: 18),
+            icon: const Icon(AppIcons.copy_rounded, size: 18),
             onPressed: () {
               Clipboard.setData(ClipboardData(text: password));
               ScaffoldMessenger.of(context).showSnackBar(
@@ -7300,7 +7301,7 @@ class _ReportIssueSheetState extends State<_ReportIssueSheet> {
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: AppColors.white),
                       )
-                    : const Icon(Icons.send_rounded),
+                    : const Icon(AppIcons.send_rounded),
                 label: Text(_submitting ? 'Submitting...' : 'Submit Issue'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.kodiBlue,
@@ -7470,7 +7471,7 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: AppColors.white),
                       )
-                    : const Icon(Icons.save_rounded),
+                    : const Icon(AppIcons.save_rounded),
                 label: Text(_submitting ? 'Saving...' : 'Save changes'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.kodiGreen,
@@ -7574,7 +7575,7 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
         labelText: label,
         border: const OutlineInputBorder(),
         suffixIcon: IconButton(
-          icon: Icon(obscure ? Icons.visibility_off : Icons.visibility),
+          icon: Icon(obscure ? AppIcons.visibility_off : AppIcons.visibility),
           onPressed: onToggle,
         ),
       ),
@@ -7631,7 +7632,7 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: AppColors.white),
                       )
-                    : const Icon(Icons.lock_reset_rounded),
+                    : const Icon(AppIcons.lock_reset_rounded),
                 label: Text(_submitting ? 'Updating...' : 'Update password'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: widget.accentColor,
@@ -7809,7 +7810,7 @@ class _AnnouncementSheetState extends State<_AnnouncementSheet> {
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: AppColors.white),
                       )
-                    : const Icon(Icons.campaign_outlined),
+                    : const Icon(AppIcons.campaign_outlined),
                 label: Text(_submitting ? 'Sending...' : 'Send Announcement'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.kodiGreen,
@@ -7895,7 +7896,7 @@ class _FeatureScaffold extends StatelessWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+          icon: const Icon(AppIcons.arrow_back_ios_new_rounded,
               color: AppColors.textDark),
           onPressed: () => Navigator.pop(context),
         ),
@@ -7973,7 +7974,7 @@ class _SettingsTile extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+            const Icon(AppIcons.chevron_right_rounded, color: AppColors.muted),
           ],
         ),
       ),
@@ -8155,7 +8156,7 @@ class _LandlordReportInfo extends StatelessWidget {
       child: Column(
         children: [
           _ReportInfoRow(label: 'Landlord Name', value: 'James Mwangi'),
-          _ReportInfoRow(label: 'Email / Phone', value: 'james@kodipay.co.ke / 0700 000 111'),
+          _ReportInfoRow(label: 'Email / Phone', value: 'kodipay254@gmail.com / +254 112 104 319'),
           _ReportInfoRow(label: 'Property Count', value: '3 properties'),
         ],
       ),
@@ -8686,7 +8687,7 @@ class _PaymentItem extends StatelessWidget {
                 width: double.infinity,
                 child: OutlinedButton.icon(
                   onPressed: onReminder,
-                  icon: const Icon(Icons.notifications_active_outlined),
+                  icon: const Icon(AppIcons.notifications_active_outlined),
                   label: const Text('Send Reminder'),
                 ),
               ),

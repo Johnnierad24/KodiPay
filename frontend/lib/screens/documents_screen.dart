@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:web/web.dart' as web;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import '../utils/app_icons.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -135,7 +136,7 @@ class _DocumentsListScreenState extends State<DocumentsListScreen> {
         backgroundColor: AppColors.kodiGreen,
         foregroundColor: AppColors.white,
         onPressed: _openAddSheet,
-        icon: const Icon(Icons.add_rounded),
+        icon: const Icon(AppIcons.add_rounded),
         label: const Text('Add Document'),
       ),
       body: SafeArea(
@@ -148,10 +149,10 @@ class _DocumentsListScreenState extends State<DocumentsListScreen> {
                 onSubmitted: (_) => _reload(),
                 decoration: InputDecoration(
                   hintText: 'Search by title or description...',
-                  prefixIcon: const Icon(Icons.search_rounded),
+                  prefixIcon: const Icon(AppIcons.search_rounded),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
-                          icon: const Icon(Icons.clear_rounded),
+                          icon: const Icon(AppIcons.clear_rounded),
                           onPressed: () {
                             _searchController.clear();
                             _reload();
@@ -259,13 +260,13 @@ String _categoryLabel(String value) {
 IconData _iconForType(String type) {
   switch (type) {
     case 'lease':
-      return Icons.assignment_outlined;
+      return AppIcons.assignment_outlined;
     case 'receipt':
-      return Icons.receipt_long_outlined;
+      return AppIcons.receipt_long_outlined;
     case 'agreement':
-      return Icons.handshake_outlined;
+      return AppIcons.handshake_outlined;
     default:
-      return Icons.description_outlined;
+      return AppIcons.description_outlined;
   }
 }
 
@@ -390,7 +391,7 @@ class _DocumentCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+              const Icon(AppIcons.chevron_right_rounded, color: AppColors.muted),
             ],
           ),
         ),
@@ -425,7 +426,7 @@ class _AddDocumentSheet extends StatelessWidget {
             ListTile(
               leading: const CircleAvatar(
                 backgroundColor: AppColors.successSoft,
-                child: Icon(Icons.upload_file_outlined,
+                child: Icon(AppIcons.upload_file_outlined,
                     color: AppColors.kodiGreen),
               ),
               title: const Text('Upload Document',
@@ -437,7 +438,7 @@ class _AddDocumentSheet extends StatelessWidget {
             ListTile(
               leading: const CircleAvatar(
                 backgroundColor: Color(0xFFE6EEFB),
-                child: Icon(Icons.note_add_outlined, color: AppColors.kodiBlue),
+                child: Icon(AppIcons.note_add_outlined, color: AppColors.kodiBlue),
               ),
               title: const Text('Generate Lease',
                   style: TextStyle(fontWeight: FontWeight.w700)),
@@ -596,7 +597,7 @@ class _UploadDocumentSheetState extends State<UploadDocumentSheet> {
             const SizedBox(height: 14),
             OutlinedButton.icon(
               onPressed: _submitting ? null : _pickFile,
-              icon: const Icon(Icons.attach_file_rounded),
+              icon: const Icon(AppIcons.attach_file_rounded),
               label: Text(_file == null ? 'Pick file (PDF or image)' : _file!.name),
             ),
             const SizedBox(height: 18),
@@ -611,7 +612,7 @@ class _UploadDocumentSheetState extends State<UploadDocumentSheet> {
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: AppColors.white),
                       )
-                    : const Icon(Icons.cloud_upload_outlined),
+                    : const Icon(AppIcons.cloud_upload_outlined),
                 label: Text(_submitting ? 'Uploading...' : 'Upload Document'),
               ),
             ),
@@ -810,7 +811,7 @@ class _GenerateLeaseSheetState extends State<GenerateLeaseSheet> {
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: AppColors.white),
                       )
-                    : const Icon(Icons.picture_as_pdf_outlined),
+                    : const Icon(AppIcons.picture_as_pdf_outlined),
                 label: Text(_submitting ? 'Generating...' : 'Generate Lease PDF'),
               ),
             ),
@@ -979,7 +980,7 @@ class _DocumentDetailScreenState extends State<DocumentDetailScreen> {
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: _openInNewTab,
-                    icon: const Icon(Icons.open_in_new_rounded),
+                    icon: const Icon(AppIcons.open_in_new_rounded),
                     label: const Text('Open'),
                   ),
                 ),
@@ -987,7 +988,7 @@ class _DocumentDetailScreenState extends State<DocumentDetailScreen> {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: _share,
-                    icon: const Icon(Icons.ios_share_rounded),
+                    icon: const Icon(AppIcons.ios_share_rounded),
                     label: const Text('Share'),
                   ),
                 ),
@@ -1004,7 +1005,7 @@ class _DocumentDetailScreenState extends State<DocumentDetailScreen> {
                         height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.delete_outline_rounded,
+                    : const Icon(AppIcons.delete_outline_rounded,
                         color: AppColors.danger),
                 label: Text(
                   _deleting ? 'Deleting...' : 'Delete document',
@@ -1075,7 +1076,7 @@ class _EmptyDocumentsState extends StatelessWidget {
       padding: const EdgeInsets.all(40),
       children: [
         const SizedBox(height: 60),
-        const Icon(Icons.folder_open_rounded,
+        const Icon(AppIcons.folder_open_rounded,
             size: 72, color: AppColors.muted),
         const SizedBox(height: 16),
         const Center(
@@ -1099,7 +1100,7 @@ class _EmptyDocumentsState extends StatelessWidget {
         Center(
           child: ElevatedButton.icon(
             onPressed: onAdd,
-            icon: const Icon(Icons.add_rounded),
+            icon: const Icon(AppIcons.add_rounded),
             label: const Text('Add Document'),
           ),
         ),
@@ -1119,7 +1120,7 @@ class _ErrorState extends StatelessWidget {
       padding: const EdgeInsets.all(40),
       children: [
         const SizedBox(height: 60),
-        const Icon(Icons.error_outline_rounded,
+        const Icon(AppIcons.error_outline_rounded,
             size: 56, color: AppColors.danger),
         const SizedBox(height: 14),
         Center(
@@ -1131,7 +1132,7 @@ class _ErrorState extends StatelessWidget {
         Center(
           child: OutlinedButton.icon(
             onPressed: onRetry,
-            icon: const Icon(Icons.refresh_rounded),
+            icon: const Icon(AppIcons.refresh_rounded),
             label: const Text('Retry'),
           ),
         ),

@@ -1,8 +1,10 @@
 import 'dart:convert';
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user.dart';
 import '../services/api_service.dart';
+import '../utils/app_config.dart';
 
 class AuthProvider with ChangeNotifier {
   User? _user;
@@ -52,6 +54,80 @@ class AuthProvider with ChangeNotifier {
     _isLoading = false;
     notifyListeners();
     return false;
+  }
+
+  /// Signs in (or signs up) with Google for the given [role]. The role is only
+  /// used by the backend when creating a brand-new account; existing users keep
+  /// their stored role. Returns whether it succeeded plus a message to surface.
+  Future<({bool success, String message})> loginWithGoogle({
+    required String role,
+  }) async {
+    if (AppConfig.googleServerClientId.isEmpty) {
+      return (
+        success: false,
+        message: 'Google sign-in isn\'t configured yet.',
+      );
+    }
+    if (kIsWeb) {
+      return (
+        success: false,
+        message: 'Use Google sign-in from the mobile app.',
+      );
+    }
+
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final googleSignIn = GoogleSignIn(
+        scopes: const ['email', 'profile'],
+        serverClientId: AppConfig.googleServerClientId,
+      );
+      // Start from a clean slate so the account chooser always shows.
+      await googleSignIn.signOut();
+      final account = await googleSignIn.signIn();
+      if (account == null) {
+        _isLoading = false;
+        notifyListeners();
+        return (success: false, message: 'Sign-in cancelled.');
+      }
+
+      final googleAuth = await account.authentication;
+      final idToken = googleAuth.idToken;
+      if (idToken == null) {
+        _isLoading = false;
+        notifyListeners();
+        return (success: false, message: 'Could not get a Google token.');
+      }
+
+      final response = await _apiService.post('/auth/google', {
+        'id_token': idToken,
+        'role': role,
+      });
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        _token = data['token'];
+        _user = User.fromJson(data['user']);
+        await _storage.write(key: 'jwt_token', value: _token);
+        _isLoading = false;
+        notifyListeners();
+        return (success: true, message: 'Signed in with Google.');
+      }
+
+      String message = 'Google sign-in failed.';
+      try {
+        message = (jsonDecode(response.body)['error'] ?? message).toString();
+      } catch (_) {/* keep default */}
+      _isLoading = false;
+      notifyListeners();
+      return (success: false, message: message);
+    } catch (e) {
+      debugPrint('Google sign-in error: $e');
+      _isLoading = false;
+      notifyListeners();
+      return (success: false, message: 'Google sign-in failed.');
+    }
   }
 
   Future<bool> login(String identifier, String password) async {

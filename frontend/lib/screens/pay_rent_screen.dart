@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../utils/app_icons.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
@@ -129,7 +130,7 @@ class _PayRentScreenState extends State<PayRentScreen> {
       await showDialog<void>(
         context: context,
         builder: (ctx) => AlertDialog(
-          icon: const Icon(Icons.check_circle_rounded,
+          icon: const Icon(AppIcons.check_circle_rounded,
               color: AppColors.kodiGreen, size: 44),
           title: Text(method == 'mpesa'
               ? 'STK Push Sent'
@@ -166,7 +167,7 @@ class _PayRentScreenState extends State<PayRentScreen> {
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+          icon: const Icon(AppIcons.arrow_back_ios_new_rounded,
               color: AppColors.textDark),
           onPressed: () => Navigator.pop(context),
         ),
@@ -190,7 +191,7 @@ class _PayRentScreenState extends State<PayRentScreen> {
                 padding: const EdgeInsets.all(30),
                 children: [
                   const SizedBox(height: 60),
-                  const Icon(Icons.error_outline_rounded,
+                  const Icon(AppIcons.error_outline_rounded,
                       size: 56, color: AppColors.danger),
                   const SizedBox(height: 12),
                   Center(
@@ -204,7 +205,7 @@ class _PayRentScreenState extends State<PayRentScreen> {
                   Center(
                     child: OutlinedButton.icon(
                       onPressed: _reload,
-                      icon: const Icon(Icons.refresh_rounded),
+                      icon: const Icon(AppIcons.refresh_rounded),
                       label: const Text('Retry'),
                     ),
                   ),
@@ -257,7 +258,7 @@ class _PayRentScreenState extends State<PayRentScreen> {
               DropdownButtonFormField<String>(
                 initialValue: _paymentMethod,
                 decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.account_balance_wallet_rounded,
+                  prefixIcon: Icon(AppIcons.account_balance_wallet_rounded,
                       color: AppColors.kodiGreen),
                 ),
                 items: const [
@@ -325,7 +326,7 @@ class _PayRentScreenState extends State<PayRentScreen> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.lock_rounded,
+                Icon(AppIcons.lock_rounded,
                     color: AppColors.kodiGreen, size: 16),
                 SizedBox(width: 8),
                 Text('Secure payment powered by M-Pesa',
@@ -445,7 +446,7 @@ class _ReceiptPreview extends StatelessWidget {
           padding: EdgeInsets.all(16),
           child: Row(
             children: [
-              Icon(Icons.check_circle_rounded,
+              Icon(AppIcons.check_circle_rounded,
                   color: AppColors.kodiGreen, size: 34),
               SizedBox(width: 12),
               Expanded(

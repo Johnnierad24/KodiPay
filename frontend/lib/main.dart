@@ -10,8 +10,10 @@ import 'screens/caretaker_dashboard.dart';
 import 'screens/forgot_password_screen.dart';
 import 'screens/pay_rent_screen.dart';
 import 'screens/register_screen.dart';
+import 'screens/role_auth_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'utils/constants.dart';
+import 'widgets/animations.dart';
 
 void main() {
   runApp(
@@ -40,6 +42,12 @@ class KodiPayApp extends StatelessWidget {
           surface: AppColors.white,
         ),
         scaffoldBackgroundColor: AppColors.background,
+        pageTransitionsTheme: PageTransitionsTheme(
+          builders: {
+            for (final platform in TargetPlatform.values)
+              platform: const KodiPageTransitionsBuilder(),
+          },
+        ),
         textTheme: GoogleFonts.poppinsTextTheme(Theme.of(context).textTheme),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
@@ -77,6 +85,7 @@ class KodiPayApp extends StatelessWidget {
         '/reset-password': (context) => const ForgotPasswordScreen(),
         '/welcome': (context) => const WelcomeScreen(),
         '/onboarding': (context) => const OnboardingScreen(),
+        '/role-auth': (context) => const RoleAuthScreen(),
         '/pay-rent': (context) => const PayRentScreen(),
       },
     );

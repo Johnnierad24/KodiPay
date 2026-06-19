@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../utils/app_icons.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
+import '../widgets/animations.dart';
 import '../widgets/dashboard_components.dart';
 import 'feature_screens.dart';
 import 'chatbot_screen.dart';
@@ -93,7 +95,7 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
             ),
           ),
         ),
-        child: const Icon(Icons.smart_toy_outlined),
+        child: const Icon(AppIcons.smart_toy_outlined),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -119,16 +121,18 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
                             label: Text(
                               _unreadCount > 99 ? '99+' : _unreadCount.toString(),
                             ),
-                            child: const Icon(Icons.notifications_none_rounded,
+                            child: const Icon(AppIcons.notifications_none_rounded,
                                 color: AppColors.textDark),
                           )
-                        : const Icon(Icons.notifications_none_rounded,
+                        : const Icon(AppIcons.notifications_none_rounded,
                             color: AppColors.textDark),
                   ),
                 ],
               ),
               const SizedBox(height: 18),
-              GradientPanel(
+              FadeSlideIn(
+                delay: FadeSlideIn.stagger(0),
+                child: GradientPanel(
                 startColor: const Color(0xFF10A55A),
                 endColor: const Color(0xFF047857),
                 child: Column(
@@ -197,78 +201,96 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 22),
-              SectionTitle(
-                title: 'Recent Payments',
-                actionLabel: 'View all',
-                onAction: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const LandlordPaymentsScreen()),
                 ),
               ),
-              const ListPanel(
-                children: [
-                  _PaymentRow(
-                      name: 'Mary Wanjiku',
-                      unit: 'A2 - Sunview Apts',
-                      amount: 'KSh 25,000',
-                      status: 'Paid'),
-                  _DividerLine(),
-                  _PaymentRow(
-                      name: 'John Kamau',
-                      unit: 'B1 - Greenfield Hts',
-                      amount: 'KSh 20,000',
-                      status: 'Paid'),
-                  _DividerLine(),
-                  _PaymentRow(
-                      name: 'Peter Ochieng',
-                      unit: 'C3 - Lakeview Villas',
-                      amount: 'KSh 25,000',
-                      status: 'Pending'),
-                ],
+              const SizedBox(height: 22),
+              FadeSlideIn(
+                delay: FadeSlideIn.stagger(1),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SectionTitle(
+                      title: 'Recent Payments',
+                      actionLabel: 'View all',
+                      onAction: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const LandlordPaymentsScreen()),
+                      ),
+                    ),
+                    const ListPanel(
+                      children: [
+                        _PaymentRow(
+                            name: 'Mary Wanjiku',
+                            unit: 'A2 - Sunview Apts',
+                            amount: 'KSh 25,000',
+                            status: 'Paid'),
+                        _DividerLine(),
+                        _PaymentRow(
+                            name: 'John Kamau',
+                            unit: 'B1 - Greenfield Hts',
+                            amount: 'KSh 20,000',
+                            status: 'Paid'),
+                        _DividerLine(),
+                        _PaymentRow(
+                            name: 'Peter Ochieng',
+                            unit: 'C3 - Lakeview Villas',
+                            amount: 'KSh 25,000',
+                            status: 'Pending'),
+                      ],
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 22),
-              const SectionTitle(title: 'Quick Actions'),
-              GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 4,
-                mainAxisSpacing: 10,
-                crossAxisSpacing: 10,
-                childAspectRatio: 0.82,
-                children: [
-                  QuickActionTile(
-                      label: 'Add Property',
-                      icon: Icons.add_home_rounded,
-                      color: AppColors.kodiGreen,
-                      onTap: _onAddProperty),
-                  QuickActionTile(
-                      label: 'Add Tenant',
-                      icon: Icons.person_add_alt_1_rounded,
-                      color: AppColors.kodiNavy,
-                      onTap: _onAddTenant),
-                  QuickActionTile(
-                      label: 'Reminder',
-                      icon: Icons.mail_outline_rounded,
-                      color: AppColors.kodiBlue,
-                      onTap: () => showReminderSheet(context)),
-                  QuickActionTile(
-                      label: 'Announce',
-                      icon: Icons.campaign_outlined,
-                      color: AppColors.kodiGreen,
-                      onTap: () => showAnnouncementSheet(context)),
-                  QuickActionTile(
-                      label: 'Reports',
-                      icon: Icons.analytics_outlined,
-                      color: AppColors.kodiBlue,
-                      onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => const LandlordReportsScreen()),
-                          )),
-                ],
+              FadeSlideIn(
+                delay: FadeSlideIn.stagger(2),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SectionTitle(title: 'Quick Actions'),
+                    GridView.count(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisCount: 4,
+                      mainAxisSpacing: 10,
+                      crossAxisSpacing: 10,
+                      childAspectRatio: 0.82,
+                      children: [
+                        QuickActionTile(
+                            label: 'Add Property',
+                            icon: AppIcons.add_home_rounded,
+                            color: AppColors.kodiGreen,
+                            onTap: _onAddProperty),
+                        QuickActionTile(
+                            label: 'Add Tenant',
+                            icon: AppIcons.person_add_alt_1_rounded,
+                            color: AppColors.kodiNavy,
+                            onTap: _onAddTenant),
+                        QuickActionTile(
+                            label: 'Reminder',
+                            icon: AppIcons.mail_outline_rounded,
+                            color: AppColors.kodiBlue,
+                            onTap: () => showReminderSheet(context)),
+                        QuickActionTile(
+                            label: 'Announce',
+                            icon: AppIcons.campaign_outlined,
+                            color: AppColors.kodiGreen,
+                            onTap: () => showAnnouncementSheet(context)),
+                        QuickActionTile(
+                            label: 'Reports',
+                            icon: AppIcons.analytics_outlined,
+                            color: AppColors.kodiBlue,
+                            onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (_) =>
+                                          const LandlordReportsScreen()),
+                                )),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -295,15 +317,15 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
         },
         items: const [
           BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard_rounded), label: 'Dashboard'),
+              icon: Icon(AppIcons.dashboard_rounded), label: 'Dashboard'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.home_work_outlined), label: 'Properties'),
+              icon: Icon(AppIcons.home_work_outlined), label: 'Properties'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.groups_2_outlined), label: 'Tenants'),
+              icon: Icon(AppIcons.groups_2_outlined), label: 'Tenants'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.receipt_long_outlined), label: 'Payments'),
+              icon: Icon(AppIcons.receipt_long_outlined), label: 'Payments'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.grid_view_rounded), label: 'More'),
+              icon: Icon(AppIcons.grid_view_rounded), label: 'More'),
         ],
       ),
     );

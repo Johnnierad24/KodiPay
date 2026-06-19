@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/app_icons.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
@@ -96,7 +97,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       await showDialog<void>(
         context: context,
         builder: (ctx) => AlertDialog(
-          icon: const Icon(Icons.check_circle_rounded, color: AppColors.kodiGreen, size: 42),
+          icon: const Icon(AppIcons.check_circle_rounded, color: AppColors.kodiGreen, size: 42),
           title: const Text('Password Updated'),
           content: const Text('You can now log in with your new password.'),
           actions: [
@@ -124,7 +125,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textDark),
+          icon: const Icon(AppIcons.arrow_back_ios_new_rounded, color: AppColors.textDark),
           onPressed: () {
             if (_step > 0) {
               setState(() {
@@ -164,7 +165,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     Expanded(
                       child: _MethodChip(
                         label: 'Email',
-                        icon: Icons.email_outlined,
+                        icon: AppIcons.email_outlined,
                         selected: _method == 'email',
                         onTap: () => setState(() => _method = 'email'),
                       ),
@@ -173,7 +174,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     Expanded(
                       child: _MethodChip(
                         label: 'Phone',
-                        icon: Icons.phone_outlined,
+                        icon: AppIcons.phone_outlined,
                         selected: _method == 'phone',
                         onTap: () => setState(() => _method = 'phone'),
                       ),
@@ -187,7 +188,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   decoration: InputDecoration(
                     labelText: _method == 'email' ? 'Email Address' : 'Phone Number',
                     prefixIcon: Icon(
-                      _method == 'email' ? Icons.email_outlined : Icons.phone_outlined,
+                      _method == 'email' ? AppIcons.email_outlined : AppIcons.phone_outlined,
                     ),
                   ),
                 ),
@@ -233,7 +234,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(6)],
                   decoration: const InputDecoration(
                     labelText: 'OTP Code',
-                    prefixIcon: Icon(Icons.pin_outlined),
+                    prefixIcon: Icon(AppIcons.pin_outlined),
                     hintText: '6-digit code',
                   ),
                 ),
@@ -243,11 +244,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   obscureText: _obscurePassword,
                   decoration: InputDecoration(
                     labelText: 'New Password',
-                    prefixIcon: const Icon(Icons.lock_outline_rounded),
+                    prefixIcon: const Icon(AppIcons.lock_outline_rounded),
                     suffixIcon: IconButton(
                       onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                       icon: Icon(
-                        _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                        _obscurePassword ? AppIcons.visibility_outlined : AppIcons.visibility_off_outlined,
                       ),
                     ),
                   ),
@@ -258,7 +259,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   obscureText: _obscurePassword,
                   decoration: const InputDecoration(
                     labelText: 'Confirm Password',
-                    prefixIcon: Icon(Icons.lock_reset_rounded),
+                    prefixIcon: Icon(AppIcons.lock_reset_rounded),
                   ),
                 ),
                 const SizedBox(height: 22),

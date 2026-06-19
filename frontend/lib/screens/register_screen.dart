@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/app_icons.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../utils/constants.dart';
@@ -82,7 +83,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+          icon: const Icon(AppIcons.arrow_back_ios_new_rounded,
               color: AppColors.textDark),
           onPressed: () => Navigator.pop(context),
         ),
@@ -111,7 +112,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     child: _InputField(
                       controller: _firstNameController,
                       label: 'First Name',
-                      icon: Icons.person_outline_rounded,
+                      icon: AppIcons.person_outline_rounded,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -119,7 +120,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     child: _InputField(
                       controller: _lastNameController,
                       label: 'Last Name',
-                      icon: Icons.person_outline_rounded,
+                      icon: AppIcons.person_outline_rounded,
                     ),
                   ),
                 ],
@@ -128,27 +129,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
               _InputField(
                 controller: _emailController,
                 label: 'Email',
-                icon: Icons.email_outlined,
+                icon: AppIcons.email_outlined,
                 keyboardType: TextInputType.emailAddress,
               ),
               const SizedBox(height: 14),
               _InputField(
                 controller: _phoneController,
                 label: 'Phone Number',
-                icon: Icons.phone_outlined,
+                icon: AppIcons.phone_outlined,
                 keyboardType: TextInputType.phone,
               ),
               const SizedBox(height: 14),
               _InputField(
                 controller: _passwordController,
                 label: 'Password',
-                icon: Icons.lock_outline_rounded,
+                icon: AppIcons.lock_outline_rounded,
                 isPassword: _obscurePassword,
                 suffixIcon: IconButton(
                   icon: Icon(
                     _obscurePassword
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined,
+                        ? AppIcons.visibility_outlined
+                        : AppIcons.visibility_off_outlined,
                     color: AppColors.muted,
                   ),
                   onPressed: () =>
@@ -208,7 +209,7 @@ class _RoleSelector extends StatelessWidget {
           role: 'landlord',
           title: 'Landlord',
           subtitle: 'Manage properties and tenants',
-          icon: Icons.business_rounded,
+          icon: AppIcons.business_rounded,
           color: AppColors.kodiGreen,
           selectedRole: selectedRole,
           onTap: onChanged,
@@ -218,7 +219,7 @@ class _RoleSelector extends StatelessWidget {
           role: 'tenant',
           title: 'Tenant',
           subtitle: 'Pay rent and report issues',
-          icon: Icons.home_rounded,
+          icon: AppIcons.home_rounded,
           color: AppColors.kodiBlue,
           selectedRole: selectedRole,
           onTap: onChanged,
@@ -228,7 +229,7 @@ class _RoleSelector extends StatelessWidget {
           role: 'caretaker',
           title: 'Caretaker',
           subtitle: 'Track maintenance tasks',
-          icon: Icons.handyman_rounded,
+          icon: AppIcons.handyman_rounded,
           color: AppColors.kodiOrange,
           selectedRole: selectedRole,
           onTap: onChanged,
@@ -300,8 +301,8 @@ class _RoleCard extends StatelessWidget {
             ),
             Icon(
               selected
-                  ? Icons.check_circle_rounded
-                  : Icons.radio_button_unchecked_rounded,
+                  ? AppIcons.check_circle_rounded
+                  : AppIcons.radio_button_unchecked_rounded,
               color: selected ? color : AppColors.muted,
             ),
           ],

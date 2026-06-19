@@ -29,6 +29,13 @@ router.post('/login',
   authController.login
 );
 
+router.post('/google',
+  authLimiter,
+  body('id_token').isString().notEmpty(),
+  body('role').optional().isIn(['landlord', 'tenant', 'caretaker', 'agent']),
+  authController.googleAuth
+);
+
 router.post('/forgot-password',
   body('email').isString().notEmpty(),
   authController.requestPasswordReset

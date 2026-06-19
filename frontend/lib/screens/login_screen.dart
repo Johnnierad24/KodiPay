@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/app_icons.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../utils/constants.dart';
@@ -48,7 +49,7 @@ class _LoginScreenState extends State<LoginScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+          icon: const Icon(AppIcons.arrow_back_ios_new_rounded,
               color: AppColors.textDark),
           onPressed: () => Navigator.pop(context),
         ),
@@ -69,20 +70,20 @@ class _LoginScreenState extends State<LoginScreen> {
               _AuthField(
                 controller: _emailController,
                 label: 'Email or Phone',
-                icon: Icons.email_outlined,
+                icon: AppIcons.email_outlined,
                 keyboardType: TextInputType.text,
               ),
               const SizedBox(height: 14),
               _AuthField(
                 controller: _passwordController,
                 label: 'Password',
-                icon: Icons.lock_outline_rounded,
+                icon: AppIcons.lock_outline_rounded,
                 obscureText: _obscurePassword,
                 suffixIcon: IconButton(
                   icon: Icon(
                     _obscurePassword
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined,
+                        ? AppIcons.visibility_outlined
+                        : AppIcons.visibility_off_outlined,
                     color: AppColors.muted,
                   ),
                   onPressed: () =>

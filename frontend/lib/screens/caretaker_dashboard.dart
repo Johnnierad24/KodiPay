@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../utils/app_icons.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
+import '../widgets/animations.dart';
 import '../widgets/dashboard_components.dart';
 import 'feature_screens.dart';
 import 'chatbot_screen.dart';
@@ -90,7 +92,7 @@ class _CaretakerDashboardState extends State<CaretakerDashboard> {
             ),
           ),
         ),
-        child: const Icon(Icons.smart_toy_outlined),
+        child: const Icon(AppIcons.smart_toy_outlined),
       ),
       body: SafeArea(
         child: RefreshIndicator(
@@ -122,7 +124,9 @@ class _CaretakerDashboardState extends State<CaretakerDashboard> {
                       ),
                     ),
                     const SizedBox(height: 18),
-                    GradientPanel(
+                    FadeSlideIn(
+                      delay: FadeSlideIn.stagger(0),
+                      child: GradientPanel(
                       startColor: const Color(0xFFFFA51E),
                       endColor: const Color(0xFFF97316),
                       child: Column(
@@ -163,73 +167,93 @@ class _CaretakerDashboardState extends State<CaretakerDashboard> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 22),
-                    SectionTitle(
-                      title: 'Assigned Issues',
-                      actionLabel: 'View all',
-                      onAction: _openTasks,
                     ),
-                    if (snapshot.connectionState == ConnectionState.waiting)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 18),
-                        child: Center(child: CircularProgressIndicator()),
-                      )
-                    else if (snapshot.hasError)
-                      _PeekError(
-                        message: snapshot.error.toString(),
-                        onRetry: _reload,
-                      )
-                    else if ((overview?.tasks ?? const []).isEmpty)
-                      const _PeekEmpty(
-                        icon: Icons.task_alt_rounded,
-                        text: 'No open tasks right now.',
-                      )
-                    else
-                      ListPanel(
-                        children: _interleave(
-                          [
-                            for (final task in overview!.tasks)
-                              _IssueRow(
-                                title: task.title,
-                                location: task.locationLabel,
-                                status: _capitalizeWord(task.priority),
-                                color: _priorityColor(task.priority),
-                                onTap: _openTasks,
-                              ),
-                          ],
-                          const _DividerLine(),
-                        ),
-                      ),
                     const SizedBox(height: 22),
-                    SectionTitle(
-                      title: 'Emergency Alerts',
-                      actionLabel: 'View all',
-                      onAction: _openAlerts,
-                    ),
-                    if (snapshot.connectionState == ConnectionState.waiting)
-                      const SizedBox.shrink()
-                    else if (snapshot.hasError)
-                      const SizedBox.shrink()
-                    else if ((overview?.emergencies ?? const []).isEmpty)
-                      const _PeekEmpty(
-                        icon: Icons.shield_outlined,
-                        text: 'No active emergencies.',
-                      )
-                    else
-                      ListPanel(
-                        children: _interleave(
-                          [
-                            for (final alert in overview!.emergencies)
-                              _AlertRow(
-                                title: alert.title,
-                                location: alert.locationLabel,
-                                time: _relativeTime(alert.createdAt),
-                                onTap: _openAlerts,
+                    FadeSlideIn(
+                      delay: FadeSlideIn.stagger(1),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SectionTitle(
+                            title: 'Assigned Issues',
+                            actionLabel: 'View all',
+                            onAction: _openTasks,
+                          ),
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 18),
+                              child:
+                                  Center(child: CircularProgressIndicator()),
+                            )
+                          else if (snapshot.hasError)
+                            _PeekError(
+                              message: snapshot.error.toString(),
+                              onRetry: _reload,
+                            )
+                          else if ((overview?.tasks ?? const []).isEmpty)
+                            const _PeekEmpty(
+                              icon: AppIcons.task_alt_rounded,
+                              text: 'No open tasks right now.',
+                            )
+                          else
+                            ListPanel(
+                              children: _interleave(
+                                [
+                                  for (final task in overview!.tasks)
+                                    _IssueRow(
+                                      title: task.title,
+                                      location: task.locationLabel,
+                                      status: _capitalizeWord(task.priority),
+                                      color: _priorityColor(task.priority),
+                                      onTap: _openTasks,
+                                    ),
+                                ],
+                                const _DividerLine(),
                               ),
-                          ],
-                          const _DividerLine(),
-                        ),
+                            ),
+                        ],
                       ),
+                    ),
+                    const SizedBox(height: 22),
+                    FadeSlideIn(
+                      delay: FadeSlideIn.stagger(2),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SectionTitle(
+                            title: 'Emergency Alerts',
+                            actionLabel: 'View all',
+                            onAction: _openAlerts,
+                          ),
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting)
+                            const SizedBox.shrink()
+                          else if (snapshot.hasError)
+                            const SizedBox.shrink()
+                          else if ((overview?.emergencies ?? const []).isEmpty)
+                            const _PeekEmpty(
+                              icon: AppIcons.shield_outlined,
+                              text: 'No active emergencies.',
+                            )
+                          else
+                            ListPanel(
+                              children: _interleave(
+                                [
+                                  for (final alert in overview!.emergencies)
+                                    _AlertRow(
+                                      title: alert.title,
+                                      location: alert.locationLabel,
+                                      time: _relativeTime(alert.createdAt),
+                                      onTap: _openAlerts,
+                                    ),
+                                ],
+                                const _DividerLine(),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               );
@@ -257,13 +281,13 @@ class _CaretakerDashboardState extends State<CaretakerDashboard> {
         },
         items: const [
           BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard_rounded), label: 'Dashboard'),
+              icon: Icon(AppIcons.dashboard_rounded), label: 'Dashboard'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.task_alt_rounded), label: 'Tasks'),
+              icon: Icon(AppIcons.task_alt_rounded), label: 'Tasks'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.warning_amber_rounded), label: 'Alerts'),
+              icon: Icon(AppIcons.warning_amber_rounded), label: 'Alerts'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline_rounded), label: 'Profile'),
+              icon: Icon(AppIcons.person_outline_rounded), label: 'Profile'),
         ],
       ),
     );
@@ -428,7 +452,7 @@ class _IssueRow extends StatelessWidget {
                 color: AppColors.border,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.handyman_rounded,
+              child: const Icon(AppIcons.handyman_rounded,
                   color: AppColors.kodiNavy),
             ),
             const SizedBox(width: 12),
@@ -481,7 +505,7 @@ class _AlertRow extends StatelessWidget {
                 color: AppColors.danger.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.priority_high_rounded,
+              child: const Icon(AppIcons.priority_high_rounded,
                   color: AppColors.danger),
             ),
             const SizedBox(width: 12),
@@ -559,7 +583,7 @@ class _PeekError extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline_rounded, color: AppColors.danger),
+          const Icon(AppIcons.error_outline_rounded, color: AppColors.danger),
           const SizedBox(width: 12),
           Expanded(
             child: Text(message, style: AppStyles.caption),

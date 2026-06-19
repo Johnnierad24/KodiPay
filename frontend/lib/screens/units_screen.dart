@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../utils/app_icons.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
@@ -78,7 +79,7 @@ class _UnitsListScreenState extends State<UnitsListScreen> {
         backgroundColor: AppColors.kodiGreen,
         foregroundColor: AppColors.white,
         onPressed: _onAdd,
-        icon: const Icon(Icons.add_rounded),
+        icon: const Icon(AppIcons.add_rounded),
         label: const Text('Add Unit'),
       ),
       body: SafeArea(
@@ -95,7 +96,7 @@ class _UnitsListScreenState extends State<UnitsListScreen> {
                   padding: const EdgeInsets.all(40),
                   children: [
                     const SizedBox(height: 60),
-                    const Icon(Icons.error_outline_rounded,
+                    const Icon(AppIcons.error_outline_rounded,
                         size: 56, color: AppColors.danger),
                     const SizedBox(height: 14),
                     Center(
@@ -109,7 +110,7 @@ class _UnitsListScreenState extends State<UnitsListScreen> {
                     Center(
                       child: OutlinedButton.icon(
                         onPressed: _reload,
-                        icon: const Icon(Icons.refresh_rounded),
+                        icon: const Icon(AppIcons.refresh_rounded),
                         label: const Text('Retry'),
                       ),
                     ),
@@ -122,7 +123,7 @@ class _UnitsListScreenState extends State<UnitsListScreen> {
                   padding: const EdgeInsets.all(40),
                   children: [
                     const SizedBox(height: 60),
-                    const Icon(Icons.meeting_room_outlined,
+                    const Icon(AppIcons.meeting_room_outlined,
                         size: 72, color: AppColors.muted),
                     const SizedBox(height: 14),
                     const Center(
@@ -146,7 +147,7 @@ class _UnitsListScreenState extends State<UnitsListScreen> {
                     Center(
                       child: ElevatedButton.icon(
                         onPressed: _onAdd,
-                        icon: const Icon(Icons.add_rounded),
+                        icon: const Icon(AppIcons.add_rounded),
                         label: const Text('Add First Unit'),
                       ),
                     ),
@@ -357,20 +358,20 @@ class _UnitTile extends StatelessWidget {
       return (
         color: AppColors.danger,
         label: 'Overdue • KSh ${_formatKsh(unit.arrearsAmount)}',
-        icon: Icons.warning_amber_rounded,
+        icon: AppIcons.warning_amber_rounded,
       );
     }
     if (unit.unpaidInvoices > 0) {
       return (
         color: AppColors.kodiOrange,
         label: 'Due • KSh ${_formatKsh(unit.arrearsAmount)}',
-        icon: Icons.schedule_rounded,
+        icon: AppIcons.schedule_rounded,
       );
     }
     return (
       color: AppColors.kodiGreen,
       label: 'Up to date',
-      icon: Icons.check_circle_outline_rounded,
+      icon: AppIcons.check_circle_outline_rounded,
     );
   }
 
@@ -454,7 +455,7 @@ class _UnitTile extends StatelessWidget {
             const SizedBox(height: 12),
             Row(
               children: [
-                const Icon(Icons.person_outline_rounded,
+                const Icon(AppIcons.person_outline_rounded,
                     size: 16, color: AppColors.muted),
                 const SizedBox(width: 6),
                 Expanded(
