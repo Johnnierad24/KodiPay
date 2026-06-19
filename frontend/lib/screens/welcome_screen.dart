@@ -91,7 +91,7 @@ class WelcomeScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Your journey begins here',
+                    'Pay Rent. Stay Worry-Free.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: AppColors.white.withValues(alpha: 0.92),
