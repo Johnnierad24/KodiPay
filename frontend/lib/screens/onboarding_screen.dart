@@ -82,7 +82,7 @@ class OnboardingScreen extends StatelessWidget {
                 children: [
                   const Text('Already have an account?'),
                   TextButton(
-                    onPressed: () => Navigator.pushNamed(context, '/login'),
+                    onPressed: () => Navigator.pushNamed(context, '/auth'),
                     child: const Text('Login'),
                   ),
                 ],
@@ -103,7 +103,7 @@ class OnboardingScreen extends StatelessWidget {
     required String role,
   }) {
     return InkWell(
-      onTap: () => Navigator.pushNamed(context, '/register', arguments: role),
+      onTap: () => Navigator.pushNamed(context, '/auth', arguments: role),
       borderRadius: BorderRadius.circular(18),
       child: Container(
         width: double.infinity,
