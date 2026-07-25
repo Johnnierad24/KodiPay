@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../utils/constants.dart';
-import '../widgets/kodi_pay_logo.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,6 +14,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _remember = true;
 
   @override
   void dispose() {
@@ -28,13 +28,11 @@ class _LoginScreenState extends State<LoginScreen> {
           _emailController.text.trim(),
           _passwordController.text,
         );
-
     if (success && mounted) {
       Navigator.pushReplacementNamed(context, '/');
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Login failed. Please check your credentials.')),
+        const SnackBar(content: Text('Login failed. Please check your credentials.')),
       );
     }
   }
@@ -42,123 +40,273 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final isWide = MediaQuery.of(context).size.width > 768;
 
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: AppColors.textDark),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Center(child: KodiPayLogo(iconSize: 66, fontSize: 32)),
-              const SizedBox(height: 36),
-              const Text('Welcome Back', style: AppStyles.heading1),
-              const SizedBox(height: 6),
-              const Text('Log in to manage rent, tasks, and payments.',
-                  style: AppStyles.bodyMedium),
-              const SizedBox(height: 30),
-              _AuthField(
-                controller: _emailController,
-                label: 'Email or Phone',
-                icon: Icons.email_outlined,
-                keyboardType: TextInputType.text,
-              ),
-              const SizedBox(height: 14),
-              _AuthField(
-                controller: _passwordController,
-                label: 'Password',
-                icon: Icons.lock_outline_rounded,
-                obscureText: _obscurePassword,
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscurePassword
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined,
-                    color: AppColors.muted,
-                  ),
-                  onPressed: () =>
-                      setState(() => _obscurePassword = !_obscurePassword),
-                ),
-              ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () =>
-                      Navigator.pushNamed(context, '/forgot-password'),
-                  child: const Text('Forgot Password?'),
-                ),
-              ),
-              const SizedBox(height: 18),
-              SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: ElevatedButton(
-                  onPressed: auth.isLoading ? null : _handleLogin,
-                  child: auth.isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 2),
-                        )
-                      : const Text('Login'),
-                ),
-              ),
-              const SizedBox(height: 28),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text("Don't have an account?"),
-                  TextButton(
-                    onPressed: () => Navigator.pushNamed(context, '/register'),
-                    child: const Text('Sign Up'),
-                  ),
-                ],
-              ),
-            ],
+        child: isWide ? _wideLayout(auth) : _narrowLayout(auth),
+      ),
+    );
+  }
+
+  Widget _wideLayout(AuthProvider auth) {
+    return Row(
+      children: [
+        Expanded(child: _HeroSide()),
+        Expanded(
+          child: _FormSide(
+            auth: auth,
+            emailCtl: _emailController,
+            passwordCtl: _passwordController,
+            obscurePassword: _obscurePassword,
+            remember: _remember,
+            onTogglePassword: () => setState(() => _obscurePassword = !_obscurePassword),
+            onToggleRemember: (v) => setState(() => _remember = v),
+            onLogin: _handleLogin,
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _narrowLayout(AuthProvider auth) {
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          SizedBox(height: 180, child: _HeroSide(compact: true)),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: _FormSide(
+              auth: auth,
+              emailCtl: _emailController,
+              passwordCtl: _passwordController,
+              obscurePassword: _obscurePassword,
+              remember: _remember,
+              onTogglePassword: () => setState(() => _obscurePassword = !_obscurePassword),
+              onToggleRemember: (v) => setState(() => _remember = v),
+              onLogin: _handleLogin,
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _AuthField extends StatelessWidget {
-  final TextEditingController controller;
-  final String label;
-  final IconData icon;
-  final bool obscureText;
-  final TextInputType? keyboardType;
-  final Widget? suffixIcon;
+class _HeroSide extends StatelessWidget {
+  final bool compact;
+  const _HeroSide({this.compact = false});
 
-  const _AuthField({
-    required this.controller,
-    required this.label,
-    required this.icon,
-    this.obscureText = false,
-    this.keyboardType,
-    this.suffixIcon,
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: compact ? 200 : double.infinity,
+      decoration: const BoxDecoration(
+        image: DecorationImage(
+          image: AssetImage('assets/images/welcome_bg.jpg'),
+          fit: BoxFit.cover,
+        ),
+      ),
+      child: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF041627),
+              Color(0x99041627),
+              Color(0x44001633),
+            ],
+            stops: [0.0, 0.5, 1.0],
+          ),
+        ),
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Spacer(flex: compact ? 1 : 3),
+            Container(
+              width: 48, height: 48,
+              decoration: BoxDecoration(color: AppColors.kodiGreen.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)),
+              child: const Center(child: Text('K', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: AppColors.kodiGreen))),
+            ),
+            const SizedBox(height: 16),
+            Text('KodiPay', style: TextStyle(fontSize: compact ? 22 : 28, fontWeight: FontWeight.w800, color: Colors.white, fontFamily: 'Lexend')),
+            const SizedBox(height: 8),
+            Text('Secure Property Management\nStarts Here', style: TextStyle(fontSize: compact ? 13 : 15, color: Colors.white.withValues(alpha: 0.7), height: 1.5)),
+            Spacer(flex: 2),
+          ],
+        ),
+      ),
+    );
+  }
+
+}
+
+class _FormSide extends StatelessWidget {
+  final AuthProvider auth;
+  final TextEditingController emailCtl;
+  final TextEditingController passwordCtl;
+  final bool obscurePassword;
+  final bool remember;
+  final VoidCallback onTogglePassword;
+  final ValueChanged<bool> onToggleRemember;
+  final VoidCallback onLogin;
+
+  const _FormSide({
+    required this.auth, required this.emailCtl, required this.passwordCtl,
+    required this.obscurePassword, required this.remember,
+    required this.onTogglePassword, required this.onToggleRemember, required this.onLogin,
   });
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      obscureText: obscureText,
-      keyboardType: keyboardType,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon, color: AppColors.muted),
-        suffixIcon: suffixIcon,
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 48),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Welcome back', style: AppStyles.headlineLg.copyWith(fontSize: 28)),
+          const SizedBox(height: 4),
+          Text('Log in to your KodiPay account', style: AppStyles.bodySm),
+          const SizedBox(height: 32),
+          TextField(
+            controller: emailCtl,
+            keyboardType: TextInputType.emailAddress,
+            decoration: const InputDecoration(
+              labelText: 'Email',
+              prefixIcon: Icon(Icons.email_outlined, size: 20),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: passwordCtl,
+            obscureText: obscurePassword,
+            decoration: InputDecoration(
+              labelText: 'Password',
+              prefixIcon: const Icon(Icons.lock_outline, size: 20),
+              suffixIcon: IconButton(
+                icon: Icon(obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined, size: 20),
+                onPressed: onTogglePassword,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  SizedBox(
+                    height: 20, width: 20,
+                    child: Checkbox(
+                      value: remember,
+                      onChanged: (v) => onToggleRemember(v ?? true),
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text('Remember this device', style: TextStyle(fontSize: 12, color: AppColors.textLight)),
+                ],
+              ),
+              TextButton(
+                onPressed: () => Navigator.pushNamed(context, '/forgot-password'),
+                child: const Text('Forgot Password?', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            height: 52,
+            child: ElevatedButton(
+              onPressed: auth.isLoading ? null : onLogin,
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.kodiBlue),
+              child: auth.isLoading
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Text('Log In to Account', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(child: Divider(color: AppColors.border)),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text('or continue with', style: TextStyle(fontSize: 11, color: AppColors.muted)),
+              ),
+              Expanded(child: Divider(color: AppColors.border)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 50,
+            child: OutlinedButton.icon(
+              onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Google sign-in coming soon'))),
+              icon: Container(
+                width: 20, height: 20, alignment: Alignment.center,
+                decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(4)),
+                child: const Text('G', style: TextStyle(color: Color(0xFF4285F4), fontWeight: FontWeight.w800, fontSize: 13)),
+              ),
+              label: const Text('Continue with Google', style: TextStyle(fontWeight: FontWeight.w600)),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.textDark,
+                side: BorderSide(color: AppColors.border),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text("Don't have an account yet?", style: TextStyle(fontSize: 13, color: AppColors.textLight)),
+                TextButton(
+                  onPressed: () => Navigator.pushNamed(context, '/register'),
+                  child: const Text('Register', style: TextStyle(fontWeight: FontWeight.w700)),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          Center(
+            child: Text('SECURE & ENCRYPTED', style: TextStyle(fontSize: 9, color: AppColors.muted, letterSpacing: 1)),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.security_outlined, size: 14, color: AppColors.kodiGreen.withValues(alpha: 0.7)),
+                  const SizedBox(width: 4),
+                  Text('SSL', style: TextStyle(fontSize: 10, color: AppColors.muted)),
+                ],
+              ),
+              const SizedBox(width: 16),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.verified_user_outlined, size: 14, color: AppColors.kodiGreen.withValues(alpha: 0.7)),
+                  const SizedBox(width: 4),
+                  Text('PCI DSS', style: TextStyle(fontSize: 10, color: AppColors.muted)),
+                ],
+              ),
+              const SizedBox(width: 16),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.security_outlined, size: 14, color: AppColors.kodiGreen.withValues(alpha: 0.7)),
+                  const SizedBox(width: 4),
+                  Text('256-bit', style: TextStyle(fontSize: 10, color: AppColors.muted)),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+        ],
       ),
     );
   }

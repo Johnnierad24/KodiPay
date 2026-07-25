@@ -1,12 +1,11 @@
 {
-    "name": "kodipay",
-    "short_name": "kodipay",
+    "name": "KodiPay — Property Management",
+    "short_name": "KodiPay",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#F8FAFC",
+    "theme_color": "#0047A1",
+    "description": "Property management platform for landlords, tenants, and caretakers. Pay rent, manage properties, track maintenance.",
     "prefer_related_applications": false,
     "icons": [
         {

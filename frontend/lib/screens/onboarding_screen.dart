@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import '../widgets/glass.dart';
-import '../widgets/kodi_pay_logo.dart';
 import '../utils/constants.dart';
 
 class OnboardingScreen extends StatelessWidget {
@@ -8,122 +6,52 @@ class OnboardingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final roles = [
+      _RoleData('Tenant', Icons.person_outline, 'Pay rent securely via M-Pesa or Card,\ntrack your payment history, and raise\nmaintenance requests with a single tap.'),
+      _RoleData('Landlord', Icons.business_outlined, 'Automate rent collection, generate tax-\nready financial reports, and manage multi-\nunit properties from a central dashboard.'),
+      _RoleData('Caretaker', Icons.engineering_outlined, 'Oversee day-to-day operations, verify\ntenant payments, and manage utility billing\nwith ease and transparency.'),
+    ];
+
     return Scaffold(
-      body: GlassBackground(
-        child: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(24, 24, 24, 28),
-                child: ConstrainedBox(
-                  constraints:
-                      BoxConstraints(minHeight: constraints.maxHeight - 52),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      // Compact logo badge — kept small so the role choices sit
-                      // more towards the centre of the screen.
-                      Container(
-                        width: 84,
-                        height: 84,
-                        decoration: BoxDecoration(
-                          color: AppColors.white,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: AppColors.white.withValues(alpha: 0.4),
-                            width: 4,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.22),
-                              blurRadius: 18,
-                              offset: const Offset(0, 6),
-                            ),
-                          ],
-                        ),
-                        child: const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(12),
-                            child: KodiPayLogo(iconSize: 38, fontSize: 16),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 26),
-                      const Text(
-                        'Managing rent made easy',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: AppColors.white,
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
-                          height: 1.15,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        'Select your role to get started with the rental '
-                        'workflows designed for you.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: AppColors.white.withValues(alpha: 0.85),
-                          fontSize: 14.5,
-                          height: 1.35,
-                        ),
-                      ),
-                      const SizedBox(height: 30),
-                      const _RoleTile(
-                        title: 'I am a Landlord',
-                        description:
-                            'Manage properties, tenants, and collections.',
-                        icon: Icons.business_rounded,
-                        color: AppColors.kodiGreen,
-                        role: 'landlord',
-                      ),
-                      const SizedBox(height: 14),
-                      const _RoleTile(
-                        title: 'I am a Tenant',
-                        description: 'Pay rent, view receipts, and report issues.',
-                        icon: Icons.home_rounded,
-                        color: AppColors.kodiBlue,
-                        role: 'tenant',
-                      ),
-                      const SizedBox(height: 14),
-                      const _RoleTile(
-                        title: 'I am a Caretaker',
-                        description: 'Track assigned issues and emergency alerts.',
-                        icon: Icons.handyman_rounded,
-                        color: AppColors.kodiOrange,
-                        role: 'caretaker',
-                      ),
-                      const SizedBox(height: 22),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Already have an account?',
-                            style: TextStyle(
-                              color: AppColors.white.withValues(alpha: 0.85),
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () =>
-                                Navigator.pushNamed(context, '/auth'),
-                            style: TextButton.styleFrom(
-                              foregroundColor: AppColors.white,
-                            ),
-                            child: const Text(
-                              'Login',
-                              style: TextStyle(fontWeight: FontWeight.w700),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+      appBar: AppBar(leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new_outlined), onPressed: () => Navigator.pop(context))),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 8),
+              const Text('Choose your path', style: AppStyles.heading1),
+              const SizedBox(height: 6),
+              const Text("We provide specialized tools for each role\nin property management.", style: AppStyles.bodySmall),
+              const SizedBox(height: 28),
+              Expanded(
+                child: ListView.separated(
+                  itemCount: roles.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 14),
+                  itemBuilder: (context, i) {
+                    final r = roles[i];
+                    return _RoleCard(
+                      title: r.title,
+                      icon: r.icon,
+                      description: r.description,
+                      onTap: () => Navigator.pushNamed(context, '/register', arguments: r.title.toLowerCase()),
+                    );
+                  },
                 ),
-              );
-            },
+              ),
+              const SizedBox(height: 16),
+              Center(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text('Already have an account?', style: TextStyle(fontSize: 13, color: AppColors.textLight)),
+                    TextButton(onPressed: () => Navigator.pushReplacementNamed(context, '/login'), child: const Text('Log In', style: TextStyle(fontWeight: FontWeight.w700))),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
           ),
         ),
       ),
@@ -131,69 +59,62 @@ class OnboardingScreen extends StatelessWidget {
   }
 }
 
-class _RoleTile extends StatelessWidget {
+class _RoleData {
   final String title;
-  final String description;
   final IconData icon;
-  final Color color;
-  final String role;
+  final String description;
+  _RoleData(this.title, this.icon, this.description);
+}
 
-  const _RoleTile({
-    required this.title,
-    required this.description,
-    required this.icon,
-    required this.color,
-    required this.role,
-  });
+class _RoleCard extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final String description;
+  final VoidCallback onTap;
+
+  const _RoleCard({required this.title, required this.icon, required this.description, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => Navigator.pushNamed(context, '/auth', arguments: role),
-      borderRadius: BorderRadius.circular(18),
-      child: GlassPanel(
-        radius: 18,
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.85),
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: Icon(icon, color: AppColors.white, size: 25),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.white,
-                    ),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                Container(
+                  width: 52, height: 52,
+                  decoration: BoxDecoration(
+                    color: AppColors.kodiBlue.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    description,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.white.withValues(alpha: 0.8),
-                    ),
+                  child: Icon(icon, color: AppColors.kodiBlue, size: 26),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textDark)),
+                      const SizedBox(height: 4),
+                      Text(description, style: const TextStyle(fontSize: 12, color: AppColors.textLight, height: 1.4)),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                const Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.muted),
+              ],
             ),
-            Icon(
-              Icons.chevron_right_rounded,
-              color: AppColors.white.withValues(alpha: 0.8),
-            ),
-          ],
+          ),
         ),
       ),
     );

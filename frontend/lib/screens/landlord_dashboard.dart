@@ -4,9 +4,12 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
-import '../widgets/dashboard_components.dart';
-import 'feature_screens.dart';
-import 'chatbot_screen.dart';
+import 'property_list_screen.dart';
+import 'add_property_screen.dart';
+import 'landlord_notifications_screen.dart';
+import 'landlord_reports_screen.dart';
+import 'landlord_settings_screen.dart';
+import 'landlord_wallet_screen.dart';
 
 class LandlordDashboard extends StatefulWidget {
   const LandlordDashboard({super.key});
@@ -19,6 +22,8 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
   final ApiService _api = ApiService();
   int _unreadCount = 0;
   _DashboardOverview? _overview;
+  int _navIndex = 0;
+  bool _sidebarOpen = false;
 
   @override
   void initState() {
@@ -32,15 +37,10 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
       final response = await _api.get('/notifications');
       if (response.statusCode != 200) return;
       final data = jsonDecode(response.body) as List<dynamic>;
-      final unread = data.where((item) {
-        final map = item as Map<String, dynamic>;
-        return map['is_read'] != true;
-      }).length;
+      final unread = data.where((item) => (item as Map)['is_read'] != true).length;
       if (!mounted) return;
       setState(() => _unreadCount = unread);
-    } catch (_) {
-      // Silent failure — badge just stays at last value.
-    }
+    } catch (_) {}
   }
 
   Future<void> _loadOverview() async {
@@ -50,325 +50,309 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       if (!mounted) return;
       setState(() => _overview = _DashboardOverview.fromJson(data));
-    } catch (_) {
-      // Silent failure — overview just stays at last value.
-    }
+    } catch (_) {}
   }
 
-  Future<void> _openNotifications() async {
-    final changed = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(builder: (_) => const LandlordNotificationsScreen()),
-    );
-    if (changed == true) _loadUnreadCount();
-  }
-
-  Future<void> _onAddProperty() async {
-    final changed = await showPropertySheet(context);
-    if (changed == true) _loadOverview();
-  }
-
-  Future<void> _onAddTenant() async {
-    final changed = await showTenantSheet(context);
-    if (changed == true) _loadOverview();
+  void _onNavTap(int index) {
+    setState(() {
+      _navIndex = index;
+      _sidebarOpen = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
-    final firstName = user?.firstName ?? 'John';
-    final lastName = user?.lastName ?? 'Njenga';
+    final isWide = MediaQuery.of(context).size.width > 1024;
 
     return Scaffold(
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.kodiGreen,
-        foregroundColor: Colors.white,
-        tooltip: 'Ask KodiBot',
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const ChatbotScreen(
-              role: 'Landlord',
-              accentColor: AppColors.kodiGreen,
-            ),
-          ),
-        ),
-        child: const Icon(Icons.smart_toy_outlined),
-      ),
+      backgroundColor: AppColors.background,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              DashboardHeader(
-                name: '$firstName $lastName',
-                subtitle: 'Property Management at Your Fingertips!',
-                accentColor: AppColors.kodiGreen,
-                onLogout: () => context.read<AuthProvider>().logout(),
-                onMenuTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const MoreScreen()),
-                ),
-                trailingActions: [
-                  IconButton(
-                    tooltip: 'Notifications',
-                    onPressed: _openNotifications,
-                    icon: _unreadCount > 0
-                        ? Badge(
-                            label: Text(
-                              _unreadCount > 99 ? '99+' : _unreadCount.toString(),
-                            ),
-                            child: const Icon(Icons.notifications_none_rounded,
-                                color: AppColors.textDark),
-                          )
-                        : const Icon(Icons.notifications_none_rounded,
-                            color: AppColors.textDark),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Sidebar (desktop)
+            if (isWide) _Sidebar(navIndex: _navIndex, onTap: _onNavTap),
+
+            // Mobile sidebar overlay
+            if (!isWide && _sidebarOpen)
+              GestureDetector(
+                onTap: () => setState(() => _sidebarOpen = false),
+                child: Container(color: Colors.black.withValues(alpha: 0.4)),
+              ),
+
+            if (!isWide && _sidebarOpen)
+              Positioned(
+                left: 0, top: 0, bottom: 0,
+                child: _Sidebar(navIndex: _navIndex, onTap: _onNavTap),
+              ),
+
+            // Main content
+            Expanded(
+              child: Column(
+                children: [
+                  // Top bar
+                  _TopBar(
+                    unreadCount: _unreadCount,
+                    userName: '${user?.firstName ?? 'Jabari'} ${user?.lastName ?? 'Kamau'}',
+                    onMenuTap: () => setState(() => _sidebarOpen = !_sidebarOpen),
+                    onNotifications: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LandlordNotificationsScreen())),
+                    onProfileTap: () => _onNavTap(4),
+                  ),
+
+                  // Body
+                  Expanded(
+                    child: IndexedStack(
+                      index: _navIndex,
+                      children: [
+                        _HomeTab(
+                          user: user,
+                          overview: _overview,
+                          unreadCount: _unreadCount,
+                          onRefresh: _loadOverview,
+                          onNavigateToReports: () => _onNavTap(2),
+                          onNavigateToProperties: () => _onNavTap(1),
+                        ),
+                        const PropertyListScreen(),
+                        const LandlordReportsScreen(),
+                        const LandlordWalletScreen(),
+                        const LandlordSettingsScreen(),
+                      ],
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 18),
-              GradientPanel(
-                startColor: const Color(0xFF10A55A),
-                endColor: const Color(0xFF047857),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Expanded(
-                          child: Text(
-                            'Overview',
-                            style: TextStyle(
-                              color: AppColors.white,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.14),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: const Text(
-                            'This Month',
-                            style: TextStyle(
-                                color: AppColors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    GridView(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio: 2.25,
-                        mainAxisSpacing: 10,
-                        crossAxisSpacing: 10,
-                      ),
-                      children: [
-                        StatBox(
-                          value: _overview?.totalProperties.toString() ?? '—',
-                          label: 'Properties',
-                        ),
-                        StatBox(
-                          value: _overview?.totalUnits.toString() ?? '—',
-                          label: 'Units',
-                        ),
-                        StatBox(
-                          value: _overview == null
-                              ? '—'
-                              : 'KSh ${_formatKsh(_overview!.thisMonthIncome)}',
-                          label: 'This Month',
-                        ),
-                        StatBox(
-                          value: _overview?.pendingInvoices.toString() ?? '—',
-                          label: 'Pending Payments',
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 22),
-              SectionTitle(
-                title: 'Recent Payments',
-                actionLabel: 'View all',
-                onAction: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const LandlordPaymentsScreen()),
-                ),
-              ),
-              const ListPanel(
-                children: [
-                  _PaymentRow(
-                      name: 'Mary Wanjiku',
-                      unit: 'A2 - Sunview Apts',
-                      amount: 'KSh 25,000',
-                      status: 'Paid'),
-                  _DividerLine(),
-                  _PaymentRow(
-                      name: 'John Kamau',
-                      unit: 'B1 - Greenfield Hts',
-                      amount: 'KSh 20,000',
-                      status: 'Paid'),
-                  _DividerLine(),
-                  _PaymentRow(
-                      name: 'Peter Ochieng',
-                      unit: 'C3 - Lakeview Villas',
-                      amount: 'KSh 25,000',
-                      status: 'Pending'),
-                ],
-              ),
-              const SizedBox(height: 22),
-              const SectionTitle(title: 'Quick Actions'),
-              GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 4,
-                mainAxisSpacing: 10,
-                crossAxisSpacing: 10,
-                childAspectRatio: 0.82,
-                children: [
-                  QuickActionTile(
-                      label: 'Add Property',
-                      icon: Icons.add_home_rounded,
-                      color: AppColors.kodiGreen,
-                      onTap: _onAddProperty),
-                  QuickActionTile(
-                      label: 'Add Tenant',
-                      icon: Icons.person_add_alt_1_rounded,
-                      color: AppColors.kodiNavy,
-                      onTap: _onAddTenant),
-                  QuickActionTile(
-                      label: 'Reminder',
-                      icon: Icons.mail_outline_rounded,
-                      color: AppColors.kodiBlue,
-                      onTap: () => showReminderSheet(context)),
-                  QuickActionTile(
-                      label: 'Announce',
-                      icon: Icons.campaign_outlined,
-                      color: AppColors.kodiGreen,
-                      onTap: () => showAnnouncementSheet(context)),
-                  QuickActionTile(
-                      label: 'Reports',
-                      icon: Icons.analytics_outlined,
-                      color: AppColors.kodiBlue,
-                      onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => const LandlordReportsScreen()),
-                          )),
-                ],
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
-      ),
-      bottomNavigationBar: AppBottomNav(
-        currentIndex: 0,
-        selectedColor: AppColors.kodiGreen,
-        onTap: (index) {
-          final List<Widget?> screens = [
-            null,
-            const PropertyListScreen(),
-            const TenantListScreen(),
-            const LandlordPaymentsScreen(),
-            const MoreScreen(),
-          ];
-          final screen = screens[index];
-          if (screen != null) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => screen),
-            );
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard_rounded), label: 'Dashboard'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.home_work_outlined), label: 'Properties'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.groups_2_outlined), label: 'Tenants'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.receipt_long_outlined), label: 'Payments'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.grid_view_rounded), label: 'More'),
-        ],
       ),
     );
   }
 }
 
-class _PaymentRow extends StatelessWidget {
-  final String name;
-  final String unit;
-  final String amount;
-  final String status;
+// ── Sidebar ──────────────────────────────────────────
+class _Sidebar extends StatelessWidget {
+  final int navIndex;
+  final ValueChanged<int> onTap;
 
-  const _PaymentRow({
-    required this.name,
-    required this.unit,
-    required this.amount,
-    required this.status,
+  const _Sidebar({required this.navIndex, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final items = [
+      ('Home', Icons.home_outlined, Icons.home),
+      ('Properties', Icons.domain_outlined, Icons.domain),
+      ('Reports', Icons.assessment_outlined, Icons.assessment),
+      ('Wallet', Icons.account_balance_wallet_outlined, Icons.account_balance_wallet),
+      ('Profile', Icons.person_outline, Icons.person),
+    ];
+
+    return Container(
+      width: 280,
+      color: AppColors.primary,
+      child: Column(
+        children: [
+          const SizedBox(height: 24),
+          // Branding
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 32, height: 32,
+                      decoration: BoxDecoration(color: AppColors.tertiaryFixed, borderRadius: BorderRadius.circular(8)),
+                      child: const Center(child: Text('K', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.onTertiaryFixed))),
+                    ),
+                    const SizedBox(width: 10),
+                    Text('KodiPay', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, fontFamily: 'Lexend', color: AppColors.onPrimary)),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text('PROPERTY MANAGEMENT', style: TextStyle(fontSize: 10, letterSpacing: 1.5, fontWeight: FontWeight.w700, color: AppColors.onPrimary.withValues(alpha: 0.6))),
+              ],
+            ),
+          ),
+          const SizedBox(height: 32),
+          // Nav items
+          Expanded(
+            child: Column(
+              children: List.generate(items.length, (i) {
+                final active = navIndex == i;
+                final item = items[i];
+                return Container(
+                  decoration: active ? const BoxDecoration(
+                    border: Border(left: BorderSide(color: AppColors.tertiaryFixed, width: 4)),
+                  ) : null,
+                  child: Material(
+                    color: active ? AppColors.onPrimary.withValues(alpha: 0.1) : Colors.transparent,
+                    child: InkWell(
+                      onTap: () => onTap(i),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                        child: Row(
+                          children: [
+                            Icon(active ? item.$3 : item.$2, size: 22, color: active ? AppColors.onPrimary : AppColors.onPrimary.withValues(alpha: 0.7)),
+                            const SizedBox(width: 12),
+                            Text(item.$1, style: TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5,
+                              color: active ? AppColors.onPrimary : AppColors.onPrimary.withValues(alpha: 0.7),
+                            )),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+          // Logout
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+            child: SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _confirmLogout(context),
+                icon: const Icon(Icons.logout_rounded, size: 16, color: AppColors.danger),
+                label: const Text('Sign Out', style: TextStyle(color: AppColors.danger, fontWeight: FontWeight.w600, fontSize: 12)),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: AppColors.danger.withValues(alpha: 0.3)),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmLogout(BuildContext context) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sign out?'),
+        content: const Text('You will need to sign in again to use KodiPay.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+            child: const Text('Sign out'),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true && context.mounted) {
+      await context.read<AuthProvider>().logout();
+    }
+  }
+}
+
+// ── Top Bar ──────────────────────────────────────────
+class _TopBar extends StatelessWidget {
+  final int unreadCount;
+  final String userName;
+  final VoidCallback onMenuTap;
+  final VoidCallback onNotifications;
+  final VoidCallback onProfileTap;
+
+  const _TopBar({
+    required this.unreadCount,
+    required this.userName,
+    required this.onMenuTap,
+    required this.onNotifications,
+    required this.onProfileTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isPaid = status == 'Paid';
-
-    return Padding(
-      padding: const EdgeInsets.all(14),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      height: 56,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLowest,
+        border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
+      ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: AppColors.kodiGreen.withValues(alpha: 0.12),
-            child: Text(name.characters.first,
-                style: const TextStyle(fontWeight: FontWeight.w800)),
+          // Menu + Search
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.menu_outlined),
+                onPressed: onMenuTap,
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 280,
+                child: TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Search portfolio...',
+                    prefixIcon: const Icon(Icons.search, size: 18, color: AppColors.secondary),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                    filled: true,
+                    fillColor: AppColors.surfaceLow,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          const Spacer(),
+          // Notifications
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications_outlined, color: AppColors.secondary),
+                onPressed: onNotifications,
+              ),
+              if (unreadCount > 0)
+                Positioned(
+                  right: 6, top: 6,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(color: AppColors.error, shape: BoxShape.circle),
+                    constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                    child: Text('$unreadCount', style: const TextStyle(fontSize: 8, color: Colors.white, fontWeight: FontWeight.w700), textAlign: TextAlign.center),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(width: 4),
+          const Icon(Icons.help_outline, size: 20, color: AppColors.secondary),
+          Container(width: 1, height: 28, margin: const EdgeInsets.symmetric(horizontal: 12), color: AppColors.outlineVariant),
+          // User
+          GestureDetector(
+            onTap: onProfileTap,
+            child: Row(
               children: [
-                Text(name,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textDark,
-                        fontSize: 13)),
-                const SizedBox(height: 2),
-                Text(unit,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppStyles.caption),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(userName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.onSurface)),
+                    Text('Gold Tier Landlord', style: TextStyle(fontSize: 9, letterSpacing: 0.5, fontWeight: FontWeight.w700, color: AppColors.secondary)),
+                  ],
+                ),
+                const SizedBox(width: 10),
+                Container(
+                  width: 36, height: 36,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.primaryFixed, width: 2),
+                    image: const DecorationImage(
+                      image: NetworkImage('https://lh3.googleusercontent.com/aida-public/AB6AXuDAq6IVGapOt3_8ETyM27CLlpqDlgHfjoa6IUWKOPEJ1TmeGH6HmBzh-vMD1dvxuMBOZwtCbc1P6PNNraap1HfEiE00nqP6STqyYUWvk9iSEFiJgtO6tC8T-Fzo80BtNNqM8k0StUawaT2mC6IptRfgxdDgkvJz2AD-D5nUjIGKMgN-d3Skvr-tetdOHt3lRwNhZ3BaKqa13RWpg2GI0IL_GCLEa4RZMmEYsGrnWwNq51lWDdn9ZE7e'),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
               ],
             ),
-          ),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(amount,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textDark,
-                      fontSize: 12)),
-              const SizedBox(height: 5),
-              StatusPill(
-                  label: status,
-                  color: isPaid ? AppColors.kodiGreen : AppColors.kodiOrange),
-            ],
           ),
         ],
       ),
@@ -376,77 +360,445 @@ class _PaymentRow extends StatelessWidget {
   }
 }
 
-class _DividerLine extends StatelessWidget {
-  const _DividerLine();
+// ── Home Tab ─────────────────────────────────────────
+class _HomeTab extends StatelessWidget {
+  final dynamic user;
+  final _DashboardOverview? overview;
+  final int unreadCount;
+  final VoidCallback onRefresh;
+  final VoidCallback? onNavigateToReports;
+  final VoidCallback? onNavigateToProperties;
+
+  const _HomeTab({required this.user, this.overview, required this.unreadCount, required this.onRefresh, this.onNavigateToReports, this.onNavigateToProperties});
 
   @override
   Widget build(BuildContext context) {
-    return const Divider(
-        height: 1, indent: 58, endIndent: 14, color: AppColors.border);
+    final o = overview;
+    final collectionRate = o?.collectionRate ?? 92;
+    final totalCollected = o?.totalCollected ?? 1100000;
+    final outstanding = o?.outstanding ?? 96500;
+    final pendingIssues = o?.pendingIssues ?? 3;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Welcome
+          const SizedBox(height: 8),
+          Text('Welcome back, ${user?.firstName ?? 'Jabari'}!', style: AppStyles.headlineLg.copyWith(fontSize: 28)),
+          const SizedBox(height: 4),
+          Text('Here is your portfolio performance for October.', style: AppStyles.bodyLg.copyWith(color: AppColors.onSurfaceVariant)),
+          const SizedBox(height: 24),
+          // Quick Actions
+          Wrap(
+            spacing: 12, runSpacing: 12,
+            children: [
+              ElevatedButton.icon(
+                onPressed: () {
+                  if (onNavigateToProperties != null) {
+                    onNavigateToProperties!();
+                  } else {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const AddPropertyScreen()));
+                  }
+                },
+                icon: const Icon(Icons.add_circle_outlined, size: 18),
+                label: const Text('Add Property'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.onPrimary,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: () {
+                  if (onNavigateToReports != null) {
+                    onNavigateToReports!();
+                  } else {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const LandlordReportsScreen()));
+                  }
+                },
+                icon: const Icon(Icons.summarize_outlined, size: 18),
+                label: const Text('Generate New Report'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: BorderSide(color: AppColors.primary),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          // Stats Grid
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final cols = constraints.maxWidth > 900 ? 4 : (constraints.maxWidth > 600 ? 2 : 1);
+              return GridView.count(
+                crossAxisCount: cols,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                mainAxisSpacing: 16,
+                crossAxisSpacing: 16,
+                childAspectRatio: 1.5,
+                children: [
+                  _StatCard(
+                    label: 'Collection Rate',
+                    icon: Icons.analytics_outlined,
+                    iconColor: AppColors.tertiaryFixedDim,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text('$collectionRate', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600, fontFamily: 'Lexend', color: AppColors.primary)),
+                            const Text('%', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500, color: AppColors.primary)),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(999),
+                          child: Container(
+                            height: 6,
+                            decoration: BoxDecoration(color: AppColors.surfaceContainer, borderRadius: BorderRadius.circular(999)),
+                            child: FractionallySizedBox(
+                              alignment: Alignment.centerLeft,
+                              widthFactor: collectionRate / 100,
+                              child: Container(decoration: BoxDecoration(color: AppColors.tertiaryFixedDim, borderRadius: BorderRadius.circular(999))),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  _StatCard(
+                    label: 'Total Collected',
+                    icon: Icons.account_balance_outlined,
+                    iconColor: AppColors.tertiaryFixedDim,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Oct 2024', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.secondary)),
+                        const SizedBox(height: 4),
+                        Text('KSh ${_fmt(totalCollected)}', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, fontFamily: 'Lexend', color: AppColors.primary)),
+                      ],
+                    ),
+                  ),
+                  _StatCard(
+                    label: 'Outstanding',
+                    icon: Icons.priority_high_outlined,
+                    iconColor: AppColors.error,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('KSh ${_fmt(outstanding)}', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, fontFamily: 'Lexend', color: AppColors.primary)),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(Icons.trending_up, size: 14, color: AppColors.error),
+                            const SizedBox(width: 4),
+                            Text('+4% from last month', style: TextStyle(fontSize: 12, color: AppColors.error)),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  _StatCard(
+                    label: 'Maintenance',
+                    icon: Icons.build_outlined,
+                    iconColor: AppColors.tertiaryFixedDim,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('$pendingIssues New', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, fontFamily: 'Lexend', color: AppColors.primary)),
+                        const SizedBox(height: 4),
+                        Text('Pending Requests', style: TextStyle(fontSize: 12, color: AppColors.onSurfaceVariant)),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 24),
+          // Dashboard body grid
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stack = constraints.maxWidth > 900;
+              if (stack) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 2, child: _RecentTransactions()),
+                    const SizedBox(width: 24),
+                    Expanded(flex: 1, child: _PortfolioYield()),
+                  ],
+                );
+              }
+              return Column(
+                children: [
+                  _RecentTransactions(),
+                  const SizedBox(height: 24),
+                  _PortfolioYield(),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 24),
+          // Footer
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceLow,
+              border: Border(top: BorderSide(color: AppColors.outlineVariant)),
+            ),
+            child: Column(
+              children: [
+                Text('© 2024 KodiPay Kenya. All rights reserved.', style: TextStyle(fontSize: 12, color: AppColors.onSurfaceVariant)),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 24, alignment: WrapAlignment.center,
+                  children: [
+                    TextButton(onPressed: () {}, child: Text('Terms of Service', style: TextStyle(fontSize: 12, color: AppColors.secondary, decoration: TextDecoration.underline))),
+                    TextButton(onPressed: () {}, child: Text('Privacy Policy', style: TextStyle(fontSize: 12, color: AppColors.secondary, decoration: TextDecoration.underline))),
+                    TextButton(onPressed: () {}, child: Text('Contact Support', style: TextStyle(fontSize: 12, color: AppColors.secondary, decoration: TextDecoration.underline))),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _fmt(num? v) {
+    if (v == null) return '--';
+    if (v >= 1000000) return '${(v / 1000000).toStringAsFixed(1)}M';
+    if (v >= 1000) return '${(v / 1000).toStringAsFixed(1)}k';
+    return v.toStringAsFixed(0);
+  }
+}
+
+// ── Stat Card ─────────────────────────────────────────
+class _StatCard extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color iconColor;
+  final Widget child;
+
+  const _StatCard({required this.label, required this.icon, required this.iconColor, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLowest,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.outlineVariant),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 4, offset: const Offset(0, 2))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(label.toUpperCase(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.secondary)),
+              Icon(icon, size: 20, color: iconColor),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Expanded(child: child),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Recent Transactions ──────────────────────────────
+class _RecentTransactions extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final transactions = [
+      ('Oct 12, 2024', 'Riverside Apt #4B', 'KSh 45,000', 'Paid', AppColors.tertiaryFixedDim, AppColors.onTertiaryFixedVariant),
+      ('Oct 11, 2024', 'Kilimani Court #12', 'KSh 62,500', 'Unpaid', AppColors.errorContainer, AppColors.onErrorContainer),
+      ('Oct 10, 2024', 'Garden Estate #A2', 'KSh 120,000', 'Paid', AppColors.tertiaryFixedDim, AppColors.onTertiaryFixedVariant),
+      ('Oct 09, 2024', 'Riverside Apt #2C', 'KSh 45,000', 'Paid', AppColors.tertiaryFixedDim, AppColors.onTertiaryFixedVariant),
+      ('Oct 08, 2024', 'Kilimani Court #05', 'KSh 58,000', 'Unpaid', AppColors.errorContainer, AppColors.onErrorContainer),
+    ];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLowest,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Recent Transactions', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, fontFamily: 'Lexend', color: AppColors.primary)),
+                TextButton(onPressed: () {}, child: const Text('View All', style: TextStyle(fontWeight: FontWeight.w700))),
+              ],
+            ),
+          ),
+          // Table header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+            color: AppColors.surfaceLow,
+            child: Row(
+              children: [
+                Expanded(flex: 2, child: _th('Date')),
+                Expanded(flex: 3, child: _th('Unit')),
+                Expanded(flex: 2, child: _th('Amount')),
+                Expanded(flex: 2, child: _th('Status')),
+                Expanded(child: _th('Action')),
+              ],
+            ),
+          ),
+          // Table rows
+          ...transactions.map((t) => Container(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+            decoration: BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.5)))),
+            child: Row(
+              children: [
+                Expanded(flex: 2, child: Text(t.$1, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.onSurface))),
+                Expanded(flex: 3, child: Text(t.$2, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary))),
+                Expanded(flex: 2, child: Text(t.$3, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500))),
+                Expanded(flex: 2, child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: t.$4 == 'Paid' ? AppColors.tertiaryFixed.withValues(alpha: 0.2) : AppColors.errorContainer,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: t.$4 == 'Paid' ? AppColors.tertiaryFixedDim : AppColors.error.withValues(alpha: 0.2)),
+                  ),
+                  child: Text(t.$4, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: t.$5)),
+                )),
+                Expanded(child: Icon(Icons.more_horiz, size: 18, color: AppColors.secondary)),
+              ],
+            ),
+          )),
+        ],
+      ),
+    );
+  }
+
+  Widget _th(String label) {
+    return Text(label.toUpperCase(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.secondary));
+  }
+}
+
+// ── Portfolio Yield ──────────────────────────────────
+class _PortfolioYield extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final bars = [0.6, 0.75, 0.65, 0.9, 0.8, 0.85];
+    final labels = ['MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT'];
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLowest,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Portfolio Yield', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, fontFamily: 'Lexend', color: AppColors.primary)),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(color: AppColors.surfaceLow, borderRadius: BorderRadius.circular(6), border: Border.all(color: AppColors.outlineVariant)),
+                child: const Text('Last 6 Months', style: TextStyle(fontSize: 11, color: AppColors.secondary)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 32),
+          // Chart bars
+          SizedBox(
+            height: 220,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: List.generate(bars.length, (i) {
+                final isOct = i == 5;
+                return Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Container(
+                          height: 210 * bars[i],
+                          decoration: BoxDecoration(
+                            color: isOct ? AppColors.tertiaryFixedDim : AppColors.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+          const SizedBox(height: 10),
+          // X-axis labels
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(labels.length, (i) {
+              final isOct = i == 5;
+              return Text(labels[i], style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: isOct ? AppColors.primary : AppColors.secondary));
+            }),
+          ),
+          const SizedBox(height: 24),
+          Container(height: 1, color: AppColors.outlineVariant),
+          const SizedBox(height: 20),
+          // Stats
+          _yieldRow('Occupancy Rate', '98.2%'),
+          const SizedBox(height: 12),
+          _yieldRow('Avg. Rent Delay', '2.4 Days'),
+        ],
+      ),
+    );
+  }
+
+  Widget _yieldRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: TextStyle(fontSize: 13, color: AppColors.onSurfaceVariant)),
+        Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary)),
+      ],
+    );
   }
 }
 
 class _DashboardOverview {
-  final int totalProperties;
-  final int totalUnits;
-  final int occupiedUnits;
-  final int vacantUnits;
-  final num thisMonthIncome;
-  final num lastMonthIncome;
-  final int pendingInvoices;
-  final int overdueInvoices;
-  final num pendingAmount;
-  final int openMaintenance;
-  final int urgentMaintenance;
+  final double totalCollected;
+  final double outstanding;
+  final int collectionRate;
+  final int pendingIssues;
 
-  const _DashboardOverview({
-    required this.totalProperties,
-    required this.totalUnits,
-    required this.occupiedUnits,
-    required this.vacantUnits,
-    required this.thisMonthIncome,
-    required this.lastMonthIncome,
-    required this.pendingInvoices,
-    required this.overdueInvoices,
-    required this.pendingAmount,
-    required this.openMaintenance,
-    required this.urgentMaintenance,
-  });
+  _DashboardOverview({required this.totalCollected, required this.outstanding, required this.collectionRate, required this.pendingIssues});
 
   factory _DashboardOverview.fromJson(Map<String, dynamic> json) {
-    int toInt(dynamic v) {
-      if (v == null) return 0;
-      if (v is int) return v;
-      if (v is num) return v.toInt();
-      return int.tryParse(v.toString()) ?? 0;
-    }
-
-    num toNum(dynamic v) {
-      if (v == null) return 0;
-      if (v is num) return v;
-      return num.tryParse(v.toString()) ?? 0;
-    }
-
     return _DashboardOverview(
-      totalProperties: toInt(json['total_properties']),
-      totalUnits: toInt(json['total_units']),
-      occupiedUnits: toInt(json['occupied_units']),
-      vacantUnits: toInt(json['vacant_units']),
-      thisMonthIncome: toNum(json['this_month_income']),
-      lastMonthIncome: toNum(json['last_month_income']),
-      pendingInvoices: toInt(json['pending_invoices']),
-      overdueInvoices: toInt(json['overdue_invoices']),
-      pendingAmount: toNum(json['pending_amount']),
-      openMaintenance: toInt(json['open_maintenance']),
-      urgentMaintenance: toInt(json['urgent_maintenance']),
+      totalCollected: (json['total_collected'] ?? 1100000).toDouble(),
+      outstanding: (json['outstanding'] ?? 96500).toDouble(),
+      collectionRate: (json['collection_rate'] ?? 92).toInt(),
+      pendingIssues: (json['pending_issues'] ?? 3).toInt(),
     );
   }
 }
 
-String _formatKsh(num value) {
-  final whole = value.toInt();
-  return whole.toString().replaceAllMapped(
-        RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
-        (match) => '${match.group(1)},',
-      );
-}

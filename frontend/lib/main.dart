@@ -11,6 +11,7 @@ import 'screens/forgot_password_screen.dart';
 import 'screens/pay_rent_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/auth_screen.dart';
+import 'screens/check_email_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'utils/constants.dart';
 
@@ -32,6 +33,7 @@ class KodiPayApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'KodiPay',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
@@ -39,35 +41,64 @@ class KodiPayApp extends StatelessWidget {
           primary: AppColors.kodiBlue,
           secondary: AppColors.kodiGreen,
           surface: AppColors.white,
+          error: AppColors.danger,
         ),
         scaffoldBackgroundColor: AppColors.background,
-        textTheme: GoogleFonts.poppinsTextTheme(Theme.of(context).textTheme),
+        textTheme: GoogleFonts.interTextTheme(Theme.of(context).textTheme),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          centerTitle: false,
+          titleTextStyle: TextStyle(
+            color: AppColors.textDark,
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: AppColors.white,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+          fillColor: AppColors.background,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(10),
             borderSide: const BorderSide(color: AppColors.border),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(10),
             borderSide: const BorderSide(color: AppColors.border),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: AppColors.kodiBlue, width: 1.4),
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: AppColors.kodiBlue, width: 1.5),
           ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: AppColors.danger),
+          ),
+          labelStyle: const TextStyle(color: AppColors.textLight, fontSize: 13),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.kodiGreen,
+            backgroundColor: AppColors.kodiBlue,
             foregroundColor: AppColors.white,
-            textStyle: const TextStyle(fontWeight: FontWeight.bold),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           ),
+        ),
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.kodiBlue,
+            side: const BorderSide(color: AppColors.border),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          ),
+        ),
+        dividerTheme: const DividerThemeData(color: AppColors.divider, thickness: 1, space: 0),
+        chipTheme: ChipThemeData(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
         ),
       ),
       home: const AuthWrapper(),
@@ -76,6 +107,7 @@ class KodiPayApp extends StatelessWidget {
         '/register': (context) => const RegisterScreen(),
         '/auth': (context) => const AuthScreen(),
         '/forgot-password': (context) => const ForgotPasswordScreen(),
+        '/check-email': (context) => const CheckEmailScreen(),
         '/reset-password': (context) => const ForgotPasswordScreen(),
         '/welcome': (context) => const WelcomeScreen(),
         '/onboarding': (context) => const OnboardingScreen(),

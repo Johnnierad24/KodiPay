@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user.dart';
 import '../services/api_service.dart';
 
@@ -9,7 +9,6 @@ class AuthProvider with ChangeNotifier {
   String? _token;
   bool _isLoading = false;
   final ApiService _apiService = ApiService();
-  final _storage = const FlutterSecureStorage();
 
   User? get user => _user;
   bool get isAuthenticated => _token != null;
@@ -40,7 +39,8 @@ class AuthProvider with ChangeNotifier {
         final data = jsonDecode(response.body);
         _token = data['token'];
         _user = User.fromJson(data['user']);
-        await _storage.write(key: 'jwt_token', value: _token);
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('jwt_token', _token!);
         _isLoading = false;
         notifyListeners();
         return true;
@@ -68,7 +68,8 @@ class AuthProvider with ChangeNotifier {
         final data = jsonDecode(response.body);
         _token = data['token'];
         _user = User.fromJson(data['user']);
-        await _storage.write(key: 'jwt_token', value: _token);
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('jwt_token', _token!);
         _isLoading = false;
         notifyListeners();
         return true;
@@ -217,7 +218,8 @@ class AuthProvider with ChangeNotifier {
     _user = null;
     _token = null;
     try {
-      await _storage.delete(key: 'jwt_token');
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('jwt_token');
     } catch (e) {
       debugPrint('Token cleanup error: $e');
     }
@@ -226,7 +228,8 @@ class AuthProvider with ChangeNotifier {
 
   Future<void> tryAutoLogin() async {
     try {
-      _token = await _storage.read(key: 'jwt_token');
+      final prefs = await SharedPreferences.getInstance();
+      _token = prefs.getString('jwt_token');
       if (_token != null) {
         final response = await _apiService.get('/auth/me');
         if (response.statusCode == 200) {

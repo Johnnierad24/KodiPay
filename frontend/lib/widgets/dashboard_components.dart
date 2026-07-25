@@ -2,238 +2,205 @@ import 'package:flutter/material.dart';
 import '../utils/constants.dart';
 
 class DashboardHeader extends StatelessWidget {
-  final String name;
+  final String greeting;
   final String subtitle;
-  final Color accentColor;
-  final VoidCallback onLogout;
-  final VoidCallback? onMenuTap;
-  final List<Widget> trailingActions;
+  final int unreadCount;
+  final VoidCallback? onNotifications;
+  final VoidCallback? onProfile;
 
   const DashboardHeader({
     super.key,
-    required this.name,
+    required this.greeting,
     required this.subtitle,
-    required this.accentColor,
-    required this.onLogout,
-    this.onMenuTap,
-    this.trailingActions = const [],
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: onMenuTap,
-          child: Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: accentColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(Icons.menu_rounded, color: AppColors.textDark),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Hi, $name',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textDark,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(subtitle, style: AppStyles.caption),
-            ],
-          ),
-        ),
-        ...trailingActions,
-        IconButton(
-          tooltip: 'Log out',
-          onPressed: onLogout,
-          icon: const Icon(Icons.logout_rounded, color: AppColors.textDark),
-        ),
-      ],
-    );
-  }
-}
-
-class GradientPanel extends StatelessWidget {
-  final Color startColor;
-  final Color endColor;
-  final Widget child;
-
-  const GradientPanel({
-    super.key,
-    required this.startColor,
-    required this.endColor,
-    required this.child,
+    this.unreadCount = 0,
+    this.onNotifications,
+    this.onProfile,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.fromLTRB(18, 12, 18, 16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [startColor, endColor],
+          colors: [AppColors.kodiNavy, Color(0xFF001A33)],
         ),
-        boxShadow: [
-          BoxShadow(
-            color: endColor.withValues(alpha: 0.28),
-            blurRadius: 22,
-            offset: const Offset(0, 12),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 40, height: 40,
+                    decoration: BoxDecoration(color: AppColors.kodiGreen.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(10)),
+                    child: const Center(child: Text('K', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.kodiGreen))),
+                  ),
+                  const SizedBox(width: 10),
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('KodiPay', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
+                      Text('SECURE & ENCRYPTED', style: TextStyle(fontSize: 8, letterSpacing: 1, color: AppColors.kodiGreen)),
+                    ],
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  if (onNotifications != null)
+                    Stack(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.notifications_outlined, color: Colors.white, size: 24),
+                          onPressed: onNotifications,
+                        ),
+                        if (unreadCount > 0)
+                          Positioned(
+                            right: 6, top: 6,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(color: AppColors.danger, shape: BoxShape.circle),
+                              constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                              child: Text('$unreadCount', style: const TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.w700), textAlign: TextAlign.center),
+                            ),
+                          ),
+                      ],
+                    ),
+                  if (onProfile != null)
+                    IconButton(
+                      icon: const Icon(Icons.person_outline, color: Colors.white, size: 24),
+                      onPressed: onProfile,
+                    ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(greeting, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white)),
+                    const SizedBox(height: 4),
+                    Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.7))),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
-      child: child,
     );
   }
 }
 
-class StatBox extends StatelessWidget {
-  final String value;
+class StatCard extends StatelessWidget {
   final String label;
+  final String value;
+  final IconData icon;
+  final Color? color;
+  final String? change;
 
-  const StatBox({
-    super.key,
-    required this.value,
-    required this.label,
-  });
+  const StatCard({super.key, required this.label, required this.value, required this.icon, this.color, this.change});
 
   @override
   Widget build(BuildContext context) {
+    final c = color ?? AppColors.kodiBlue;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppColors.white,
-              fontSize: 19,
-              fontWeight: FontWeight.w800,
-            ),
+          Row(
+            children: [
+              Icon(icon, size: 16, color: c.withValues(alpha: 0.7)),
+              const Spacer(),
+              if (change != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(color: AppColors.successSoft, borderRadius: BorderRadius.circular(999)),
+                  child: Text(change!, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: AppColors.success)),
+                ),
+            ],
           ),
-          const SizedBox(height: 4),
-          Text(label,
-              style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.82), fontSize: 11)),
+          const SizedBox(height: 10),
+          Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.textDark)),
+          const SizedBox(height: 2),
+          Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textLight)),
         ],
       ),
     );
   }
 }
 
-class SectionTitle extends StatelessWidget {
-  final String title;
-  final String? actionLabel;
-  final VoidCallback? onAction;
-
-  const SectionTitle({
-    super.key,
-    required this.title,
-    this.actionLabel,
-    this.onAction,
-  });
+class QuickActionGrid extends StatelessWidget {
+  final List<QuickActionItem> actions;
+  const QuickActionGrid({super.key, required this.actions});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            title,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textDark,
-            ),
-          ),
-        ),
-        if (actionLabel != null)
-          TextButton(
-            onPressed: onAction,
-            child: Text(actionLabel!, style: const TextStyle(fontSize: 12)),
-          ),
-      ],
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: actions.map((a) => _QuickActionTile(action: a)).toList(),
     );
   }
 }
 
-class QuickActionTile extends StatelessWidget {
-  final String label;
+class QuickActionItem {
   final IconData icon;
+  final String label;
   final Color color;
-  final VoidCallback? onTap;
+  final VoidCallback onTap;
+  const QuickActionItem(this.icon, this.label, this.color, this.onTap);
+}
 
-  const QuickActionTile({
-    super.key,
-    required this.label,
-    required this.icon,
-    required this.color,
-    this.onTap,
-  });
+class _QuickActionTile extends StatelessWidget {
+  final QuickActionItem action;
+  const _QuickActionTile({required this.action});
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(13),
-              ),
-              child: Icon(icon, color: color, size: 20),
+    return SizedBox(
+      width: (MediaQuery.of(context).size.width - 46) / 4,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: action.onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            decoration: BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
             ),
-            const SizedBox(height: 9),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppColors.textDark,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40, height: 40,
+                  decoration: BoxDecoration(color: action.color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+                  child: Icon(action.icon, color: action.color, size: 20),
+                ),
+                const SizedBox(height: 6),
+                Text(action.label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.textDark), textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -243,80 +210,36 @@ class QuickActionTile extends StatelessWidget {
 class StatusPill extends StatelessWidget {
   final String label;
   final Color color;
-
-  const StatusPill({
-    super.key,
-    required this.label,
-    required this.color,
-  });
+  const StatusPill({super.key, required this.label, required this.color});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontSize: 10,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(999)),
+      child: Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: color)),
     );
   }
 }
 
-class ListPanel extends StatelessWidget {
-  final List<Widget> children;
-
-  const ListPanel({
-    super.key,
-    required this.children,
-  });
+class SectionTitle extends StatelessWidget {
+  final String title;
+  final String? action;
+  final VoidCallback? onAction;
+  const SectionTitle({super.key, required this.title, this.action, this.onAction});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(children: children),
-    );
-  }
-}
-
-class AppBottomNav extends StatelessWidget {
-  final int currentIndex;
-  final Color selectedColor;
-  final List<BottomNavigationBarItem> items;
-  final ValueChanged<int>? onTap;
-
-  const AppBottomNav({
-    super.key,
-    required this.currentIndex,
-    required this.selectedColor,
-    required this.items,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return BottomNavigationBar(
-      currentIndex: currentIndex,
-      selectedItemColor: selectedColor,
-      unselectedItemColor: AppColors.muted,
-      backgroundColor: AppColors.white,
-      type: BottomNavigationBarType.fixed,
-      selectedFontSize: 11,
-      unselectedFontSize: 11,
-      onTap: onTap,
-      items: items,
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textDark)),
+        if (action != null)
+          TextButton(
+            onPressed: onAction,
+            child: Text(action!, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          ),
+      ],
     );
   }
 }

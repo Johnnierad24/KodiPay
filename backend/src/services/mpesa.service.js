@@ -2,54 +2,98 @@ const axios = require('axios');
 const mpesaConfig = require('../config/mpesa');
 const pool = require('../config/db');
 
+// Create a hardened axios instance for Daraja API calls.
+// Sandbox is unreliable — we set generous timeouts, allow self-signed certs in
+// sandbox, and retry transient failures automatically.
+const darajaAxios = axios.create({
+  timeout: 30000,
+  // Sandbox sometimes presents certificates that fail strict validation.
+  // Only relax verification in sandbox; production keeps full TLS checks.
+  ...(mpesaConfig.environment === 'sandbox'
+    ? { httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false }) }
+    : {}),
+});
+
+// Simple retry wrapper for transient network errors (ECONNRESET, socket hang up, etc.)
+async function withRetry(fn, retries = 2, delayMs = 1500) {
+  let lastErr;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      const code = err.code || '';
+      const isTransient = code === 'ECONNRESET' || code === 'ECONNREFUSED'
+        || code === 'ETIMEDOUT' || code === 'ENOTFOUND'
+        || (err.message || '').includes('Socket hang up');
+      if (!isTransient || attempt === retries) throw err;
+      console.warn(`[mpesa] Attempt ${attempt + 1} failed (${code || err.message}), retrying in ${delayMs}ms...`);
+      await new Promise(r => setTimeout(r, delayMs));
+    }
+  }
+  throw lastErr;
+}
+
 // Get M-Pesa access token
 async function getAccessToken() {
-  try {
-    const auth = Buffer.from(`${mpesaConfig.consumerKey}:${mpesaConfig.consumerSecret}`).toString('base64');
-    const response = await axios.get(mpesaConfig.authUrl, {
+  const auth = Buffer.from(`${mpesaConfig.consumerKey}:${mpesaConfig.consumerSecret}`).toString('base64');
+  const response = await withRetry(() =>
+    darajaAxios.get(mpesaConfig.authUrl, {
       headers: { Authorization: `Basic ${auth}` }
-    });
-    return response.data.access_token;
-  } catch (error) {
-    throw new Error(`Failed to get M-Pesa access token: ${error.message}`);
+    })
+  );
+  if (!response.data || !response.data.access_token) {
+    throw new Error('Daraja returned no access_token — check consumer key/secret');
   }
+  return response.data.access_token;
 }
 
 // Generate STK Push password
 function generatePassword() {
-  const timestamp = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
+  const now = new Date();
+  // Daraja expects the local EAT timestamp in YYYYMMDDHHmmss format.
+  // EAT = UTC + 3.
+  const eat = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+  const y = eat.getUTCFullYear();
+  const m = String(eat.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(eat.getUTCDate()).padStart(2, '0');
+  const hh = String(eat.getUTCHours()).padStart(2, '0');
+  const mm = String(eat.getUTCMinutes()).padStart(2, '0');
+  const ss = String(eat.getUTCSeconds()).padStart(2, '0');
+  const timestamp = `${y}${m}${d}${hh}${mm}${ss}`;
   const password = Buffer.from(`${mpesaConfig.businessShortCode}${mpesaConfig.passkey}${timestamp}`).toString('base64');
   return { password, timestamp };
 }
 
 // Initiate STK Push
 async function initiateSTKPush(phoneNumber, amount, accountReference, description) {
-  try {
-    const accessToken = await getAccessToken();
-    const { password, timestamp } = generatePassword();
-    
-    const stkPushData = {
-      BusinessShortCode: mpesaConfig.businessShortCode,
-      Password: password,
-      Timestamp: timestamp,
-      TransactionType: mpesaConfig.transactionType,
-      Amount: amount,
-      PartyA: phoneNumber,
-      PartyB: mpesaConfig.businessShortCode,
-      PhoneNumber: phoneNumber,
-      CallBackURL: mpesaConfig.callbackUrl,
-      AccountReference: accountReference,
-      TransactionDesc: description
-    };
-    
-    const response = await axios.post(mpesaConfig.stkPushUrl, stkPushData, {
+  const accessToken = await getAccessToken();
+  const { password, timestamp } = generatePassword();
+  
+  console.log(`[mpesa] STK Push → phone=${phoneNumber} amount=${amount} ref=${accountReference}`);
+  
+  const stkPushData = {
+    BusinessShortCode: mpesaConfig.businessShortCode,
+    Password: password,
+    Timestamp: timestamp,
+    TransactionType: mpesaConfig.transactionType,
+    Amount: amount,
+    PartyA: phoneNumber,
+    PartyB: mpesaConfig.businessShortCode,
+    PhoneNumber: phoneNumber,
+    CallBackURL: mpesaConfig.callbackUrl,
+    AccountReference: accountReference,
+    TransactionDesc: description
+  };
+  
+  const response = await withRetry(() =>
+    darajaAxios.post(mpesaConfig.stkPushUrl, stkPushData, {
       headers: { Authorization: `Bearer ${accessToken}` }
-    });
-    
-    return response.data;
-  } catch (error) {
-    throw new Error(`STK Push failed: ${error.message}`);
-  }
+    })
+  );
+  
+  console.log(`[mpesa] STK Push response:`, JSON.stringify(response.data));
+  return response.data;
 }
 
 // Decide whether to independently re-confirm callbacks with Safaricom.
@@ -161,25 +205,23 @@ async function processCallback(callbackData) {
 
 // Query Transaction Status
 async function queryTransactionStatus(checkoutRequestID) {
-  try {
-    const accessToken = await getAccessToken();
-    const { password, timestamp } = generatePassword();
+  const accessToken = await getAccessToken();
+  const { password, timestamp } = generatePassword();
 
-    const queryData = {
-      BusinessShortCode: mpesaConfig.businessShortCode,
-      Password: password,
-      Timestamp: timestamp,
-      CheckoutRequestID: checkoutRequestID
-    };
+  const queryData = {
+    BusinessShortCode: mpesaConfig.businessShortCode,
+    Password: password,
+    Timestamp: timestamp,
+    CheckoutRequestID: checkoutRequestID
+  };
 
-    const response = await axios.post(mpesaConfig.stkQueryUrl, queryData, {
+  const response = await withRetry(() =>
+    darajaAxios.post(mpesaConfig.stkQueryUrl, queryData, {
       headers: { Authorization: `Bearer ${accessToken}` }
-    });
+    })
+  );
 
-    return response.data;
-  } catch (error) {
-    throw new Error(`Transaction query failed: ${error.message}`);
-  }
+  return response.data;
 }
 
 module.exports = { initiateSTKPush, processCallback, getAccessToken, queryTransactionStatus };

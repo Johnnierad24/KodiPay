@@ -1,14 +1,19 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/app_config.dart';
 
 class ApiService {
   static String get baseUrl => AppConfig.apiBaseUrl;
-  final _storage = const FlutterSecureStorage();
 
   Future<String?> getToken() async {
-    return await _storage.read(key: 'jwt_token');
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('jwt_token');
+  }
+
+  Future<void> clearToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('jwt_token');
   }
 
   Future<Map<String, String>> _getHeaders({bool jsonBody = true}) async {
