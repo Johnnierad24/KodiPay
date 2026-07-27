@@ -66,13 +66,12 @@ class _WalletPayoutsScreenState extends State<WalletPayoutsScreen> {
           _buildBalanceCard(),
           const SizedBox(height: 20),
           // Stats row
-          Row(
+          Wrap(
+            spacing: 12, runSpacing: 12,
             children: [
-              Expanded(child: _buildStatCard('Total Earnings', 'KSh 827,500', Icons.trending_up, AppColors.kodiGreen)),
-              const SizedBox(width: 12),
-              Expanded(child: _buildStatCard('This Month', 'KSh 195,000', Icons.calendar_month, AppColors.kodiBlue)),
-              const SizedBox(width: 12),
-              Expanded(child: _buildStatCard('Pending', 'KSh 50,000', Icons.hourglass_empty, AppColors.warning)),
+              SizedBox(width: 160, child: _buildStatCard('Total Earnings', 'KSh 827,500', Icons.trending_up, AppColors.kodiGreen)),
+              SizedBox(width: 160, child: _buildStatCard('This Month', 'KSh 195,000', Icons.calendar_month, AppColors.kodiBlue)),
+              SizedBox(width: 160, child: _buildStatCard('Pending', 'KSh 50,000', Icons.hourglass_empty, AppColors.warning)),
             ],
           ),
           const SizedBox(height: 24),
@@ -121,7 +120,7 @@ class _WalletPayoutsScreenState extends State<WalletPayoutsScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(color: AppColors.tertiaryFixed, borderRadius: BorderRadius.circular(20)),
-                child: const Text('ACTIVE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.onTertiaryFixed, letterSpacing: 1)),
+                child: const Text('ACTIVE', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.onTertiaryFixed, letterSpacing: 1)),
               ),
             ],
           ),
@@ -130,7 +129,7 @@ class _WalletPayoutsScreenState extends State<WalletPayoutsScreen> {
           const SizedBox(height: 4),
           const Text('KSh 185,400', style: TextStyle(fontSize: 36, fontWeight: FontWeight.w800, color: Colors.white, fontFamily: 'Lexend')),
           const SizedBox(height: 4),
-          const Text('+ KSh 195,000 expected this month', style: TextStyle(fontSize: 11, color: AppColors.tertiaryFixed)),
+          const Text('+ KSh 195,000 expected this month', style: TextStyle(fontSize: 12, color: AppColors.tertiaryFixed)),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -187,7 +186,7 @@ class _WalletPayoutsScreenState extends State<WalletPayoutsScreen> {
             child: Icon(icon, color: color, size: 18),
           ),
           const SizedBox(height: 10),
-          Text(title, style: const TextStyle(fontSize: 11, color: AppColors.secondary, fontWeight: FontWeight.w600)),
+          Text(title, style: const TextStyle(fontSize: 12, color: AppColors.secondary, fontWeight: FontWeight.w600)),
           const SizedBox(height: 2),
           Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.onSurface, fontFamily: 'Lexend')),
         ],
@@ -234,7 +233,7 @@ class _WalletPayoutsScreenState extends State<WalletPayoutsScreen> {
   }
 
   Widget _buildDivider() {
-    return Divider(height: 1, color: AppColors.outlineVariant);
+    return const Divider(height: 1, color: AppColors.outlineVariant);
   }
 }
 

@@ -47,27 +47,38 @@ class _LandlordReportsScreenState extends State<LandlordReportsScreen> {
         const SizedBox(height: 20),
 
         // Summary cards row
-        Row(
+        const Wrap(
+          spacing: 14, runSpacing: 14,
           children: [
-            Expanded(child: _SummaryCard(title: 'Total Properties', value: '3', icon: Icons.domain, color: AppColors.kodiBlue)),
-            const SizedBox(width: 14),
-            Expanded(child: _SummaryCard(title: 'Total Units', value: '9', icon: Icons.meeting_room, color: AppColors.tertiaryFixed)),
-            const SizedBox(width: 14),
-            Expanded(child: _SummaryCard(title: 'Occupancy', value: '89%', icon: Icons.people, color: AppColors.kodiGreen)),
-            const SizedBox(width: 14),
-            Expanded(child: _SummaryCard(title: 'Monthly Revenue', value: 'KSh 195,000', icon: Icons.trending_up, color: AppColors.kodiOrange)),
+            _SummaryCard(title: 'Total Properties', value: '3', icon: Icons.domain, color: AppColors.kodiBlue),
+            _SummaryCard(title: 'Total Units', value: '9', icon: Icons.meeting_room, color: AppColors.tertiaryFixed),
+            _SummaryCard(title: 'Occupancy', value: '89%', icon: Icons.people, color: AppColors.kodiGreen),
+            _SummaryCard(title: 'Monthly Revenue', value: 'KSh 195,000', icon: Icons.trending_up, color: AppColors.kodiOrange),
           ],
         ),
         const SizedBox(height: 20),
 
         // Chart + Overview
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(flex: 3, child: _buildChart()),
-            const SizedBox(width: 16),
-            Expanded(flex: 2, child: _buildOverview()),
-          ],
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final isNarrow = constraints.maxWidth < 600;
+            return isNarrow
+                ? Column(
+                    children: [
+                      _buildChart(),
+                      const SizedBox(height: 16),
+                      _buildOverview(),
+                    ],
+                  )
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(flex: 3, child: _buildChart()),
+                      const SizedBox(width: 16),
+                      Expanded(flex: 2, child: _buildOverview()),
+                    ],
+                  );
+          },
         ),
         const SizedBox(height: 20),
 
@@ -76,7 +87,83 @@ class _LandlordReportsScreenState extends State<LandlordReportsScreen> {
         const SizedBox(height: 20),
 
         // Export actions
-        _buildExportActions(),
+        Wrap(
+          spacing: 14, runSpacing: 14,
+          children: [
+            SizedBox(
+              width: 220,
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  final pdf = PdfReportService();
+                  await pdf.generatePaymentReport(
+                    landlordName: 'Johnnie Njenga',
+                    landlordEmail: 'njengajohnnie@gmail.com',
+                    landlordPhone: '+254 700 000 000',
+                    propertyCount: 3, totalExpected: 245000, totalCollected: 195000, totalPending: 50000,
+                    period: _period,
+                    payments: _payments.map((p) => {'tenant': p['tenant']!, 'unit': p['unit']!, 'property': p['property']!, 'amount': p['amount']!, 'status': p['status']!, 'date': p['date']!}).toList(),
+                    propertyBreakdown: [
+                      {'name': 'Sunview Apartments', 'units': '3', 'collected': 'KSh 75,000', 'pending': 'KSh 0'},
+                      {'name': 'Greenfield Heights', 'units': '3', 'collected': 'KSh 60,000', 'pending': 'KSh 25,000'},
+                      {'name': 'Lakeview Villas', 'units': '3', 'collected': 'KSh 60,000', 'pending': 'KSh 25,000'},
+                    ],
+                    arrears: [{'tenant': 'Peter Ochieng', 'unit': 'C3', 'amount': 'KSh 25,000', 'days': '5 days'}],
+                    barChartData: [
+                      {'label': 'Sunview Apartments', 'value': 75000},
+                      {'label': 'Greenfield Heights', 'value': 60000},
+                      {'label': 'Lakeview Villas', 'value': 60000},
+                    ],
+                    pieCollected: 195000, piePending: 50000,
+                  );
+                },
+                icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+                label: const Text('Export PDF'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ),
+            SizedBox(
+              width: 220,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  final csv = StringBuffer();
+                  csv.writeln('Tenant,Unit,Property,Amount,Status,Date');
+                  for (final row in _payments) {
+                    csv.writeln('${row['tenant']},${row['unit']},${row['property']},${row['amount']},${row['status']},${row['date']}');
+                  }
+                  final blob = web.Blob([csv.toString().toJS].toJS, web.BlobPropertyBag(type: 'text/csv'));
+                  final url = web.URL.createObjectURL(blob);
+                  web.HTMLAnchorElement()..href = url
+                    ..setAttribute('download', 'report_${_period.replaceAll(' ', '_')}.csv')
+                    ..click();
+                  web.URL.revokeObjectURL(url);
+                },
+                icon: const Icon(Icons.table_chart_outlined, size: 18),
+                label: const Text('Export CSV'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ),
+            SizedBox(
+              width: 220,
+              child: FilledButton.icon(
+                onPressed: () => _showSnack('Reminders queued for overdue tenants.'),
+                icon: const Icon(Icons.send_rounded, size: 18),
+                label: const Text('Send Reminders'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.warning,
+                  foregroundColor: AppColors.onTertiaryFixed,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
@@ -92,12 +179,12 @@ class _LandlordReportsScreenState extends State<LandlordReportsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
-              const Text('Revenue Overview', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: AppColors.onSurface)),
-              const Spacer(),
+              Text('Revenue Overview', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: AppColors.onSurface)),
+              Spacer(),
               _LegendDot(color: AppColors.kodiBlue, label: 'Collected'),
-              const SizedBox(width: 16),
+              SizedBox(width: 16),
               _LegendDot(color: AppColors.kodiOrange, label: 'Expected'),
             ],
           ),
@@ -107,7 +194,7 @@ class _LandlordReportsScreenState extends State<LandlordReportsScreen> {
             child: LineChart(
               LineChartData(
                 gridData: FlGridData(show: true, drawVerticalLine: false, horizontalInterval: 50000,
-                  getDrawingHorizontalLine: (value) => FlLine(color: AppColors.outlineVariant, strokeWidth: 1),
+                  getDrawingHorizontalLine: (value) => const FlLine(color: AppColors.outlineVariant, strokeWidth: 1),
                 ),
                 titlesData: FlTitlesData(
                   topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -159,17 +246,17 @@ class _LandlordReportsScreenState extends State<LandlordReportsScreen> {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.outlineVariant),
       ),
-      child: Column(
+      child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Quick Overview', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: AppColors.onSurface)),
-          const SizedBox(height: 16),
+          Text('Quick Overview', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: AppColors.onSurface)),
+          SizedBox(height: 16),
           _OverviewRow(label: 'Collected', value: 'KSh 195,000', color: AppColors.kodiGreen, pct: '80%'),
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
           _OverviewRow(label: 'Pending', value: 'KSh 50,000', color: AppColors.warning, pct: '20%'),
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
           _OverviewRow(label: 'Overdue', value: 'KSh 25,000', color: AppColors.danger, pct: '10%'),
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
           _OverviewRow(label: 'Occupied Units', value: '8 / 9', color: AppColors.kodiBlue, pct: '89%'),
         ],
       ),
@@ -217,7 +304,7 @@ class _LandlordReportsScreenState extends State<LandlordReportsScreen> {
           const SizedBox(height: 8),
           ..._payments.map((p) => Container(
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-            decoration: BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.outlineVariant))),
+            decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.outlineVariant))),
             child: Row(
               children: [
                 SizedBox(width: 120, child: Text(p['tenant']!, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.onSurface))),
@@ -231,84 +318,6 @@ class _LandlordReportsScreenState extends State<LandlordReportsScreen> {
           )),
         ],
       ),
-    );
-  }
-
-  Widget _buildExportActions() {
-    return Row(
-      children: [
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: () async {
-              final pdf = PdfReportService();
-              await pdf.generatePaymentReport(
-                landlordName: 'Johnnie Njenga',
-                landlordEmail: 'njengajohnnie@gmail.com',
-                landlordPhone: '+254 700 000 000',
-                propertyCount: 3, totalExpected: 245000, totalCollected: 195000, totalPending: 50000,
-                period: _period,
-                payments: _payments.map((p) => {'tenant': p['tenant']!, 'unit': p['unit']!, 'property': p['property']!, 'amount': p['amount']!, 'status': p['status']!, 'date': p['date']!}).toList(),
-                propertyBreakdown: [
-                  {'name': 'Sunview Apartments', 'units': '3', 'collected': 'KSh 75,000', 'pending': 'KSh 0'},
-                  {'name': 'Greenfield Heights', 'units': '3', 'collected': 'KSh 60,000', 'pending': 'KSh 25,000'},
-                  {'name': 'Lakeview Villas', 'units': '3', 'collected': 'KSh 60,000', 'pending': 'KSh 25,000'},
-                ],
-                arrears: [{'tenant': 'Peter Ochieng', 'unit': 'C3', 'amount': 'KSh 25,000', 'days': '5 days'}],
-                barChartData: [
-                  {'label': 'Sunview Apartments', 'value': 75000},
-                  {'label': 'Greenfield Heights', 'value': 60000},
-                  {'label': 'Lakeview Villas', 'value': 60000},
-                ],
-                pieCollected: 195000, piePending: 50000,
-              );
-            },
-            icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
-            label: const Text('Export PDF'),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-          ),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: () {
-              final csv = StringBuffer();
-              csv.writeln('Tenant,Unit,Property,Amount,Status,Date');
-              for (final row in _payments) {
-                csv.writeln('${row['tenant']},${row['unit']},${row['property']},${row['amount']},${row['status']},${row['date']}');
-              }
-              final blob = web.Blob([csv.toString().toJS].toJS, web.BlobPropertyBag(type: 'text/csv'));
-              final url = web.URL.createObjectURL(blob);
-              web.HTMLAnchorElement()..href = url
-                ..setAttribute('download', 'report_${_period.replaceAll(' ', '_')}.csv')
-                ..click();
-              web.URL.revokeObjectURL(url);
-            },
-            icon: const Icon(Icons.table_chart_outlined, size: 18),
-            label: const Text('Export CSV'),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-          ),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: FilledButton.icon(
-            onPressed: () => _showSnack('Reminders queued for overdue tenants.'),
-            icon: const Icon(Icons.send_rounded, size: 18),
-            label: const Text('Send Reminders'),
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.warning,
-              foregroundColor: AppColors.onTertiaryFixed,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-          ),
-        ),
-      ],
     );
   }
 

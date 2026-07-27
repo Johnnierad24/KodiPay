@@ -185,10 +185,12 @@ class _AddPropertyScreenState extends State<AddPropertyScreen> {
                   ))),
                 ),
                 const SizedBox(width: 6),
-                Text(labels[i], style: TextStyle(
-                  fontSize: 12, fontWeight: current ? FontWeight.w700 : FontWeight.w500,
-                  color: current ? AppColors.onSurface : AppColors.muted,
-                )),
+                Flexible(
+                  child: Text(labels[i], overflow: TextOverflow.ellipsis, style: TextStyle(
+                    fontSize: 12, fontWeight: current ? FontWeight.w700 : FontWeight.w500,
+                    color: current ? AppColors.onSurface : AppColors.muted,
+                  )),
+                ),
                 const SizedBox(width: 4),
               ],
             ),
@@ -220,7 +222,7 @@ class _AddPropertyScreenState extends State<AddPropertyScreen> {
         TextField(controller: _nameCtrl, decoration: const InputDecoration(labelText: 'Property Name', hintText: 'e.g. Sunset Apartments')),
         const SizedBox(height: 14),
         DropdownButtonFormField<String>(
-          value: _propertyType,
+          initialValue: _propertyType,
           decoration: const InputDecoration(labelText: 'Property Type'),
           items: _types.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
           onChanged: (v) { if (v != null) setState(() => _propertyType = v); },
@@ -266,15 +268,15 @@ class _AddPropertyScreenState extends State<AddPropertyScreen> {
         const SizedBox(height: 12),
         Expanded(
           child: _units.isEmpty
-            ? Center(
+            ? const Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.home_work_outlined, size: 48, color: AppColors.muted),
-                    const SizedBox(height: 8),
-                    const Text('No units added yet', style: TextStyle(color: AppColors.muted, fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 4),
-                    const Text('Tap "Add Unit" to add units to this property', style: TextStyle(color: AppColors.textLight, fontSize: 12)),
+                    Icon(Icons.home_work_outlined, size: 48, color: AppColors.muted),
+                    SizedBox(height: 8),
+                    Text('No units added yet', style: TextStyle(color: AppColors.muted, fontWeight: FontWeight.w600)),
+                    SizedBox(height: 4),
+                    Text('Tap "Add Unit" to add units to this property', style: TextStyle(color: AppColors.textLight, fontSize: 12)),
                   ],
                 ),
               )
@@ -458,7 +460,7 @@ class _AddPropertyScreenState extends State<AddPropertyScreen> {
   Widget _buildBottomBar() {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.surfaceLowest,
         border: Border(top: BorderSide(color: AppColors.outlineVariant)),
       ),

@@ -126,7 +126,7 @@ class _PaymentMpesaScreenState extends State<PaymentMpesaScreen> {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         const Text('KSh ', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textLight)),
-                        Text(formatKsh(widget.due.rentAmount), style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w900, color: AppColors.textDark)),
+                        Flexible(child: Text(formatKsh(widget.due.rentAmount), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: AppColors.textDark))),
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -148,14 +148,14 @@ class _PaymentMpesaScreenState extends State<PaymentMpesaScreen> {
                     TextField(
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         prefixText: '+254 ',
                         hintText: '712 345 678',
-                        prefixIcon: const Icon(Icons.phone_android_rounded, color: Color(0xFF4CAF50)),
+                        prefixIcon: Icon(Icons.phone_android_rounded, color: Color(0xFF4CAF50)),
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Text('Enter the phone number registered for M-Pesa', style: AppStyles.caption),
+                    const Text('Enter the phone number registered for M-Pesa', style: AppStyles.caption),
                   ],
                 ),
               ),
@@ -190,7 +190,7 @@ class _PaymentMpesaScreenState extends State<PaymentMpesaScreen> {
                     const SizedBox(height: 8),
                     _ConfirmRow(label: 'Phone', value: '+254 ${_phoneController.text.trim()}'),
                     const SizedBox(height: 8),
-                    _ConfirmRow(label: 'Method', value: 'M-Pesa'),
+                    const _ConfirmRow(label: 'Method', value: 'M-Pesa'),
                   ],
                 ),
               ),
@@ -321,8 +321,9 @@ class _ConfirmRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: AppStyles.caption),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.textDark, fontSize: 13)),
+        Flexible(child: Text(label, style: AppStyles.caption)),
+        const SizedBox(width: 12),
+        Flexible(child: Text(value, textAlign: TextAlign.end, style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.textDark, fontSize: 13))),
       ],
     );
   }

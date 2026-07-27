@@ -52,7 +52,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _wideLayout(AuthProvider auth) {
     return Row(
       children: [
-        Expanded(child: _HeroSide()),
+        const Expanded(child: _HeroSide()),
         Expanded(
           child: _FormSide(
             auth: auth,
@@ -73,19 +73,19 @@ class _LoginScreenState extends State<LoginScreen> {
     return SingleChildScrollView(
       child: Column(
         children: [
-          SizedBox(height: 180, child: _HeroSide(compact: true)),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: _FormSide(
-              auth: auth,
-              emailCtl: _emailController,
-              passwordCtl: _passwordController,
-              obscurePassword: _obscurePassword,
-              remember: _remember,
-              onTogglePassword: () => setState(() => _obscurePassword = !_obscurePassword),
-              onToggleRemember: (v) => setState(() => _remember = v),
-              onLogin: _handleLogin,
-            ),
+          SizedBox(
+            height: MediaQuery.of(context).size.height * 0.28,
+            child: _HeroSide(compact: true),
+          ),
+          _FormSide(
+            auth: auth,
+            emailCtl: _emailController,
+            passwordCtl: _passwordController,
+            obscurePassword: _obscurePassword,
+            remember: _remember,
+            onTogglePassword: () => setState(() => _obscurePassword = !_obscurePassword),
+            onToggleRemember: (v) => setState(() => _remember = v),
+            onLogin: _handleLogin,
           ),
         ],
       ),
@@ -100,7 +100,7 @@ class _HeroSide extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: compact ? 200 : double.infinity,
+      height: compact ? null : double.infinity,
       decoration: const BoxDecoration(
         image: DecorationImage(
           image: AssetImage('assets/images/welcome_bg.jpg'),
@@ -120,20 +120,20 @@ class _HeroSide extends StatelessWidget {
             stops: [0.0, 0.5, 1.0],
           ),
         ),
-        padding: const EdgeInsets.all(32),
+        padding: EdgeInsets.all(compact ? 20 : 32),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Spacer(flex: compact ? 1 : 3),
             Container(
-              width: 48, height: 48,
+              width: compact ? 40 : 48, height: compact ? 40 : 48,
               decoration: BoxDecoration(color: AppColors.kodiGreen.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)),
-              child: const Center(child: Text('K', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: AppColors.kodiGreen))),
+              child: Center(child: Text('K', style: TextStyle(fontSize: compact ? 20 : 24, fontWeight: FontWeight.w900, color: AppColors.kodiGreen))),
             ),
-            const SizedBox(height: 16),
-            Text('KodiPay', style: TextStyle(fontSize: compact ? 22 : 28, fontWeight: FontWeight.w800, color: Colors.white, fontFamily: 'Lexend')),
-            const SizedBox(height: 8),
-            Text('Secure Property Management\nStarts Here', style: TextStyle(fontSize: compact ? 13 : 15, color: Colors.white.withValues(alpha: 0.7), height: 1.5)),
+            SizedBox(height: compact ? 12 : 16),
+            Text('KodiPay', style: TextStyle(fontSize: compact ? 20 : 28, fontWeight: FontWeight.w800, color: Colors.white, fontFamily: 'Lexend')),
+            SizedBox(height: compact ? 6 : 8),
+            Text('Secure Property Management\nStarts Here', style: TextStyle(fontSize: compact ? 12 : 15, color: Colors.white.withValues(alpha: 0.7), height: 1.4)),
             Spacer(flex: 2),
           ],
         ),
@@ -161,14 +161,17 @@ class _FormSide extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isNarrow = MediaQuery.of(context).size.width <= 768;
+    final horizontalPad = isNarrow ? 24.0 : 40.0;
+    final verticalPad = isNarrow ? 32.0 : 48.0;
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 48),
+      padding: EdgeInsets.symmetric(horizontal: horizontalPad, vertical: verticalPad),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text('Welcome back', style: AppStyles.headlineLg.copyWith(fontSize: 28)),
           const SizedBox(height: 4),
-          Text('Log in to your KodiPay account', style: AppStyles.bodySm),
+          const Text('Log in to your KodiPay account', style: AppStyles.bodySm),
           const SizedBox(height: 32),
           TextField(
             controller: emailCtl,
@@ -228,12 +231,12 @@ class _FormSide extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          Row(
+          const Row(
             children: [
               Expanded(child: Divider(color: AppColors.border)),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Text('or continue with', style: TextStyle(fontSize: 11, color: AppColors.muted)),
+                padding: EdgeInsets.symmetric(horizontal: 12),
+                child: Text('or continue with', style: TextStyle(fontSize: 12, color: AppColors.muted)),
               ),
               Expanded(child: Divider(color: AppColors.border)),
             ],
@@ -251,7 +254,7 @@ class _FormSide extends StatelessWidget {
               label: const Text('Continue with Google', style: TextStyle(fontWeight: FontWeight.w600)),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.textDark,
-                side: BorderSide(color: AppColors.border),
+                side: const BorderSide(color: AppColors.border),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
@@ -270,37 +273,36 @@ class _FormSide extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          Center(
-            child: Text('SECURE & ENCRYPTED', style: TextStyle(fontSize: 9, color: AppColors.muted, letterSpacing: 1)),
+          const Center(
+            child: Text('SECURE & ENCRYPTED', style: TextStyle(fontSize: 12, color: AppColors.muted, letterSpacing: 1)),
           ),
           const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          Wrap(
+            spacing: 16, runSpacing: 8,
+            alignment: WrapAlignment.center,
             children: [
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.security_outlined, size: 14, color: AppColors.kodiGreen.withValues(alpha: 0.7)),
                   const SizedBox(width: 4),
-                  Text('SSL', style: TextStyle(fontSize: 10, color: AppColors.muted)),
+                  const Text('SSL', style: TextStyle(fontSize: 12, color: AppColors.muted)),
                 ],
               ),
-              const SizedBox(width: 16),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.verified_user_outlined, size: 14, color: AppColors.kodiGreen.withValues(alpha: 0.7)),
                   const SizedBox(width: 4),
-                  Text('PCI DSS', style: TextStyle(fontSize: 10, color: AppColors.muted)),
+                  const Text('PCI DSS', style: TextStyle(fontSize: 12, color: AppColors.muted)),
                 ],
               ),
-              const SizedBox(width: 16),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.security_outlined, size: 14, color: AppColors.kodiGreen.withValues(alpha: 0.7)),
                   const SizedBox(width: 4),
-                  Text('256-bit', style: TextStyle(fontSize: 10, color: AppColors.muted)),
+                  const Text('256-bit', style: TextStyle(fontSize: 12, color: AppColors.muted)),
                 ],
               ),
             ],

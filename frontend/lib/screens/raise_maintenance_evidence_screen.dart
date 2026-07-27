@@ -64,7 +64,7 @@ class _RaiseMaintenanceEvidenceScreenState extends State<RaiseMaintenanceEvidenc
 class _StepIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return const Row(
       children: [
         _StepItem(
           step: '1',
@@ -238,10 +238,10 @@ class _PhotoUploadSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
-              const Icon(Icons.add_a_photo_rounded, color: AppColors.primary, size: 24),
-              const SizedBox(width: 12),
+              Icon(Icons.add_a_photo_rounded, color: AppColors.primary, size: 24),
+              SizedBox(width: 12),
               Text('Upload Evidence', style: AppStyles.headlineMd),
             ],
           ),
@@ -265,7 +265,7 @@ class _PhotoUploadSection extends StatelessWidget {
                   Container(
                     width: 64,
                     height: 64,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: AppColors.surfaceLow,
                       shape: BoxShape.circle,
                     ),
@@ -379,10 +379,10 @@ class _UrgencySection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
-              const Icon(Icons.priority_high_rounded, color: AppColors.primary, size: 24),
-              const SizedBox(width: 12),
+              Icon(Icons.priority_high_rounded, color: AppColors.primary, size: 24),
+              SizedBox(width: 12),
               Text('Urgency Level', style: AppStyles.headlineMd),
             ],
           ),
@@ -424,16 +424,16 @@ class _UrgencySection extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: AppColors.outlineVariant),
             ),
-            child: Row(
+            child: const Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.lightbulb_rounded, color: AppColors.primary, size: 20),
-                const SizedBox(width: 12),
+                Icon(Icons.lightbulb_rounded, color: AppColors.primary, size: 20),
+                SizedBox(width: 12),
                 Expanded(
                   child: Text.rich(
                     TextSpan(
                       children: [
-                        const TextSpan(
+                        TextSpan(
                           text: 'Tip: ',
                           style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.onSurface, fontSize: 14),
                         ),
@@ -596,13 +596,13 @@ class _EmergencyCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
+                        const Row(
                           children: [
-                            const Text(
+                            Text(
                               'High - Emergency',
                               style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.error, fontSize: 16),
                             ),
-                            const SizedBox(width: 4),
+                            SizedBox(width: 4),
                             Icon(Icons.help_outline_rounded, color: AppColors.secondary, size: 16),
                           ],
                         ),
@@ -696,15 +696,15 @@ class _NavigationFooter extends StatelessWidget {
             ),
             Row(
               children: [
-                Column(
+                const Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    const Text(
+                    Text(
                       'PROGRESS',
                       style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.secondary),
                     ),
-                    const SizedBox(height: 2),
-                    const Text(
+                    SizedBox(height: 2),
+                    Text(
                       '66% Complete',
                       style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.primary, fontSize: 14),
                     ),

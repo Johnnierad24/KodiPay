@@ -170,18 +170,18 @@ class _LandlordPaymentsScreenState extends State<LandlordPaymentsScreen> {
             return ListView(
               padding: const EdgeInsets.all(18),
               children: [
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
                     FilterChipWidget(
                         label: 'All',
                         selected: _filter == 'All',
                         onTap: () => setState(() => _filter = 'All')),
-                    const SizedBox(width: 8),
                     FilterChipWidget(
                         label: 'Paid',
                         selected: _filter == 'Paid',
                         onTap: () => setState(() => _filter = 'Paid')),
-                    const SizedBox(width: 8),
                     FilterChipWidget(
                         label: 'Pending',
                         selected: _filter == 'Pending',

@@ -2057,9 +2057,9 @@ Future<void> showReminderSheet(BuildContext context) {
             children: [
               const Text('Send Reminder', style: AppStyles.heading2),
               const SizedBox(height: 16),
-              TextField(decoration: const InputDecoration(labelText: 'Tenant or Unit')),
+              const TextField(decoration: InputDecoration(labelText: 'Tenant or Unit')),
               const SizedBox(height: 12),
-              TextField(decoration: const InputDecoration(labelText: 'Message'), minLines: 3, maxLines: 5),
+              const TextField(decoration: InputDecoration(labelText: 'Message'), minLines: 3, maxLines: 5),
               const SizedBox(height: 18),
               SizedBox(
                 width: double.infinity, height: 52,
@@ -2201,7 +2201,7 @@ class _AnnouncementSheetState extends State<_AnnouncementSheet> {
 
 // ── Add Caretaker Sheet ──────────────────────────────────
 class AddCaretakerSheet extends StatefulWidget {
-  const AddCaretakerSheet();
+  const AddCaretakerSheet({super.key});
   @override
   State<AddCaretakerSheet> createState() => AddCaretakerSheetState();
 }
@@ -2563,7 +2563,7 @@ class _ChangePasswordSheetState extends State<ChangePasswordSheet> {
 class CaretakerEmergencyCard extends StatelessWidget {
   final MaintenanceItem item;
   final VoidCallback onTap;
-  const CaretakerEmergencyCard({required this.item, required this.onTap});
+  const CaretakerEmergencyCard({super.key, required this.item, required this.onTap});
 
   @override
   Widget build(BuildContext context) {

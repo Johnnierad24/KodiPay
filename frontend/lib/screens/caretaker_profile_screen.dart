@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../utils/constants.dart';
-import '../services/api_service.dart';
-import '../widgets/shared_screen_components.dart';
 
 class CaretakerProfileScreen extends StatefulWidget {
   const CaretakerProfileScreen({super.key});
@@ -306,9 +304,9 @@ class _CaretakerProfileScreenState extends State<CaretakerProfileScreen> {
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: AppColors.surfaceLow,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -422,9 +420,9 @@ class _CaretakerProfileScreenState extends State<CaretakerProfileScreen> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: AppColors.surfaceLow,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
             ),
             child: const Text('Account Security', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textDark, fontFamily: 'Lexend')),
           ),
@@ -506,9 +504,9 @@ class _CaretakerProfileScreenState extends State<CaretakerProfileScreen> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: AppColors.surfaceLow,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
             ),
             child: const Text('Notifications', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textDark, fontFamily: 'Lexend')),
           ),
@@ -575,7 +573,8 @@ class _CaretakerProfileScreenState extends State<CaretakerProfileScreen> {
                 ],
               ),
             );
-            if (confirm == true && context.mounted) {
+            if (!mounted) return;
+            if (confirm == true) {
               await context.read<AuthProvider>().logout();
             }
           },

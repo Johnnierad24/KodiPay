@@ -85,13 +85,13 @@ class _PaymentCardScreenState extends State<PaymentCardScreen> {
         ),
         title: const Text('Complete Payment', style: TextStyle(fontFamily: 'Lexend', fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.primary)),
         centerTitle: false,
-        actions: [
-          const Icon(Icons.notifications_outlined, color: AppColors.secondary),
-          const SizedBox(width: 16),
-          const Icon(Icons.help_outline, color: AppColors.secondary),
-          const SizedBox(width: 12),
-          CircleAvatar(radius: 16, backgroundColor: AppColors.surfaceHigh, child: const Icon(Icons.person, size: 20, color: AppColors.primary)),
-          const SizedBox(width: 12),
+        actions: const [
+          Icon(Icons.notifications_outlined, color: AppColors.secondary),
+          SizedBox(width: 16),
+          Icon(Icons.help_outline, color: AppColors.secondary),
+          SizedBox(width: 12),
+          CircleAvatar(radius: 16, backgroundColor: AppColors.surfaceHigh, child: Icon(Icons.person, size: 20, color: AppColors.primary)),
+          SizedBox(width: 12),
         ],
       ),
       body: SafeArea(
@@ -128,7 +128,7 @@ class _PaymentCardScreenState extends State<PaymentCardScreen> {
   }
 
   Widget _buildStepper() {
-    return Row(
+    return const Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         _StepperDot(label: 'Select Method', isCompleted: true),
@@ -144,7 +144,7 @@ class _PaymentCardScreenState extends State<PaymentCardScreen> {
     return Column(
       children: [
         Container(
-          padding: const EdgeInsets.all(32),
+          padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
@@ -155,9 +155,10 @@ class _PaymentCardScreenState extends State<PaymentCardScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Credit or Debit Card', style: AppStyles.headlineMd),
+                  const Expanded(
+                    child: Text('Credit or Debit Card', style: AppStyles.headlineMd),
+                  ),
                   Row(
                     children: [
                       Container(
@@ -166,7 +167,7 @@ class _PaymentCardScreenState extends State<PaymentCardScreen> {
                           border: Border.all(color: AppColors.outlineVariant),
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: const Text('VISA', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF1A1F71))),
+                        child: const Text('VISA', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF1A1F71))),
                       ),
                       const SizedBox(width: 8),
                       Container(
@@ -175,7 +176,7 @@ class _PaymentCardScreenState extends State<PaymentCardScreen> {
                           border: Border.all(color: AppColors.outlineVariant),
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: const Text('MC', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFFEB001B))),
+                        child: const Text('MC', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFFEB001B))),
                       ),
                     ],
                   ),
@@ -266,32 +267,35 @@ class _PaymentCardScreenState extends State<PaymentCardScreen> {
                 children: [
                   GestureDetector(
                     onTap: () => setState(() => _saveCard = !_saveCard),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      width: 44,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        color: _saveCard ? AppColors.tertiaryFixedDim : AppColors.secondaryContainer,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: AnimatedAlign(
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
-                        alignment: _saveCard ? Alignment.centerRight : Alignment.centerLeft,
-                        child: Container(
-                          width: 20,
-                          height: 20,
-                          margin: const EdgeInsets.symmetric(horizontal: 2),
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                        width: 44,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: _saveCard ? AppColors.tertiaryFixedDim : AppColors.secondaryContainer,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: AnimatedAlign(
+                          duration: const Duration(milliseconds: 200),
+                          alignment: _saveCard ? Alignment.centerRight : Alignment.centerLeft,
+                          child: Container(
+                            width: 20,
+                            height: 20,
+                            margin: const EdgeInsets.symmetric(horizontal: 2),
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  const Text('Save card for future payments', style: TextStyle(color: AppColors.onSurface, fontSize: 16)),
+                  const SizedBox(width: 4),
+                  const Expanded(child: Text('Save card for future payments', style: TextStyle(color: AppColors.onSurface, fontSize: 16))),
                 ],
               ),
               const SizedBox(height: 32),
@@ -318,16 +322,16 @@ class _PaymentCardScreenState extends State<PaymentCardScreen> {
           ),
         ),
         const SizedBox(height: 32),
-        Row(
+        const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.verified_user_rounded, color: AppColors.tertiaryFixedDim, size: 18),
-            const SizedBox(width: 6),
-            Text('PCI-DSS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.secondary, letterSpacing: 0.05)),
-            const SizedBox(width: 24),
+            SizedBox(width: 6),
+            Flexible(child: Text('PCI-DSS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.secondary, letterSpacing: 0.05))),
+            SizedBox(width: 24),
             Icon(Icons.lock_rounded, color: AppColors.tertiaryFixedDim, size: 18),
-            const SizedBox(width: 6),
-            Text('256-BIT ENCRYPTION', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.secondary, letterSpacing: 0.05)),
+            SizedBox(width: 6),
+            Flexible(child: Text('256-BIT ENCRYPTION', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.secondary, letterSpacing: 0.05))),
           ],
         ),
       ],
@@ -348,7 +352,7 @@ class _PaymentCardScreenState extends State<PaymentCardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Payment Summary', style: AppStyles.headlineMd),
+              const Text('Payment Summary', style: AppStyles.headlineMd),
               const SizedBox(height: 20),
               _SummaryRow(label: 'Monthly Rent', value: 'KSh ${formatKsh(due.rentAmount)}.00'),
               const SizedBox(height: 12),
@@ -381,21 +385,26 @@ class _PaymentCardScreenState extends State<PaymentCardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('PAYMENT METHOD', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.secondary)),
+              const Text('PAYMENT METHOD', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.secondary)),
               const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.credit_card_rounded, color: AppColors.primary, size: 20),
-                      const SizedBox(width: 8),
-                      const Text('Credit/Debit Card', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.primary, fontSize: 16)),
-                    ],
+                  const Flexible(
+                    child: Row(
+                      children: [
+                        Icon(Icons.credit_card_rounded, color: AppColors.primary, size: 20),
+                        SizedBox(width: 8),
+                        Flexible(child: Text('Credit/Debit Card', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.primary, fontSize: 16))),
+                      ],
+                    ),
                   ),
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
-                    child: Text('CHANGE', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.onTertiaryFixed, letterSpacing: 0.05)),
+                    child: const Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Text('CHANGE', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.onTertiaryFixed, letterSpacing: 0.05)),
+                    ),
                   ),
                 ],
               ),
@@ -517,8 +526,9 @@ class _SummaryRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: TextStyle(fontSize: 14, color: AppColors.secondary)),
-        Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.primary, fontFamily: 'Inter')),
+        Flexible(child: Text(label, style: const TextStyle(fontSize: 14, color: AppColors.secondary))),
+        const SizedBox(width: 12),
+        Flexible(child: Text(value, textAlign: TextAlign.end, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.primary, fontFamily: 'Inter'))),
       ],
     );
   }

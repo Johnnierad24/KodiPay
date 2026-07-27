@@ -34,64 +34,71 @@ class _TopNavBar extends StatelessWidget {
       height: 64,
       decoration: BoxDecoration(
         color: AppColors.surfaceLowest,
-        border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
+        border: const Border(bottom: BorderSide(color: AppColors.outlineVariant)),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 4)],
       ),
       child: SafeArea(
-        child: Row(
-          children: [
-            const SizedBox(width: 24),
-            // Logo
-            Row(
-              mainAxisSize: MainAxisSize.min,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isNarrow = constraints.maxWidth < 600;
+            return Row(
               children: [
-                Container(
-                  width: 32, height: 32,
-                  decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(8)),
-                  child: const Center(child: Text('K', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white))),
+                const SizedBox(width: 24),
+                // Logo
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 32, height: 32,
+                      decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(8)),
+                      child: const Center(child: Text('K', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white))),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text('KodiPay', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, fontFamily: 'Lexend', color: AppColors.primary)),
+                  ],
+                ),
+                const Spacer(),
+                if (!isNarrow) ...[
+                  // Nav links (desktop)
+                  Row(
+                    children: ['Features', 'Roles', 'Help'].map((label) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: TextButton(
+                          onPressed: () {},
+                          style: TextButton.styleFrom(foregroundColor: AppColors.secondary),
+                          child: Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w400)),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                // Login button
+                TextButton(
+                  onPressed: () => Navigator.pushNamed(context, '/login'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  ),
+                  child: const Text('Login', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
                 ),
                 const SizedBox(width: 8),
-                Text('KodiPay', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, fontFamily: 'Lexend', color: AppColors.primary)),
-              ],
-            ),
-            const Spacer(),
-            // Nav links (desktop)
-            Row(
-              children: ['Features', 'Roles', 'Help'].map((label) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: TextButton(
-                    onPressed: () {},
-                    style: TextButton.styleFrom(foregroundColor: AppColors.secondary),
-                    child: Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w400)),
+                // Register button
+                ElevatedButton(
+                  onPressed: () => Navigator.pushNamed(context, '/onboarding'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.onPrimary,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(width: 8),
-            // Login button
-            TextButton(
-              onPressed: () => Navigator.pushNamed(context, '/login'),
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              ),
-              child: const Text('Login', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-            ),
-            const SizedBox(width: 8),
-            // Register button
-            ElevatedButton(
-              onPressed: () => Navigator.pushNamed(context, '/onboarding'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.onPrimary,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: const Text('Register', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-            ),
-            const SizedBox(width: 24),
-          ],
+                  child: const Text('Register', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                ),
+                const SizedBox(width: 24),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -179,11 +186,11 @@ class _HeroSection extends StatelessWidget {
               borderRadius: BorderRadius.circular(999),
               border: Border.all(color: AppColors.onTertiaryFixedVariant.withValues(alpha: 0.2)),
             ),
-            child: Row(
+            child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.verified, size: 16, color: AppColors.tertiaryFixed),
-                const SizedBox(width: 4),
+                Icon(Icons.verified, size: 16, color: AppColors.tertiaryFixed),
+                SizedBox(width: 4),
                 Text('LICENSED & REGULATED', style: TextStyle(fontSize: 10, letterSpacing: 1.2, fontWeight: FontWeight.w700, color: AppColors.tertiaryFixed)),
               ],
             ),
@@ -193,14 +200,14 @@ class _HeroSection extends StatelessWidget {
           RichText(
             text: TextSpan(
               style: AppStyles.displayKsh.copyWith(fontSize: 48),
-              children: [
-                const TextSpan(text: 'Seamless Rent Management for '),
+              children: const [
+                TextSpan(text: 'Seamless Rent Management for '),
                 TextSpan(text: 'Modern Living.', style: TextStyle(color: AppColors.onTertiaryFixedVariant)),
               ],
             ),
           ),
           const SizedBox(height: 16),
-          Text(
+          const Text(
             'Automate your property finances with Kenya\'s most trusted payment gateway. Pay rent, manage tenants, and track maintenance in one unified dashboard.',
             style: AppStyles.bodyLg,
           ),
@@ -239,20 +246,23 @@ class _HeroSection extends StatelessWidget {
           // Trust stats
           Container(
             padding: const EdgeInsets.only(top: 20),
-            child: Row(
+            child: Wrap(
+              spacing: 24,
+              runSpacing: 16,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('24/7', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, fontFamily: 'Lexend', color: AppColors.primary)),
+                    const Text('24/7', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, fontFamily: 'Lexend', color: AppColors.primary)),
                     Text('SECURE SUPPORT', style: AppStyles.labelCaps.copyWith(fontSize: 10, letterSpacing: 0.8)),
                   ],
                 ),
-                Container(width: 1, height: 36, margin: const EdgeInsets.symmetric(horizontal: 24), color: AppColors.outlineVariant),
+                Container(width: 1, height: 36, color: AppColors.outlineVariant),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('99.9%', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, fontFamily: 'Lexend', color: AppColors.primary)),
+                    const Text('99.9%', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, fontFamily: 'Lexend', color: AppColors.primary)),
                     Text('UPTIME RELIABILITY', style: AppStyles.labelCaps.copyWith(fontSize: 10, letterSpacing: 0.8)),
                   ],
                 ),
@@ -418,7 +428,7 @@ class _RoleSelectionSection extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              child: Text('GET STARTED', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
+              child: const Text('GET STARTED', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
             ),
           ),
         ],
@@ -433,7 +443,7 @@ class _TrustSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 80),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.primaryContainer,
         border: Border(top: BorderSide(color: AppColors.primaryContainer)),
       ),
@@ -449,7 +459,7 @@ class _TrustSection extends StatelessWidget {
               const SizedBox(width: 8),
               _avatar('https://lh3.googleusercontent.com/aida-public/AB6AXuAZYUOpkZQI1a9gPxRnP1HOhkXzHTAIlJQvd4svuFb4NoS7cyE-9svOnvLYaFvxsSmk1xYXdrwp6wAWk09XAMjy3wY8t_4XvKAwy3iztB9rQJ-hBl3o9Vadlgit793G92f7S1ffCQoohr9Ihc_wqM9dH7KT_21EzpAh9rvUReUHPH8CTevjaCAXKda7dDiSan0-6lkboVKHuaq4ef8OiXtVlFx6E4FLMOtkEOrQidJlhoKtegDGwP9z'),
               const SizedBox(width: 12),
-              Text('SecureFast 24/7 Support', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, fontFamily: 'Lexend', color: AppColors.tertiaryFixed)),
+              const Text('SecureFast 24/7 Support', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, fontFamily: 'Lexend', color: AppColors.tertiaryFixed)),
             ],
           ),
           const SizedBox(height: 32),
@@ -504,7 +514,7 @@ class _TrustSection extends StatelessWidget {
         children: [
           Icon(icon, size: 32, color: AppColors.tertiaryFixedDim),
           const SizedBox(height: 8),
-          Text(label, textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.8, color: AppColors.onPrimaryContainer)),
+          Text(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.8, color: AppColors.onPrimaryContainer)),
         ],
       ),
     );
@@ -517,7 +527,7 @@ class _FooterSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.surfaceLow,
         border: Border(top: BorderSide(color: AppColors.outlineVariant)),
       ),
@@ -536,7 +546,7 @@ class _FooterSection extends StatelessWidget {
                         children: [
                           Container(width: 28, height: 28, decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(7)), child: const Center(child: Text('K', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white)))),
                           const SizedBox(width: 6),
-                          Text('KodiPay', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, fontFamily: 'Lexend', color: AppColors.primary)),
+                          const Text('KodiPay', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, fontFamily: 'Lexend', color: AppColors.primary)),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -551,21 +561,21 @@ class _FooterSection extends StatelessWidget {
               spacing: 24, runSpacing: 12,
               alignment: WrapAlignment.center,
               children: [
-                TextButton(onPressed: () {}, child: Text('Terms of Service', style: AppStyles.bodySm)),
-                TextButton(onPressed: () {}, child: Text('Privacy Policy', style: AppStyles.bodySm)),
-                TextButton(onPressed: () {}, child: Text('Contact Support', style: AppStyles.bodySm)),
+                TextButton(onPressed: () {}, child: const Text('Terms of Service', style: AppStyles.bodySm)),
+                TextButton(onPressed: () {}, child: const Text('Privacy Policy', style: AppStyles.bodySm)),
+                TextButton(onPressed: () {}, child: const Text('Contact Support', style: AppStyles.bodySm)),
               ],
             ),
             const SizedBox(height: 16),
             Text('© 2024 KodiPay Kenya. All rights reserved.', style: AppStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant, fontSize: 12)),
             const SizedBox(height: 12),
-            Row(
+            const Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.face_outlined, size: 20, color: AppColors.onSurfaceVariant),
-                const SizedBox(width: 16),
+                SizedBox(width: 16),
                 Icon(Icons.business_outlined, size: 20, color: AppColors.onSurfaceVariant),
-                const SizedBox(width: 16),
+                SizedBox(width: 16),
                 Icon(Icons.rss_feed_outlined, size: 20, color: AppColors.onSurfaceVariant),
               ],
             ),

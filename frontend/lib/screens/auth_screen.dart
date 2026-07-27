@@ -251,7 +251,7 @@ class _BrandSide extends StatelessWidget {
       children: [
         Icon(icon, size: 13, color: AppColors.kodiGreen.withValues(alpha: 0.7)),
         const SizedBox(width: 4),
-        Text(label, style: const TextStyle(fontSize: 9, color: Color(0xFF8192A7))),
+        Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF8192A7))),
       ],
     );
   }
@@ -345,12 +345,12 @@ class _FormSide extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 20),
-          Row(
+          const Row(
             children: [
               Expanded(child: Divider(color: AppColors.border)),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Text('or continue with', style: TextStyle(fontSize: 11, color: AppColors.muted)),
+                padding: EdgeInsets.symmetric(horizontal: 12),
+                child: Text('or continue with', style: TextStyle(fontSize: 12, color: AppColors.muted)),
               ),
               Expanded(child: Divider(color: AppColors.border)),
             ],
@@ -368,19 +368,19 @@ class _FormSide extends StatelessWidget {
               label: const Text('Continue with Google', style: TextStyle(fontWeight: FontWeight.w600)),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.textDark,
-                side: BorderSide(color: AppColors.border),
+                side: const BorderSide(color: AppColors.border),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ),
           const SizedBox(height: 24),
-          Center(
+          const Center(
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.lock_rounded, size: 13, color: AppColors.kodiGreen),
-                const SizedBox(width: 6),
-                Text('Secured with end-to-end encryption', style: TextStyle(fontSize: 10, color: AppColors.muted)),
+                SizedBox(width: 6),
+                Text('Secured with end-to-end encryption', style: TextStyle(fontSize: 12, color: AppColors.muted)),
               ],
             ),
           ),
@@ -394,7 +394,7 @@ class _FormSide extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('I am a', style: const TextStyle(fontSize: 13, color: AppColors.textLight)),
+        const Text('I am a', style: TextStyle(fontSize: 13, color: AppColors.textLight)),
         const SizedBox(height: 8),
         Row(
           children: roleMeta.entries.map((entry) {
@@ -415,7 +415,7 @@ class _FormSide extends StatelessWidget {
                       children: [
                         Icon(entry.value.icon, color: selected ? entry.value.color : AppColors.textLight, size: 20),
                         const SizedBox(height: 4),
-                        Text(entry.value.label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: selected ? entry.value.color : AppColors.textLight)),
+                        Text(entry.value.label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: selected ? entry.value.color : AppColors.textLight)),
                       ],
                     ),
                   ),

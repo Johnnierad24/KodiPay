@@ -32,7 +32,6 @@ class _PayRentScreenState extends State<PayRentScreen> {
   }
 
   String? _error;
-  String? _checkoutRequestId;
 
   void _reload() {
     _future = _fetchActiveTenancy();
@@ -68,9 +67,7 @@ class _PayRentScreenState extends State<PayRentScreen> {
       };
       final response = await _api.post('/payments', body);
       if (response.statusCode == 201) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final checkoutReqId = data['checkout_request_id']?.toString() ?? data['transaction_ref']?.toString();
-        setState(() { _sending = false; _sent = true; _step = 3; _checkoutRequestId = checkoutReqId; });
+        setState(() { _sending = false; _sent = true; _step = 3; });
       } else {
         final data = jsonDecode(response.body);
         final msg = data is Map ? (data['error'] ?? data['message'] ?? 'Payment failed') : 'Payment failed (${response.statusCode})';
@@ -87,17 +84,17 @@ class _PayRentScreenState extends State<PayRentScreen> {
       appBar: AppBar(
         title: const Text('Complete Payment', style: TextStyle(fontFamily: 'Lexend', fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.primary)),
         centerTitle: false,
-        actions: [
-          const Icon(Icons.notifications_outlined, color: AppColors.secondary),
-          const SizedBox(width: 16),
-          const Icon(Icons.help_outline, color: AppColors.secondary),
-          const SizedBox(width: 12),
+        actions: const [
+          Icon(Icons.notifications_outlined, color: AppColors.secondary),
+          SizedBox(width: 16),
+          Icon(Icons.help_outline, color: AppColors.secondary),
+          SizedBox(width: 12),
           CircleAvatar(
             radius: 18,
             backgroundColor: AppColors.surfaceHigh,
-            child: const Icon(Icons.person, color: AppColors.primary),
+            child: Icon(Icons.person, color: AppColors.primary),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
         ],
       ),
       body: SafeArea(
@@ -199,19 +196,19 @@ class _PaymentContent extends StatelessWidget {
           // Footer
           Container(
             padding: const EdgeInsets.symmetric(vertical: 20),
-            decoration: BoxDecoration(border: Border(top: BorderSide(color: AppColors.outlineVariant))),
-            child: Column(
+            decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.outlineVariant))),
+            child: const Column(
               children: [
                 Text('© 2023 Silicon Savannah Fintech. Regulated by the Central Bank of Kenya.', style: TextStyle(fontSize: 11, color: AppColors.onSurfaceVariant)),
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text('Privacy Policy', style: TextStyle(fontSize: 11, color: AppColors.secondary, decoration: TextDecoration.underline)),
-                    const SizedBox(width: 16),
-                    Text('Terms of Service', style: TextStyle(fontSize: 11, color: AppColors.secondary, decoration: TextDecoration.underline)),
-                    const SizedBox(width: 16),
-                    Text('Secure Hosting by AWS Africa', style: TextStyle(fontSize: 11, color: AppColors.secondary, decoration: TextDecoration.underline)),
+                    Flexible(child: Text('Privacy Policy', style: TextStyle(fontSize: 11, color: AppColors.secondary, decoration: TextDecoration.underline))),
+                    SizedBox(width: 16),
+                    Flexible(child: Text('Terms of Service', style: TextStyle(fontSize: 11, color: AppColors.secondary, decoration: TextDecoration.underline))),
+                    SizedBox(width: 16),
+                    Flexible(child: Text('Secure Hosting by AWS Africa', style: TextStyle(fontSize: 11, color: AppColors.secondary, decoration: TextDecoration.underline))),
                   ],
                 ),
               ],
@@ -228,10 +225,10 @@ class _PaymentContent extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _StepperItem(number: '1', label: 'SELECT METHOD', completed: true),
-          _StepperLine(completed: true),
+          const _StepperItem(number: '1', label: 'SELECT METHOD', completed: true),
+          const _StepperLine(completed: true),
           _StepperItem(number: '2', label: 'PAYMENT DETAILS', active: step == 2),
-          _StepperLine(completed: false),
+          const _StepperLine(completed: false),
           _StepperItem(number: '3', label: 'CONFIRMATION', active: step == 3),
         ],
       ),
@@ -250,9 +247,9 @@ class _PaymentContent extends StatelessWidget {
           // M-Pesa header
           Container(
             padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: AppColors.primaryContainer,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
             ),
             child: Row(
               children: [
@@ -278,7 +275,7 @@ class _PaymentContent extends StatelessWidget {
                     color: AppColors.tertiaryContainer,
                     borderRadius: BorderRadius.circular(4),
                   ),
-                  child: Text('VERIFIED', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.tertiaryFixedDim, letterSpacing: 0.5)),
+                  child: const Text('VERIFIED', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.tertiaryFixedDim, letterSpacing: 0.5)),
                 ),
               ],
             ),
@@ -289,7 +286,7 @@ class _PaymentContent extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   'Enter your registered M-Pesa phone number below. We will send a secure STK Push prompt directly to your handset to authorize the transaction.',
                   style: TextStyle(fontSize: 16, color: AppColors.onSurfaceVariant, height: 1.6),
                 ),
@@ -364,7 +361,7 @@ class _PaymentContent extends StatelessWidget {
                         Expanded(
                           child: Text(
                             'Ensure your phone is unlocked and you have sufficient funds to complete the KSh ${formatKsh(due.rentAmount)} transaction.',
-                            style: TextStyle(fontSize: 14, color: AppColors.secondary, fontStyle: FontStyle.italic),
+                            style: const TextStyle(fontSize: 14, color: AppColors.secondary, fontStyle: FontStyle.italic),
                           ),
                         ),
                       ],
@@ -384,12 +381,12 @@ class _PaymentContent extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: AppColors.kodiGreen.withValues(alpha: 0.2)),
                     ),
-                    child: Column(
+                    child: const Column(
                       children: [
                         Icon(Icons.check_circle, size: 48, color: AppColors.kodiGreen),
-                        const SizedBox(height: 12),
-                        const Text('Prompt Sent', style: TextStyle(fontFamily: 'Lexend', fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.primary)),
-                        const SizedBox(height: 8),
+                        SizedBox(height: 12),
+                        Text('Prompt Sent', style: TextStyle(fontFamily: 'Lexend', fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.primary)),
+                        SizedBox(height: 8),
                         Text('Check your phone to enter M-Pesa PIN.', style: TextStyle(fontSize: 14, color: AppColors.secondary)),
                       ],
                     ),
@@ -424,12 +421,20 @@ class _PaymentContent extends StatelessWidget {
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.only(top: 16),
-            decoration: BoxDecoration(border: Border(top: BorderSide(color: AppColors.outlineVariant))),
+            decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.outlineVariant))),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Total to Pay', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: AppColors.primary)),
-                Text('KSh ${formatKsh(due.rentAmount)}', style: const TextStyle(fontFamily: 'Lexend', fontSize: 32, fontWeight: FontWeight.w600, color: AppColors.primary)),
+                const Flexible(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text('Total to Pay', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: AppColors.primary)),
+                    ],
+                  ),
+                ),
+                Flexible(
+                  child: Text('KSh ${formatKsh(due.rentAmount)}', textAlign: TextAlign.end, style: const TextStyle(fontFamily: 'Lexend', fontSize: 28, fontWeight: FontWeight.w600, color: AppColors.primary)),
+                ),
               ],
             ),
           ),
@@ -457,12 +462,18 @@ class _PaymentContent extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Container(
-                  width: 8, height: 8,
-                  decoration: BoxDecoration(color: AppColors.tertiaryFixedDim, shape: BoxShape.circle),
+                Flexible(
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 8, height: 8,
+                        decoration: const BoxDecoration(color: AppColors.tertiaryFixedDim, shape: BoxShape.circle),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text('LIVE SECURITY MONITORING', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: Colors.white)),
+                    ],
+                  ),
                 ),
-                const SizedBox(width: 8),
-                Text('LIVE SECURITY MONITORING', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: Colors.white)),
               ],
             ),
           ),
@@ -550,8 +561,9 @@ class _SummaryRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: TextStyle(fontSize: 14, color: AppColors.secondary)),
-        Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.primary)),
+        Flexible(child: Text(label, style: const TextStyle(fontSize: 14, color: AppColors.secondary))),
+        const SizedBox(width: 12),
+        Flexible(child: Text(value, textAlign: TextAlign.end, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.primary))),
       ],
     );
   }

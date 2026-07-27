@@ -24,7 +24,7 @@ class CheckEmailScreen extends StatelessWidget {
   }
 
   Widget _wideLayout() {
-    return Row(
+    return const Row(
       children: [
         Expanded(child: _HeroSide()),
         Expanded(child: _EmailConfirmation()),
@@ -33,11 +33,11 @@ class CheckEmailScreen extends StatelessWidget {
   }
 
   Widget _narrowLayout() {
-    return SingleChildScrollView(
+    return const SingleChildScrollView(
       child: Column(
         children: [
           SizedBox(height: 180, child: _HeroSide(compact: true)),
-          const _EmailConfirmation(),
+          _EmailConfirmation(),
         ],
       ),
     );
@@ -62,7 +62,7 @@ class _TopBar extends StatelessWidget {
             child: const Center(child: Text('K', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.kodiGreen))),
           ),
           const SizedBox(width: 8),
-          Text('KodiPay!', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.primary, fontFamily: 'Lexend')),
+          const Text('KodiPay!', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.primary, fontFamily: 'Lexend')),
           const Spacer(),
           TextButton(
             onPressed: () {},
@@ -136,7 +136,7 @@ class _EmailConfirmation extends StatelessWidget {
           children: [
             Container(
               width: 80, height: 80,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: AppColors.infoSoft,
                 shape: BoxShape.circle,
               ),
@@ -184,7 +184,7 @@ class _EmailConfirmation extends StatelessWidget {
               children: [
                 Icon(Icons.key_rounded, size: 18, color: AppColors.kodiGreen.withValues(alpha: 0.7)),
                 const SizedBox(width: 8),
-                Text('256-bit SSL Encrypted', style: TextStyle(fontSize: 11, color: AppColors.muted)),
+                const Text('256-bit SSL Encrypted', style: TextStyle(fontSize: 12, color: AppColors.muted)),
               ],
             ),
           ],
@@ -199,29 +199,26 @@ class _Footer extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.primary,
         border: Border(top: BorderSide(color: AppColors.primaryContainer, width: 0.5)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          Wrap(
+            spacing: 8, runSpacing: 4,
+            alignment: WrapAlignment.center,
             children: [
-              TextButton(onPressed: () {}, child: Text('Terms', style: TextStyle(fontSize: 11, color: Colors.white70, decoration: TextDecoration.underline))),
-              const SizedBox(width: 8),
-              Text('•', style: TextStyle(fontSize: 11, color: Colors.white38)),
-              const SizedBox(width: 8),
-              TextButton(onPressed: () {}, child: Text('Privacy', style: TextStyle(fontSize: 11, color: Colors.white70, decoration: TextDecoration.underline))),
-              const SizedBox(width: 8),
-              Text('•', style: TextStyle(fontSize: 11, color: Colors.white38)),
-              const SizedBox(width: 8),
-              TextButton(onPressed: () {}, child: Text('Contact', style: TextStyle(fontSize: 11, color: Colors.white70, decoration: TextDecoration.underline))),
+              TextButton(onPressed: () {}, child: const Text('Terms', style: TextStyle(fontSize: 12, color: Colors.white70, decoration: TextDecoration.underline))),
+              const Text('•', style: TextStyle(fontSize: 12, color: Colors.white38)),
+              TextButton(onPressed: () {}, child: const Text('Privacy', style: TextStyle(fontSize: 12, color: Colors.white70, decoration: TextDecoration.underline))),
+              const Text('•', style: TextStyle(fontSize: 12, color: Colors.white38)),
+              TextButton(onPressed: () {}, child: const Text('Contact', style: TextStyle(fontSize: 12, color: Colors.white70, decoration: TextDecoration.underline))),
             ],
           ),
           const SizedBox(height: 6),
-          Text('© 2026 KodiPay Kenya. All rights reserved.', style: TextStyle(fontSize: 10, color: Colors.white38)),
+          const Text('© 2026 KodiPay Kenya. All rights reserved.', style: TextStyle(fontSize: 12, color: Colors.white38)),
         ],
       ),
     );

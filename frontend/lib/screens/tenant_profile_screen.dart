@@ -20,7 +20,6 @@ class _TenantProfileScreenState extends State<TenantProfileScreen> {
   final _emergPhoneController = TextEditingController();
   String _emergRelation = 'Spouse';
   bool _saving = false;
-  bool _saved = false;
 
   @override
   void initState() {
@@ -49,15 +48,14 @@ class _TenantProfileScreenState extends State<TenantProfileScreen> {
     if (!mounted) return;
     setState(() {
       _saving = false;
-      _saved = true;
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Row(
+        content: const Row(
           children: [
-            const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
-            const SizedBox(width: 10),
-            const Expanded(child: Text('Settings Saved – Your profile has been updated.')),
+            Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+            SizedBox(width: 10),
+            Expanded(child: Text('Settings Saved – Your profile has been updated.')),
           ],
         ),
         backgroundColor: AppColors.tertiaryContainer,
@@ -66,7 +64,7 @@ class _TenantProfileScreenState extends State<TenantProfileScreen> {
       ),
     );
     Future.delayed(const Duration(seconds: 4), () {
-      if (mounted) setState(() => _saved = false);
+      if (mounted) setState(() {});
     });
   }
 
@@ -90,7 +88,7 @@ class _TenantProfileScreenState extends State<TenantProfileScreen> {
         actions: [
           TextButton(
             onPressed: () {},
-            child: Text('Discard', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.primary)),
+            child: const Text('Discard', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.primary)),
           ),
           const SizedBox(width: 4),
           Padding(
@@ -113,24 +111,30 @@ class _TenantProfileScreenState extends State<TenantProfileScreen> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          // Row 1: Personal Info + Lease Details
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(flex: 8, child: _PersonalInfoCard(initials: initials, nameController: _nameController, emailController: _emailController, phoneController: _phoneController)),
-              const SizedBox(width: 16),
-              const Expanded(flex: 4, child: _LeaseDetailsCard()),
-            ],
-          ),
+          _PersonalInfoCard(initials: initials, nameController: _nameController, emailController: _emailController, phoneController: _phoneController),
           const SizedBox(height: 16),
-          // Row 2: Emergency Contact + Document Center
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(flex: 6, child: _EmergencyContactCard(nameController: _emergNameController, phoneController: _emergPhoneController, relation: _emergRelation, onRelationChanged: (v) => setState(() => _emergRelation = v))),
-              const SizedBox(width: 16),
-              const Expanded(flex: 6, child: _DocumentCenterCard()),
-            ],
+          const _LeaseDetailsCard(),
+          const SizedBox(height: 16),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 600;
+              return isNarrow
+                  ? Column(
+                      children: [
+                        _EmergencyContactCard(nameController: _emergNameController, phoneController: _emergPhoneController, relation: _emergRelation, onRelationChanged: (v) => setState(() => _emergRelation = v)),
+                        const SizedBox(height: 16),
+                        const _DocumentCenterCard(),
+                      ],
+                    )
+                  : Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: _EmergencyContactCard(nameController: _emergNameController, phoneController: _emergPhoneController, relation: _emergRelation, onRelationChanged: (v) => setState(() => _emergRelation = v))),
+                        const SizedBox(width: 16),
+                        const Expanded(child: _DocumentCenterCard()),
+                      ],
+                    );
+            },
           ),
           const SizedBox(height: 16),
           // Account Security
@@ -158,11 +162,10 @@ class _PersonalInfoCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.outlineVariant),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Avatar
-          Column(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 500;
+          final avatar = Column(
             children: [
               Stack(
                 children: [
@@ -189,25 +192,32 @@ class _PersonalInfoCard extends StatelessWidget {
               Text(initials.isEmpty ? 'Tenant' : nameController.text.isNotEmpty ? nameController.text : 'Tenant',
                   style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.textDark, fontSize: 16)),
               const SizedBox(height: 2),
-              Text('Verified Tenant', style: TextStyle(fontSize: 13, color: AppColors.secondary)),
+              const Text('Verified Tenant', style: TextStyle(fontSize: 13, color: AppColors.secondary)),
             ],
-          ),
-          const SizedBox(width: 28),
-          // Form fields
-          Expanded(
-            child: Column(
-              children: [
-                _ProfileField(label: 'Full Name', controller: nameController),
-                const SizedBox(height: 16),
-                _ProfileField(label: 'Email Address', controller: emailController, keyboardType: TextInputType.emailAddress),
-                const SizedBox(height: 16),
-                _ProfileField(label: 'Phone Number', controller: phoneController, keyboardType: TextInputType.phone),
-                const SizedBox(height: 16),
-                _ReadonlyField(label: 'National ID / Passport', value: '********4521'),
-              ],
-            ),
-          ),
-        ],
+          );
+          final form = Column(
+            children: [
+              _ProfileField(label: 'Full Name', controller: nameController),
+              const SizedBox(height: 16),
+              _ProfileField(label: 'Email Address', controller: emailController, keyboardType: TextInputType.emailAddress),
+              const SizedBox(height: 16),
+              _ProfileField(label: 'Phone Number', controller: phoneController, keyboardType: TextInputType.phone),
+              const SizedBox(height: 16),
+              const _ReadonlyField(label: 'National ID / Passport', value: '********4521'),
+            ],
+          );
+          if (isNarrow) {
+            return Column(children: [avatar, const SizedBox(height: 20), form]);
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              avatar,
+              const SizedBox(width: 28),
+              Expanded(child: form),
+            ],
+          );
+        },
       ),
     );
   }
@@ -224,7 +234,7 @@ class _ProfileField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.secondary)),
+        Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.secondary)),
         const SizedBox(height: 6),
         TextField(
           controller: controller,
@@ -253,7 +263,7 @@ class _ReadonlyField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.secondary)),
+        Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.secondary)),
         const SizedBox(height: 6),
         Container(
           width: double.infinity,
@@ -266,7 +276,7 @@ class _ReadonlyField extends StatelessWidget {
             children: [
               const Icon(Icons.verified_user_rounded, size: 16, color: AppColors.kodiGreen),
               const SizedBox(width: 8),
-              Text(value, style: TextStyle(fontSize: 14, fontFamily: 'Inter', color: AppColors.secondary)),
+              Text(value, style: const TextStyle(fontSize: 14, fontFamily: 'Inter', color: AppColors.secondary)),
             ],
           ),
         ),
@@ -410,7 +420,7 @@ class _EmergencyContactCard extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Relationship', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.secondary)),
+              const Text('Relationship', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.secondary)),
               const SizedBox(height: 6),
               DropdownButtonFormField<String>(
                 initialValue: relation,
@@ -470,7 +480,7 @@ class _DocumentCenterCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
-          _DocTile(
+          const _DocTile(
             icon: Icons.picture_as_pdf_rounded,
             iconColor: AppColors.danger,
             iconBg: AppColors.dangerSoft,
@@ -478,7 +488,7 @@ class _DocumentCenterCard extends StatelessWidget {
             subtitle: 'PDF • 2.4 MB • Updated Jan 2024',
           ),
           const SizedBox(height: 10),
-          _DocTile(
+          const _DocTile(
             icon: Icons.description_rounded,
             iconColor: AppColors.kodiBlue,
             iconBg: AppColors.infoSoft,
@@ -499,7 +509,7 @@ class _DocumentCenterCard extends StatelessWidget {
               label: const Text('Upload Additional Document', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.secondary,
-                side: BorderSide(color: AppColors.outlineVariant, width: 2),
+                side: const BorderSide(color: AppColors.outlineVariant, width: 2),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
@@ -542,11 +552,11 @@ class _DocTile extends StatelessWidget {
               children: [
                 Text(title, style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.textDark, fontSize: 14)),
                 const SizedBox(height: 2),
-                Text(subtitle, style: TextStyle(fontSize: 12, color: AppColors.secondary)),
+                Text(subtitle, style: const TextStyle(fontSize: 12, color: AppColors.secondary)),
               ],
             ),
           ),
-          Icon(Icons.download_rounded, color: AppColors.secondary, size: 20),
+          const Icon(Icons.download_rounded, color: AppColors.secondary, size: 20),
         ],
       ),
     );
@@ -565,55 +575,117 @@ class _AccountSecurityCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.outlineVariant),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 48, height: 48,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceHigh,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(Icons.lock_rounded, color: AppColors.primary, size: 24),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 500;
+          if (isNarrow) {
+            return Column(
               children: [
-                const Text('Account Security', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textDark, fontSize: 18)),
-                const SizedBox(height: 4),
-                Text('Manage your password and security preferences.', style: TextStyle(fontSize: 13, color: AppColors.secondary)),
+                Row(
+                  children: [
+                    Container(
+                      width: 48, height: 48,
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceHigh,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Icon(Icons.lock_rounded, color: AppColors.primary, size: 24),
+                    ),
+                    const SizedBox(width: 16),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Account Security', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textDark, fontSize: 18)),
+                          SizedBox(height: 4),
+                          Text('Manage your password and security preferences.', style: TextStyle(fontSize: 13, color: AppColors.secondary)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 10, runSpacing: 10,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: () => showSnack(context, 'Change password coming soon'),
+                      icon: const Icon(Icons.key_rounded, size: 18),
+                      label: const Text('Change Password', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.textDark,
+                        side: const BorderSide(color: AppColors.outline),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () => showSnack(context, '2FA coming soon'),
+                      icon: const Icon(Icons.phonelink_lock_rounded, size: 18),
+                      label: const Text('Two-Factor Auth', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.textDark,
+                        side: const BorderSide(color: AppColors.outline),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                  ],
+                ),
               ],
-            ),
-          ),
-          Row(
+            );
+          }
+          return Row(
             children: [
-              OutlinedButton.icon(
-                onPressed: () => showSnack(context, 'Change password coming soon'),
-                icon: const Icon(Icons.key_rounded, size: 18),
-                label: const Text('Change Password', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.textDark,
-                  side: const BorderSide(color: AppColors.outline),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              Container(
+                width: 48, height: 48,
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceHigh,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(Icons.lock_rounded, color: AppColors.primary, size: 24),
+              ),
+              const SizedBox(width: 16),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Account Security', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textDark, fontSize: 18)),
+                    SizedBox(height: 4),
+                    Text('Manage your password and security preferences.', style: TextStyle(fontSize: 13, color: AppColors.secondary)),
+                  ],
                 ),
               ),
-              const SizedBox(width: 10),
-              OutlinedButton.icon(
-                onPressed: () => showSnack(context, '2FA coming soon'),
-                icon: const Icon(Icons.phonelink_lock_rounded, size: 18),
-                label: const Text('Two-Factor Auth', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.textDark,
-                  side: const BorderSide(color: AppColors.outline),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
+              Wrap(
+                spacing: 10, runSpacing: 10,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => showSnack(context, 'Change password coming soon'),
+                    icon: const Icon(Icons.key_rounded, size: 18),
+                    label: const Text('Change Password', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.textDark,
+                      side: const BorderSide(color: AppColors.outline),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => showSnack(context, '2FA coming soon'),
+                    icon: const Icon(Icons.phonelink_lock_rounded, size: 18),
+                    label: const Text('Two-Factor Auth', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.textDark,
+                      side: const BorderSide(color: AppColors.outline),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ],
               ),
             ],
-          ),
-        ],
+          );
+        },
       ),
     );
   }

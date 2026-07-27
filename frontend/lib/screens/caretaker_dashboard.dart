@@ -1,16 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../models/maintenance_item.dart';
-import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
 import '../widgets/shared_screen_components.dart';
-import 'package:provider/provider.dart';
 import 'caretaker_tasks_screen.dart';
 import 'caretaker_properties_screen.dart';
 import 'caretaker_profile_screen.dart';
 import 'caretaker_alerts_screen.dart';
-import 'login_screen.dart';
 
 class CaretakerDashboard extends StatefulWidget {
   const CaretakerDashboard({super.key});
@@ -190,15 +187,15 @@ class _CaretakerDashboardState extends State<CaretakerDashboard> {
                       color: Colors.white.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Row(
+                    child: const Row(
                       children: [
                         CircleAvatar(
                           radius: 20,
                           backgroundColor: AppColors.surfaceHigh,
-                          child: const Text('JK', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.kodiNavy)),
+                          child: Text('JK', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.kodiNavy)),
                         ),
-                        const SizedBox(width: 12),
-                        const Expanded(
+                        SizedBox(width: 12),
+                        Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [

@@ -87,7 +87,7 @@ class ProfileScreen extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(color: AppColors.tertiaryFixed.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(999)),
-                    child: Text('Gold Tier $role', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.onTertiaryFixed, letterSpacing: 0.5)),
+                    child: Text('Gold Tier $role', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.onTertiaryFixed, letterSpacing: 0.5)),
                   ),
                 ],
               ),

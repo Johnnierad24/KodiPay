@@ -72,7 +72,7 @@ class _TenantDashboardState extends State<TenantDashboard> {
               children: [
                 _TenantTopBar(
                   navIndex: _navIndex,
-                  userName: '${_overview?.tenantName ?? 'Tenant'}',
+                  userName: _overview?.tenantName ?? 'Tenant',
                 ),
                 Expanded(
                   child: IndexedStack(index: _navIndex, children: screens),
@@ -84,7 +84,7 @@ class _TenantDashboardState extends State<TenantDashboard> {
       ),
       bottomNavigationBar: !isWide
           ? Container(
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: AppColors.white,
                 border: Border(top: BorderSide(color: AppColors.outlineVariant)),
               ),
@@ -103,13 +103,13 @@ class _TenantDashboardState extends State<TenantDashboard> {
                             borderRadius: BorderRadius.circular(10),
                             onTap: () => _onNavTap(i),
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 6),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(sel ? item.$3 : item.$2, size: 22, color: sel ? AppColors.kodiGreen : AppColors.muted),
                                   const SizedBox(height: 2),
-                                  Text(item.$1, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: sel ? AppColors.kodiGreen : AppColors.muted)),
+                                   Text(item.$1, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: sel ? AppColors.kodiGreen : AppColors.muted)),
                                 ],
                               ),
                             ),
@@ -184,7 +184,7 @@ class _TenantSidebar extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('LEGAL CORNER', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.tertiaryFixed)),
+                const Text('LEGAL CORNER', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.tertiaryFixed)),
                 const SizedBox(height: 12),
                 GestureDetector(
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TenantRightsScreen())),
@@ -254,10 +254,11 @@ class _TenantTopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final titles = ['Dashboard', 'Payments', 'Profile', 'Support'];
+    final isNarrow = MediaQuery.of(context).size.width < 600;
     return Container(
       height: 56,
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      decoration: BoxDecoration(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: const BoxDecoration(
         color: AppColors.surfaceLowest,
         border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
       ),
@@ -265,20 +266,21 @@ class _TenantTopBar extends StatelessWidget {
         children: [
           Text(titles[navIndex], style: const TextStyle(fontFamily: 'Lexend', fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.primary)),
           const Spacer(),
-          SizedBox(
-            width: 260,
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Search...',
-                prefixIcon: const Icon(Icons.search, size: 18, color: AppColors.secondary),
-                contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-                filled: true,
-                fillColor: AppColors.surfaceLow,
+          if (!isNarrow)
+            SizedBox(
+              width: 260,
+              child: TextField(
+                decoration: InputDecoration(
+                  hintText: 'Search...',
+                  prefixIcon: const Icon(Icons.search, size: 18, color: AppColors.secondary),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                  filled: true,
+                  fillColor: AppColors.surfaceLow,
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 12),
+          if (!isNarrow) const SizedBox(width: 12),
           const Icon(Icons.notifications_outlined, color: AppColors.secondary),
           const SizedBox(width: 12),
           CircleAvatar(
@@ -399,12 +401,12 @@ class _TenantHomeTab extends StatelessWidget {
                     ),
                     _UnitDetailCard(
                       label: 'Unit Number',
-                      value: '${o?.unitNumber ?? '4B'}',
+                      value: o?.unitNumber ?? '4B',
                       subtitle: 'Floor 4',
                       icon: Icons.meeting_room,
                       color: AppColors.surfaceLow,
                     ),
-                    _UnitDetailCard(
+                    const _UnitDetailCard(
                       label: 'Lease Ends In',
                       value: '8 Months',
                       subtitle: '',
@@ -420,17 +422,16 @@ class _TenantHomeTab extends StatelessWidget {
             // Footer
             Container(
               padding: const EdgeInsets.symmetric(vertical: 20),
-              decoration: BoxDecoration(border: Border(top: BorderSide(color: AppColors.outlineVariant))),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.outlineVariant))),
+              child: const Column(
                 children: [
                   Text('© 2024 KodiPay Kenya. All rights reserved.', style: TextStyle(fontSize: 12, color: AppColors.onSurfaceVariant)),
-                  Row(
+                  SizedBox(height: 8),
+                  Wrap(
+                    spacing: 16, alignment: WrapAlignment.center,
                     children: [
                       Text('Terms', style: TextStyle(fontSize: 12, color: AppColors.secondary, decoration: TextDecoration.underline)),
-                      const SizedBox(width: 16),
                       Text('Privacy', style: TextStyle(fontSize: 12, color: AppColors.secondary, decoration: TextDecoration.underline)),
-                      const SizedBox(width: 16),
                       Text('Contact Support', style: TextStyle(fontSize: 12, color: AppColors.secondary, decoration: TextDecoration.underline)),
                     ],
                   ),
@@ -464,11 +465,13 @@ class _BalanceHeroCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('CURRENT BALANCE DUE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.onSurfaceVariant)),
+          const Text('CURRENT BALANCE DUE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.onSurfaceVariant)),
           const SizedBox(height: 8),
           Text('KSh ${formatKsh(amount)}', style: const TextStyle(fontFamily: 'Lexend', fontSize: 40, fontWeight: FontWeight.w600, color: AppColors.primary)),
           const SizedBox(height: 16),
-          Row(
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
             children: [
               ElevatedButton(
                 onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PayRentScreen())),
@@ -480,7 +483,6 @@ class _BalanceHeroCard extends StatelessWidget {
                 ),
                 child: const Text('Make Payment', style: TextStyle(fontWeight: FontWeight.w700)),
               ),
-              const SizedBox(width: 12),
               OutlinedButton(
                 onPressed: () {},
                 style: OutlinedButton.styleFrom(
@@ -515,13 +517,13 @@ class _MaintenanceCard extends StatelessWidget {
         children: [
           Container(
             width: 48, height: 48,
-            decoration: BoxDecoration(color: AppColors.surfaceHigh, shape: BoxShape.circle),
+            decoration: const BoxDecoration(color: AppColors.surfaceHigh, shape: BoxShape.circle),
             child: const Icon(Icons.engineering, color: AppColors.primary),
           ),
           const SizedBox(height: 16),
           const Text('Maintenance Issue?', style: TextStyle(fontFamily: 'Lexend', fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.primary)),
           const SizedBox(height: 8),
-          Text('Broken tap? Electrical flickering? Report it now for quick assistance.', style: TextStyle(fontSize: 14, color: AppColors.secondary)),
+          const Text('Broken tap? Electrical flickering? Report it now for quick assistance.', style: TextStyle(fontSize: 14, color: AppColors.secondary)),
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
@@ -582,9 +584,9 @@ class _RecentTransactionsTable extends StatelessWidget {
               ],
             ),
           ),
-          _TxRow(date: 'Oct 02, 2024', desc: 'Monthly Rent - October', ref: 'KP-992384', amount: 'KSh 40,000', status: 'Paid'),
-          _TxRow(date: 'Oct 02, 2024', desc: 'Service Charge', ref: 'KP-992385', amount: 'KSh 5,000', status: 'Paid'),
-          _TxRow(date: 'Sep 01, 2024', desc: 'Monthly Rent - September', ref: 'KP-812039', amount: 'KSh 40,000', status: 'Paid'),
+          const _TxRow(date: 'Oct 02, 2024', desc: 'Monthly Rent - October', ref: 'KP-992384', amount: 'KSh 40,000', status: 'Paid'),
+          const _TxRow(date: 'Oct 02, 2024', desc: 'Service Charge', ref: 'KP-992385', amount: 'KSh 5,000', status: 'Paid'),
+          const _TxRow(date: 'Sep 01, 2024', desc: 'Monthly Rent - September', ref: 'KP-812039', amount: 'KSh 40,000', status: 'Paid'),
           const SizedBox(height: 8),
         ],
       ),
@@ -605,7 +607,7 @@ class _TxRow extends StatelessWidget {
         children: [
           Expanded(flex: 2, child: Text(date, style: const TextStyle(fontSize: 14, fontFamily: 'Inter'))),
           Expanded(flex: 3, child: Text(desc, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500))),
-          Expanded(flex: 2, child: Text(ref, style: TextStyle(fontSize: 14, color: AppColors.secondary))),
+          Expanded(flex: 2, child: Text(ref, style: const TextStyle(fontSize: 14, color: AppColors.secondary))),
           Expanded(flex: 2, child: Text(amount, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600))),
           Expanded(
             flex: 2,
@@ -615,7 +617,7 @@ class _TxRow extends StatelessWidget {
                 color: AppColors.kodiGreen.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Text(status, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.kodiGreen)),
+              child: Text(status, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.kodiGreen)),
             ),
           ),
         ],

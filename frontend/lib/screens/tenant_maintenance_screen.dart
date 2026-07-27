@@ -264,15 +264,21 @@ class _MaintenanceItemCard extends StatelessWidget {
             const SizedBox(height: 10),
             Row(
               children: [
-                MaintenanceTag(
-                    label: capitalizeWord(item.category),
-                    color: AppColors.kodiNavy),
-                const SizedBox(width: 8),
-                MaintenanceTag(
-                  label: capitalizeWord(item.priority),
-                  color: maintenancePriorityColor(item.priority),
+                Flexible(
+                  child: Row(
+                    children: [
+                      MaintenanceTag(
+                          label: capitalizeWord(item.category),
+                          color: AppColors.kodiNavy),
+                      const SizedBox(width: 8),
+                      MaintenanceTag(
+                        label: capitalizeWord(item.priority),
+                        color: maintenancePriorityColor(item.priority),
+                      ),
+                    ],
+                  ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 8),
                 Text(relativeTime(item.createdAt), style: AppStyles.caption),
               ],
             ),
