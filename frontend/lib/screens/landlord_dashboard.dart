@@ -10,6 +10,8 @@ import 'landlord_notifications_screen.dart';
 import 'landlord_reports_screen.dart';
 import 'landlord_settings_screen.dart';
 import 'landlord_wallet_screen.dart';
+import 'tenant_rights_screen.dart';
+import 'landlord_tenant_act_screen.dart';
 
 class LandlordDashboard extends StatefulWidget {
   const LandlordDashboard({super.key});
@@ -32,6 +34,8 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
     _loadOverview();
   }
 
+  bool _isLoading = true;
+
   Future<void> _loadUnreadCount() async {
     try {
       final response = await _api.get('/notifications');
@@ -40,7 +44,9 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
       final unread = data.where((item) => (item as Map)['is_read'] != true).length;
       if (!mounted) return;
       setState(() => _unreadCount = unread);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Failed to load notifications: $e');
+    }
   }
 
   Future<void> _loadOverview() async {
@@ -50,7 +56,11 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       if (!mounted) return;
       setState(() => _overview = _DashboardOverview.fromJson(data));
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Failed to load dashboard overview: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   void _onNavTap(int index) {
@@ -68,61 +78,64 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Stack(
           children: [
-            // Sidebar (desktop)
-            if (isWide) _Sidebar(navIndex: _navIndex, onTap: _onNavTap),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Sidebar (desktop only)
+                if (isWide) _Sidebar(navIndex: _navIndex, onTap: _onNavTap),
+
+                // Main content
+                Expanded(
+                  child: Column(
+                    children: [
+                      // Top bar
+                      _TopBar(
+                        unreadCount: _unreadCount,
+                        userName: '${user?.firstName ?? 'Jabari'} ${user?.lastName ?? 'Kamau'}',
+                        onMenuTap: () => setState(() => _sidebarOpen = !_sidebarOpen),
+                        onNotifications: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LandlordNotificationsScreen())),
+                        onProfileTap: () => _onNavTap(4),
+                      ),
+
+                      // Body
+                      Expanded(
+                        child: IndexedStack(
+                          index: _navIndex,
+                          children: [
+                            _HomeTab(
+                              user: user,
+                              overview: _overview,
+                              unreadCount: _unreadCount,
+                              onRefresh: _loadOverview,
+                              onNavigateToReports: () => _onNavTap(2),
+                              onNavigateToProperties: () => _onNavTap(1),
+                            ),
+                            const PropertyListScreen(),
+                            const LandlordReportsScreen(),
+                            const LandlordWalletScreen(),
+                            const LandlordSettingsScreen(),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
 
             // Mobile sidebar overlay
-            if (!isWide && _sidebarOpen)
+            if (!isWide && _sidebarOpen) ...[
               GestureDetector(
                 onTap: () => setState(() => _sidebarOpen = false),
                 child: Container(color: Colors.black.withValues(alpha: 0.4)),
               ),
-
-            if (!isWide && _sidebarOpen)
               Positioned(
                 left: 0, top: 0, bottom: 0,
                 child: _Sidebar(navIndex: _navIndex, onTap: _onNavTap),
               ),
-
-            // Main content
-            Expanded(
-              child: Column(
-                children: [
-                  // Top bar
-                  _TopBar(
-                    unreadCount: _unreadCount,
-                    userName: '${user?.firstName ?? 'Jabari'} ${user?.lastName ?? 'Kamau'}',
-                    onMenuTap: () => setState(() => _sidebarOpen = !_sidebarOpen),
-                    onNotifications: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LandlordNotificationsScreen())),
-                    onProfileTap: () => _onNavTap(4),
-                  ),
-
-                  // Body
-                  Expanded(
-                    child: IndexedStack(
-                      index: _navIndex,
-                      children: [
-                        _HomeTab(
-                          user: user,
-                          overview: _overview,
-                          unreadCount: _unreadCount,
-                          onRefresh: _loadOverview,
-                          onNavigateToReports: () => _onNavTap(2),
-                          onNavigateToProperties: () => _onNavTap(1),
-                        ),
-                        const PropertyListScreen(),
-                        const LandlordReportsScreen(),
-                        const LandlordWalletScreen(),
-                        const LandlordSettingsScreen(),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            ],
           ],
         ),
       ),
@@ -167,11 +180,11 @@ class _Sidebar extends StatelessWidget {
                       child: const Center(child: Text('K', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.onTertiaryFixed))),
                     ),
                     const SizedBox(width: 10),
-                    Text('KodiPay', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, fontFamily: 'Lexend', color: AppColors.onPrimary)),
+                    const Text('KodiPay', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, fontFamily: 'Lexend', color: AppColors.onPrimary)),
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text('PROPERTY MANAGEMENT', style: TextStyle(fontSize: 10, letterSpacing: 1.5, fontWeight: FontWeight.w700, color: AppColors.onPrimary.withValues(alpha: 0.6))),
+                Text('PROPERTY MANAGEMENT', style: TextStyle(fontSize: 12, letterSpacing: 1.5, fontWeight: FontWeight.w700, color: AppColors.onPrimary.withValues(alpha: 0.6))),
               ],
             ),
           ),
@@ -209,6 +222,44 @@ class _Sidebar extends StatelessWidget {
               }),
             ),
           ),
+          // Legal Corner
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.onPrimary.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('LEGAL CORNER', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.tertiaryFixed)),
+                const SizedBox(height: 12),
+                GestureDetector(
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TenantRightsScreen())),
+                  child: Row(
+                    children: [
+                      Icon(Icons.gavel, size: 16, color: AppColors.onPrimary.withValues(alpha: 0.5)),
+                      const SizedBox(width: 8),
+                      Text('Tenant Rights', style: TextStyle(color: AppColors.onPrimary.withValues(alpha: 0.5), fontSize: 13)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LandlordTenantActScreen())),
+                  child: Row(
+                    children: [
+                      Icon(Icons.menu_book, size: 16, color: AppColors.onPrimary.withValues(alpha: 0.5)),
+                      const SizedBox(width: 8),
+                      Text('Landlord-Tenant Act', style: TextStyle(color: AppColors.onPrimary.withValues(alpha: 0.5), fontSize: 13)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
           // Logout
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
@@ -271,10 +322,11 @@ class _TopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isNarrow = MediaQuery.of(context).size.width < 600;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       height: 56,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.surfaceLowest,
         border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
       ),
@@ -287,20 +339,21 @@ class _TopBar extends StatelessWidget {
                 icon: const Icon(Icons.menu_outlined),
                 onPressed: onMenuTap,
               ),
-              const SizedBox(width: 8),
-              SizedBox(
-                width: 280,
-                child: TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Search portfolio...',
-                    prefixIcon: const Icon(Icons.search, size: 18, color: AppColors.secondary),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-                    filled: true,
-                    fillColor: AppColors.surfaceLow,
+              if (!isNarrow) ...[
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Search portfolio...',
+                      prefixIcon: const Icon(Icons.search, size: 18, color: AppColors.secondary),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                      filled: true,
+                      fillColor: AppColors.surfaceLow,
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
           const Spacer(),
@@ -323,23 +376,26 @@ class _TopBar extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(width: 4),
-          const Icon(Icons.help_outline, size: 20, color: AppColors.secondary),
-          Container(width: 1, height: 28, margin: const EdgeInsets.symmetric(horizontal: 12), color: AppColors.outlineVariant),
+          if (!isNarrow) ...[
+            const SizedBox(width: 4),
+            const Icon(Icons.help_outline, size: 20, color: AppColors.secondary),
+            Container(width: 1, height: 28, margin: const EdgeInsets.symmetric(horizontal: 12), color: AppColors.outlineVariant),
+          ],
           // User
           GestureDetector(
             onTap: onProfileTap,
             child: Row(
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(userName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.onSurface)),
-                    Text('Gold Tier Landlord', style: TextStyle(fontSize: 9, letterSpacing: 0.5, fontWeight: FontWeight.w700, color: AppColors.secondary)),
-                  ],
-                ),
-                const SizedBox(width: 10),
+                if (!isNarrow)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(userName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.onSurface)),
+                      const Text('Gold Tier Landlord', style: TextStyle(fontSize: 12, letterSpacing: 0.5, fontWeight: FontWeight.w700, color: AppColors.secondary)),
+                    ],
+                  ),
+                if (!isNarrow) const SizedBox(width: 10),
                 Container(
                   width: 36, height: 36,
                   decoration: BoxDecoration(
@@ -423,7 +479,7 @@ class _HomeTab extends StatelessWidget {
                 label: const Text('Generate New Report'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.primary,
-                  side: BorderSide(color: AppColors.primary),
+                  side: const BorderSide(color: AppColors.primary),
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
@@ -453,7 +509,7 @@ class _HomeTab extends StatelessWidget {
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text('$collectionRate', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600, fontFamily: 'Lexend', color: AppColors.primary)),
+                            Text('$collectionRate', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w600, fontFamily: 'Lexend', color: AppColors.primary)),
                             const Text('%', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500, color: AppColors.primary)),
                           ],
                         ),
@@ -480,9 +536,9 @@ class _HomeTab extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Oct 2024', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.secondary)),
+                        const Text('Oct 2024', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.secondary)),
                         const SizedBox(height: 4),
-                        Text('KSh ${_fmt(totalCollected)}', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, fontFamily: 'Lexend', color: AppColors.primary)),
+                        Text('KSh ${_fmt(totalCollected)}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600, fontFamily: 'Lexend', color: AppColors.primary)),
                       ],
                     ),
                   ),
@@ -493,12 +549,12 @@ class _HomeTab extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('KSh ${_fmt(outstanding)}', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, fontFamily: 'Lexend', color: AppColors.primary)),
+                        Text('KSh ${_fmt(outstanding)}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600, fontFamily: 'Lexend', color: AppColors.primary)),
                         const SizedBox(height: 4),
-                        Row(
+                        const Row(
                           children: [
-                            const Icon(Icons.trending_up, size: 14, color: AppColors.error),
-                            const SizedBox(width: 4),
+                            Icon(Icons.trending_up, size: 14, color: AppColors.error),
+                            SizedBox(width: 4),
                             Text('+4% from last month', style: TextStyle(fontSize: 12, color: AppColors.error)),
                           ],
                         ),
@@ -512,9 +568,9 @@ class _HomeTab extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('$pendingIssues New', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, fontFamily: 'Lexend', color: AppColors.primary)),
+                        Text('$pendingIssues New', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600, fontFamily: 'Lexend', color: AppColors.primary)),
                         const SizedBox(height: 4),
-                        Text('Pending Requests', style: TextStyle(fontSize: 12, color: AppColors.onSurfaceVariant)),
+                        const Text('Pending Requests', style: TextStyle(fontSize: 12, color: AppColors.onSurfaceVariant)),
                       ],
                     ),
                   ),
@@ -550,20 +606,20 @@ class _HomeTab extends StatelessWidget {
           // Footer
           Container(
             padding: const EdgeInsets.symmetric(vertical: 24),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: AppColors.surfaceLow,
               border: Border(top: BorderSide(color: AppColors.outlineVariant)),
             ),
             child: Column(
               children: [
-                Text('© 2024 KodiPay Kenya. All rights reserved.', style: TextStyle(fontSize: 12, color: AppColors.onSurfaceVariant)),
+                const Text('© 2024 KodiPay Kenya. All rights reserved.', style: TextStyle(fontSize: 12, color: AppColors.onSurfaceVariant)),
                 const SizedBox(height: 12),
                 Wrap(
                   spacing: 24, alignment: WrapAlignment.center,
                   children: [
-                    TextButton(onPressed: () {}, child: Text('Terms of Service', style: TextStyle(fontSize: 12, color: AppColors.secondary, decoration: TextDecoration.underline))),
-                    TextButton(onPressed: () {}, child: Text('Privacy Policy', style: TextStyle(fontSize: 12, color: AppColors.secondary, decoration: TextDecoration.underline))),
-                    TextButton(onPressed: () {}, child: Text('Contact Support', style: TextStyle(fontSize: 12, color: AppColors.secondary, decoration: TextDecoration.underline))),
+                    TextButton(onPressed: () {}, child: const Text('Terms of Service', style: TextStyle(fontSize: 12, color: AppColors.secondary, decoration: TextDecoration.underline))),
+                    TextButton(onPressed: () {}, child: const Text('Privacy Policy', style: TextStyle(fontSize: 12, color: AppColors.secondary, decoration: TextDecoration.underline))),
+                    TextButton(onPressed: () {}, child: const Text('Contact Support', style: TextStyle(fontSize: 12, color: AppColors.secondary, decoration: TextDecoration.underline))),
                   ],
                 ),
               ],
@@ -607,7 +663,7 @@ class _StatCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(label.toUpperCase(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.secondary)),
+              Text(label.toUpperCase(), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.secondary)),
               Icon(icon, size: 20, color: iconColor),
             ],
           ),
@@ -645,54 +701,103 @@ class _RecentTransactions extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Recent Transactions', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, fontFamily: 'Lexend', color: AppColors.primary)),
+                const Text('Recent Transactions', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, fontFamily: 'Lexend', color: AppColors.primary)),
                 TextButton(onPressed: () {}, child: const Text('View All', style: TextStyle(fontWeight: FontWeight.w700))),
               ],
             ),
           ),
-          // Table header
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-            color: AppColors.surfaceLow,
-            child: Row(
-              children: [
-                Expanded(flex: 2, child: _th('Date')),
-                Expanded(flex: 3, child: _th('Unit')),
-                Expanded(flex: 2, child: _th('Amount')),
-                Expanded(flex: 2, child: _th('Status')),
-                Expanded(child: _th('Action')),
-              ],
-            ),
-          ),
-          // Table rows
-          ...transactions.map((t) => Container(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-            decoration: BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.5)))),
-            child: Row(
-              children: [
-                Expanded(flex: 2, child: Text(t.$1, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.onSurface))),
-                Expanded(flex: 3, child: Text(t.$2, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary))),
-                Expanded(flex: 2, child: Text(t.$3, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500))),
-                Expanded(flex: 2, child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: t.$4 == 'Paid' ? AppColors.tertiaryFixed.withValues(alpha: 0.2) : AppColors.errorContainer,
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: t.$4 == 'Paid' ? AppColors.tertiaryFixedDim : AppColors.error.withValues(alpha: 0.2)),
+          // Transaction list - responsive
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 500;
+              if (isNarrow) {
+                return Column(
+                  children: transactions.map((t) => Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    decoration: BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.5)))),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(child: Text(t.$2, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary))),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: t.$4 == 'Paid' ? AppColors.tertiaryFixed.withValues(alpha: 0.2) : AppColors.errorContainer,
+                                      borderRadius: BorderRadius.circular(999),
+                                      border: Border.all(color: t.$4 == 'Paid' ? AppColors.tertiaryFixedDim : AppColors.error.withValues(alpha: 0.2)),
+                                    ),
+                                    child: Text(t.$4, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: t.$5)),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Text(t.$1, style: const TextStyle(fontSize: 12, color: AppColors.onSurfaceVariant)),
+                                  const Spacer(),
+                                  Text(t.$3, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  )).toList(),
+                );
+              }
+              return Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                    color: AppColors.surfaceLow,
+                    child: Row(
+                      children: [
+                        Expanded(flex: 2, child: _th('Date')),
+                        Expanded(flex: 3, child: _th('Unit')),
+                        Expanded(flex: 2, child: _th('Amount')),
+                        Expanded(flex: 2, child: _th('Status')),
+                        Expanded(child: _th('Action')),
+                      ],
+                    ),
                   ),
-                  child: Text(t.$4, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: t.$5)),
-                )),
-                Expanded(child: Icon(Icons.more_horiz, size: 18, color: AppColors.secondary)),
-              ],
-            ),
-          )),
+                  ...transactions.map((t) => Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                    decoration: BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.5)))),
+                    child: Row(
+                      children: [
+                        Expanded(flex: 2, child: Text(t.$1, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.onSurface))),
+                        Expanded(flex: 3, child: Text(t.$2, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary))),
+                        Expanded(flex: 2, child: Text(t.$3, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500))),
+                        Expanded(flex: 2, child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: t.$4 == 'Paid' ? AppColors.tertiaryFixed.withValues(alpha: 0.2) : AppColors.errorContainer,
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(color: t.$4 == 'Paid' ? AppColors.tertiaryFixedDim : AppColors.error.withValues(alpha: 0.2)),
+                          ),
+                          child: Text(t.$4, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: t.$5)),
+                        )),
+                        const Expanded(child: Icon(Icons.more_horiz, size: 18, color: AppColors.secondary)),
+                      ],
+                    ),
+                  )),
+                ],
+              );
+            },
+          ),
         ],
       ),
     );
   }
 
   Widget _th(String label) {
-    return Text(label.toUpperCase(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.secondary));
+    return Text(label.toUpperCase(), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.secondary));
   }
 }
 
@@ -716,11 +821,11 @@ class _PortfolioYield extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Portfolio Yield', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, fontFamily: 'Lexend', color: AppColors.primary)),
+              const Text('Portfolio Yield', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, fontFamily: 'Lexend', color: AppColors.primary)),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(color: AppColors.surfaceLow, borderRadius: BorderRadius.circular(6), border: Border.all(color: AppColors.outlineVariant)),
-                child: const Text('Last 6 Months', style: TextStyle(fontSize: 11, color: AppColors.secondary)),
+                child: const Text('Last 6 Months', style: TextStyle(fontSize: 12, color: AppColors.secondary)),
               ),
             ],
           ),
@@ -758,7 +863,7 @@ class _PortfolioYield extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: List.generate(labels.length, (i) {
               final isOct = i == 5;
-              return Text(labels[i], style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: isOct ? AppColors.primary : AppColors.secondary));
+              return Text(labels[i], style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: isOct ? AppColors.primary : AppColors.secondary));
             }),
           ),
           const SizedBox(height: 24),
@@ -777,8 +882,8 @@ class _PortfolioYield extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: TextStyle(fontSize: 13, color: AppColors.onSurfaceVariant)),
-        Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary)),
+        Text(label, style: const TextStyle(fontSize: 13, color: AppColors.onSurfaceVariant)),
+        Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary)),
       ],
     );
   }

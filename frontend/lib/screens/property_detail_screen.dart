@@ -51,7 +51,7 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                 TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Property Name', border: OutlineInputBorder())),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: type,
+                  initialValue: type,
                   decoration: const InputDecoration(labelText: 'Type', border: OutlineInputBorder()),
                   items: ['Apartment', 'House', 'Commercial', 'Villa', 'Townhouse', 'Studio'].map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
                   onChanged: (v) { if (v != null) setDialogState(() => type = v); },

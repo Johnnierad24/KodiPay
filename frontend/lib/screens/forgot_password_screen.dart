@@ -103,7 +103,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Widget _wideLayout(AuthProvider auth) {
     return Row(
       children: [
-        Expanded(child: _HeroSide()),
+        const Expanded(child: _HeroSide()),
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 48),
@@ -151,7 +151,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     return SingleChildScrollView(
       child: Column(
         children: [
-          SizedBox(height: 180, child: _HeroSide(compact: true)),
+          const SizedBox(height: 180, child: _HeroSide(compact: true)),
           Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -205,24 +205,21 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Widget _buildFooter() {
     return Column(
       children: [
-        Divider(color: AppColors.border),
+        const Divider(color: AppColors.border),
         const SizedBox(height: 16),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        Wrap(
+          spacing: 8, runSpacing: 4,
+          alignment: WrapAlignment.center,
           children: [
-            TextButton(onPressed: () {}, child: Text('Terms', style: TextStyle(fontSize: 11, color: AppColors.muted, decoration: TextDecoration.underline))),
-            const SizedBox(width: 8),
-            Text('•', style: TextStyle(fontSize: 11, color: AppColors.muted)),
-            const SizedBox(width: 8),
-            TextButton(onPressed: () {}, child: Text('Privacy', style: TextStyle(fontSize: 11, color: AppColors.muted, decoration: TextDecoration.underline))),
-            const SizedBox(width: 8),
-            Text('•', style: TextStyle(fontSize: 11, color: AppColors.muted)),
-            const SizedBox(width: 8),
-            TextButton(onPressed: () {}, child: Text('Contact', style: TextStyle(fontSize: 11, color: AppColors.muted, decoration: TextDecoration.underline))),
+            TextButton(onPressed: () {}, child: const Text('Terms', style: TextStyle(fontSize: 12, color: AppColors.muted, decoration: TextDecoration.underline))),
+            const Text('•', style: TextStyle(fontSize: 12, color: AppColors.muted)),
+            TextButton(onPressed: () {}, child: const Text('Privacy', style: TextStyle(fontSize: 12, color: AppColors.muted, decoration: TextDecoration.underline))),
+            const Text('•', style: TextStyle(fontSize: 12, color: AppColors.muted)),
+            TextButton(onPressed: () {}, child: const Text('Contact', style: TextStyle(fontSize: 12, color: AppColors.muted, decoration: TextDecoration.underline))),
           ],
         ),
         const SizedBox(height: 8),
-        Text('© 2026 KodiPay Kenya. All rights reserved.', style: TextStyle(fontSize: 10, color: AppColors.muted)),
+        const Text('© 2026 KodiPay Kenya. All rights reserved.', style: TextStyle(fontSize: 12, color: AppColors.muted)),
       ],
     );
   }
@@ -370,7 +367,7 @@ class _HeroSide extends StatelessWidget {
             Text('KodiPay', style: TextStyle(fontSize: compact ? 20 : 24, fontWeight: FontWeight.w800, color: Colors.white, fontFamily: 'Lexend')),
             const SizedBox(height: 6),
             Text('Securing Your\nProperty Investments', style: TextStyle(fontSize: compact ? 12 : 14, color: Colors.white.withValues(alpha: 0.7), height: 1.5)),
-            Spacer(flex: 2),
+            const Spacer(flex: 2),
           ],
         ),
       ),

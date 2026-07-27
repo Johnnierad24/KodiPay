@@ -52,22 +52,6 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
       appBar: AppBar(
         title: const Text('Payments', style: TextStyle(fontFamily: 'Lexend', fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.primary)),
         centerTitle: false,
-        actions: [
-          SizedBox(
-            width: 280,
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Search transactions...',
-                prefixIcon: const Icon(Icons.search, size: 18, color: AppColors.outline),
-                contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(999), borderSide: BorderSide.none),
-                filled: true,
-                fillColor: AppColors.surfaceLow,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-        ],
       ),
       body: RefreshIndicator(
         onRefresh: () async => _reload(),
@@ -216,22 +200,34 @@ class _PaymentsContentState extends State<_PaymentsContent> {
           // Footer
           Container(
             padding: const EdgeInsets.symmetric(vertical: 20),
-            decoration: BoxDecoration(border: Border(top: BorderSide(color: AppColors.outlineVariant))),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.outlineVariant))),
+            child: Column(
               children: [
-                Row(
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.center,
                   children: [
-                    const Icon(Icons.lock, size: 16),
-                    const SizedBox(width: 6),
-                    Text('SSL Secured', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.onSurfaceVariant)),
-                    const SizedBox(width: 20),
-                    const Icon(Icons.policy, size: 16),
-                    const SizedBox(width: 6),
-                    Text('PCI-DSS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.onSurfaceVariant)),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(Icons.lock, size: 16),
+                        SizedBox(width: 6),
+                        Text('SSL Secured', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.onSurfaceVariant)),
+                      ],
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(Icons.policy, size: 16),
+                        SizedBox(width: 6),
+                        Text('PCI-DSS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.onSurfaceVariant)),
+                      ],
+                    ),
                   ],
                 ),
-                Text('© 2023 KodiPay Silicon Savannah. All transactions are final.', style: TextStyle(fontSize: 11, color: AppColors.onSurfaceVariant)),
+                const SizedBox(height: 6),
+                const Text('© 2023 KodiPay Silicon Savannah. All transactions are final.', style: TextStyle(fontSize: 12, color: AppColors.onSurfaceVariant)),
               ],
             ),
           ),
@@ -317,23 +313,23 @@ class _LastPaymentCard extends StatelessWidget {
                   color: AppColors.kodiGreen.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: Text('SUCCESSFUL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.kodiGreen)),
+                child: const Text('SUCCESSFUL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.kodiGreen)),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          Text('Rent - September 2023', style: TextStyle(fontSize: 14, color: AppColors.secondary)),
+          const Text('Rent - September 2023', style: TextStyle(fontSize: 14, color: AppColors.secondary)),
           const SizedBox(height: 4),
           const Text('KSh 45,000', style: TextStyle(fontFamily: 'Lexend', fontSize: 24, fontWeight: FontWeight.w600, color: AppColors.primary)),
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.only(top: 16),
-            decoration: BoxDecoration(border: Border(top: BorderSide(color: AppColors.outlineVariant))),
-            child: Row(
+            decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.outlineVariant))),
+            child: const Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('Transaction ID', style: TextStyle(fontSize: 14, color: AppColors.secondary)),
-                const Text('#KP-9283-X1', style: TextStyle(fontSize: 14, fontFamily: 'Inter', fontWeight: FontWeight.w500)),
+                Text('#KP-9283-X1', style: TextStyle(fontSize: 14, fontFamily: 'Inter', fontWeight: FontWeight.w500)),
               ],
             ),
           ),
@@ -353,11 +349,11 @@ class _UpcomingBillsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
+        const Row(
           children: [
-            const Icon(Icons.schedule, color: AppColors.primary, size: 22),
-            const SizedBox(width: 8),
-            const Text('Upcoming Bills', style: TextStyle(fontFamily: 'Lexend', fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.primary)),
+            Icon(Icons.schedule, color: AppColors.primary, size: 22),
+            SizedBox(width: 8),
+            Text('Upcoming Bills', style: TextStyle(fontFamily: 'Lexend', fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.primary)),
           ],
         ),
         const SizedBox(height: 12),
@@ -400,7 +396,7 @@ class _BillCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(title, style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.onSurface, fontSize: 16)),
-                Text(subtitle, style: TextStyle(fontSize: 14, color: AppColors.secondary)),
+                Text(subtitle, style: const TextStyle(fontSize: 14, color: AppColors.secondary)),
               ],
             ),
           ),
@@ -408,7 +404,7 @@ class _BillCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(amount, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: AppColors.onSurface)),
-              Text('PENDING', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.tertiaryFixed)),
+              const Text('PENDING', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.tertiaryFixed)),
             ],
           ),
         ],
@@ -435,7 +431,7 @@ class _PaymentMethodsSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('SELECT PAYMENT METHOD', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.secondary)),
+          const Text('SELECT PAYMENT METHOD', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.secondary)),
           const SizedBox(height: 12),
           ...[
             (Icons.phone_android, 'M-Pesa'),
@@ -503,7 +499,7 @@ class _PaymentMethodTile extends StatelessWidget {
             if (selected)
               Container(
                 width: 20, height: 20,
-                decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.primary),
+                decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.primary),
                 child: const Icon(Icons.check, size: 14, color: Colors.white),
               )
             else
@@ -526,11 +522,11 @@ class _TransactionHistoryTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final displayPayments = [
-      _DemoPayment('Sep 01, 2023', 'Rent Payment - September', 'Via M-Pesa (0712...890)', '45,000.00', 'PAID'),
-      _DemoPayment('Aug 03, 2023', 'Water Bill - July', 'Via Bank Transfer', '1,820.00', 'PAID'),
-      _DemoPayment('Aug 01, 2023', 'Rent Payment - August', 'Via M-Pesa', '45,000.00', 'PAID'),
-      _DemoPayment('Jul 15, 2023', 'Maintenance Surcharge', 'Window Repair - Unit 4B', '3,500.00', 'PAID'),
-      _DemoPayment('Jul 01, 2023', 'Rent Payment - July', 'Failed Attempt - Card ****4242', '45,000.00', 'FAILED'),
+      const _DemoPayment('Sep 01, 2023', 'Rent Payment - September', 'Via M-Pesa (0712...890)', '45,000.00', 'PAID'),
+      const _DemoPayment('Aug 03, 2023', 'Water Bill - July', 'Via Bank Transfer', '1,820.00', 'PAID'),
+      const _DemoPayment('Aug 01, 2023', 'Rent Payment - August', 'Via M-Pesa', '45,000.00', 'PAID'),
+      const _DemoPayment('Jul 15, 2023', 'Maintenance Surcharge', 'Window Repair - Unit 4B', '3,500.00', 'PAID'),
+      const _DemoPayment('Jul 01, 2023', 'Rent Payment - July', 'Failed Attempt - Card ****4242', '45,000.00', 'FAILED'),
     ];
 
     return Container(
@@ -543,10 +539,11 @@ class _TransactionHistoryTable extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.all(20),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text('Transaction History', style: TextStyle(fontFamily: 'Lexend', fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.primary)),
+                const SizedBox(height: 4),
                 TextButton.icon(
                   onPressed: () {},
                   icon: const Icon(Icons.download, size: 18),
@@ -555,82 +552,124 @@ class _TransactionHistoryTable extends StatelessWidget {
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            color: AppColors.surfaceLow,
-            child: const Row(
-              children: [
-                Expanded(flex: 2, child: Text('DATE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.onSurfaceVariant))),
-                Expanded(flex: 3, child: Text('DESCRIPTION', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.onSurfaceVariant))),
-                Expanded(flex: 2, child: Text('AMOUNT (KSH)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.onSurfaceVariant))),
-                Expanded(flex: 2, child: Text('STATUS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.onSurfaceVariant))),
-                SizedBox(width: 48),
-              ],
-            ),
-          ),
-          ...displayPayments.map((p) {
-            final isFailed = p.status == 'FAILED';
-            return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-              decoration: BoxDecoration(
-                border: Border(bottom: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.5))),
-                color: isFailed ? AppColors.danger.withValues(alpha: 0.03) : null,
-              ),
-              child: Row(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 600;
+              if (isNarrow) {
+                return Column(
+                  children: [
+                    ...displayPayments.map((p) {
+                      final isFailed = p.status == 'FAILED';
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        decoration: BoxDecoration(
+                          border: Border(bottom: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.5))),
+                          color: isFailed ? AppColors.danger.withValues(alpha: 0.03) : null,
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(p.description, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                  const SizedBox(height: 2),
+                                  Row(
+                                    children: [
+                                      Text(p.date, style: const TextStyle(fontSize: 12, color: AppColors.secondary)),
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: isFailed ? AppColors.danger.withValues(alpha: 0.08) : AppColors.kodiGreen.withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Text(p.status, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isFailed ? AppColors.danger : AppColors.kodiGreen)),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Text(p.amount, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
+                );
+              }
+              return Column(
                 children: [
-                  Expanded(flex: 2, child: Text(p.date, style: const TextStyle(fontSize: 14, fontFamily: 'Inter'))),
-                  Expanded(
-                    flex: 3,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    color: AppColors.surfaceLow,
+                    child: const Row(
                       children: [
-                        Text(p.description, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-                        Text(p.subtitle, style: TextStyle(fontSize: 12, color: AppColors.secondary)),
+                        Expanded(flex: 2, child: Text('DATE', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.onSurfaceVariant))),
+                        Expanded(flex: 3, child: Text('DESCRIPTION', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.onSurfaceVariant))),
+                        Expanded(flex: 2, child: Text('AMOUNT (KSH)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.onSurfaceVariant))),
+                        Expanded(flex: 2, child: Text('STATUS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.onSurfaceVariant))),
+                        SizedBox(width: 48),
                       ],
                     ),
                   ),
-                  Expanded(flex: 2, child: Text(p.amount, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700))),
-                  Expanded(
-                    flex: 2,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  ...displayPayments.map((p) {
+                    final isFailed = p.status == 'FAILED';
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                       decoration: BoxDecoration(
-                        color: isFailed
-                            ? AppColors.danger.withValues(alpha: 0.08)
-                            : AppColors.kodiGreen.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
+                        border: Border(bottom: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.5))),
+                        color: isFailed ? AppColors.danger.withValues(alpha: 0.03) : null,
                       ),
-                      child: Text(
-                        p.status,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: isFailed ? AppColors.danger : AppColors.kodiGreen,
-                        ),
-                      ),
-                    ),
-                  ),
-                  SizedBox(
-                    width: 48,
-                    child: isFailed
-                        ? Text('Insufficient Funds', style: TextStyle(fontSize: 11, color: AppColors.secondary))
-                        : IconButton(
-                            icon: const Icon(Icons.receipt_long, size: 20),
-                            color: AppColors.outline,
-                            onPressed: () {},
+                      child: Row(
+                        children: [
+                          Expanded(flex: 2, child: Text(p.date, style: const TextStyle(fontSize: 14, fontFamily: 'Inter'))),
+                          Expanded(
+                            flex: 3,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(p.description, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                                Text(p.subtitle, style: const TextStyle(fontSize: 12, color: AppColors.secondary)),
+                              ],
+                            ),
                           ),
-                  ),
+                          Expanded(flex: 2, child: Text(p.amount, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700))),
+                          Expanded(
+                            flex: 2,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: isFailed ? AppColors.danger.withValues(alpha: 0.08) : AppColors.kodiGreen.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(p.status, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: isFailed ? AppColors.danger : AppColors.kodiGreen)),
+                            ),
+                          ),
+                          SizedBox(
+                            width: 48,
+                            child: isFailed
+                                ? const Text('Insufficient Funds', style: TextStyle(fontSize: 12, color: AppColors.secondary))
+                                : IconButton(icon: const Icon(Icons.receipt_long, size: 20), color: AppColors.outline, onPressed: () {}),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
                 ],
-              ),
-            );
-          }),
+              );
+            },
+          ),
           Padding(
             padding: const EdgeInsets.all(16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Wrap(
+              spacing: 8, runSpacing: 8,
+              alignment: WrapAlignment.spaceBetween,
               children: [
-                Text('Showing 5 of 24 transactions', style: TextStyle(fontSize: 13, color: AppColors.secondary)),
+                const Text('Showing 5 of 24 transactions', style: TextStyle(fontSize: 13, color: AppColors.secondary)),
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     OutlinedButton(
                       onPressed: null,

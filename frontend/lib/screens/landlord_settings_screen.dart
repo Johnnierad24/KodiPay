@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import '../providers/auth_provider.dart';
@@ -215,9 +214,9 @@ class _PersonalInfoTabState extends State<_PersonalInfoTab> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Profile Photo', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.onSurface)),
+                const Text('Profile Photo', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.onSurface)),
                 const SizedBox(height: 4),
-                Text('JPG, GIF, or PNG. Max 2MB.', style: TextStyle(fontSize: 12, color: AppColors.secondary)),
+                const Text('JPG, GIF, or PNG. Max 2MB.', style: TextStyle(fontSize: 12, color: AppColors.secondary)),
                 const SizedBox(height: 8),
                 TextButton.icon(
                   onPressed: _uploading ? null : _pickAndUploadPhoto,
@@ -323,7 +322,6 @@ class _BusinessDetailsTab extends StatefulWidget {
 }
 
 class _BusinessDetailsTabState extends State<_BusinessDetailsTab> {
-  final _formKey = GlobalKey<FormState>();
 
   void _showSnack(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
@@ -450,7 +448,7 @@ class _SecurityTabState extends State<_SecurityTab> {
                     const SizedBox(height: 2),
                     Text(
                       _twoFactorEnabled ? 'Your account is secure with 2FA' : 'Add an extra layer of security',
-                      style: TextStyle(fontSize: 12, color: AppColors.secondary),
+                      style: const TextStyle(fontSize: 12, color: AppColors.secondary),
                     ),
                   ],
                 ),
@@ -458,7 +456,7 @@ class _SecurityTabState extends State<_SecurityTab> {
               Switch(
                 value: _twoFactorEnabled,
                 onChanged: (v) => setState(() => _twoFactorEnabled = v),
-                activeColor: AppColors.kodiGreen,
+                activeThumbColor: AppColors.kodiGreen,
               ),
             ],
           ),
@@ -572,7 +570,7 @@ class _NotificationsTabState extends State<_NotificationsTab> {
       children: [
         _sectionHeader('Notification Preferences'),
         const SizedBox(height: 4),
-        Text('Choose what notifications you receive', style: TextStyle(fontSize: 12, color: AppColors.secondary)),
+        const Text('Choose what notifications you receive', style: TextStyle(fontSize: 12, color: AppColors.secondary)),
         const SizedBox(height: 20),
         _sectionSubHeader('Alert Types'),
         const SizedBox(height: 12),
@@ -634,14 +632,14 @@ class _NotificationsTabState extends State<_NotificationsTab> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.onSurface)),
-                Text(subtitle, style: TextStyle(fontSize: 11, color: AppColors.secondary)),
+                Text(subtitle, style: const TextStyle(fontSize: 11, color: AppColors.secondary)),
               ],
             ),
           ),
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: AppColors.kodiGreen,
+            activeThumbColor: AppColors.kodiGreen,
           ),
         ],
       ),

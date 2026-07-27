@@ -12,15 +12,15 @@ class LandlordTenantActScreen extends StatefulWidget {
 class _LandlordTenantActScreenState extends State<LandlordTenantActScreen> {
   final _chatController = TextEditingController();
   final List<_ChatMessage> _messages = [
-    _ChatMessage(
+    const _ChatMessage(
       isBot: true,
       text: 'Hello! I can help you understand the Landlord and Tenant Bill, 2021. This Bill repeals Cap 301, Cap 296, and Cap 293. Ask me anything about rent, notices, deposits, or tribunal powers.',
     ),
-    _ChatMessage(
+    const _ChatMessage(
       isBot: false,
       text: 'How many days notice do I need for a rent increase?',
     ),
-    _ChatMessage(
+    const _ChatMessage(
       isBot: true,
       text: 'Under the Bill, your landlord must provide at least a 90-day written notice before increasing the rent. The Bill also requires all disputes to be determined within 3 months by the tribunal.',
     ),
@@ -115,7 +115,7 @@ class _HeroSection extends StatelessWidget {
               ),
             ),
           ),
-          Positioned(
+          const Positioned(
             right: 20,
             bottom: 20,
             child: Opacity(
@@ -153,7 +153,7 @@ class _HeroSection extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              SizedBox(
+              const SizedBox(
                 width: 560,
                 child: Text(
                   'The Bill introduces a consolidated legal framework to govern landlord-tenant relationships in Kenya. It repeals the Landlord and Tenant Act (Cap 301), the Rent Restriction Act (Cap 296), and the Distress for Rent Act (Cap 293), offering equal protection to both landlords and tenants.',
@@ -165,7 +165,7 @@ class _HeroSection extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 20),
-              Wrap(
+              const Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
@@ -195,7 +195,7 @@ class _RepealChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(99),
         border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
       ),
-      child: Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white)),
+      child: Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white)),
     );
   }
 }
@@ -491,7 +491,7 @@ class _ChatbotWidget extends StatelessWidget {
                     controller: controller,
                     decoration: InputDecoration(
                       hintText: 'Ask a legal question...',
-                      hintStyle: TextStyle(color: AppColors.outline, fontSize: 14),
+                      hintStyle: const TextStyle(color: AppColors.outline, fontSize: 14),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                         borderSide: const BorderSide(color: AppColors.outlineVariant),
@@ -538,7 +538,7 @@ class _ResourcesAndDisclaimer extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Official Resources', style: AppStyles.headlineMd),
+              const Text('Official Resources', style: AppStyles.headlineMd),
               const SizedBox(height: 16),
               _ResourceItem(
                 icon: Icons.open_in_new_rounded,
@@ -578,14 +578,14 @@ class _ResourcesAndDisclaimer extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
           ),
-          child: Column(
+          child: const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  const Icon(Icons.info_outline_rounded, color: AppColors.onErrorContainer, size: 18),
-                  const SizedBox(width: 8),
-                  const Text(
+                  Icon(Icons.info_outline_rounded, color: AppColors.onErrorContainer, size: 18),
+                  SizedBox(width: 8),
+                  Text(
                     'DISCLAIMER',
                     style: TextStyle(
                       color: AppColors.onErrorContainer,
@@ -596,8 +596,8 @@ class _ResourcesAndDisclaimer extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              const Text(
+              SizedBox(height: 8),
+              Text(
                 'The information provided on this platform is for general informational purposes only and does not constitute legal advice. For specific cases, please consult a certified advocate of the High Court of Kenya.',
                 style: TextStyle(color: AppColors.secondary, fontSize: 12, height: 1.5),
               ),

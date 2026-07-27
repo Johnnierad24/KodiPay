@@ -69,14 +69,14 @@ class _WizardProgress extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Row(
+        const Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
+            Text(
               'Step 3 of 3: Scheduling',
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.primary),
             ),
-            const Text(
+            Text(
               'Finalizing Request',
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.secondary),
             ),
@@ -133,7 +133,7 @@ class _CalendarSection extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Select Preferred Date', style: AppStyles.headlineMd),
+              const Text('Select Preferred Date', style: AppStyles.headlineMd),
               Row(
                 children: [
                   _NavArrow(

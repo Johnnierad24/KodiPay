@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../models/maintenance_item.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
-import '../widgets/dashboard_components.dart';
 import '../widgets/shared_screen_components.dart';
 import 'caretaker_task_detail_screen.dart';
 
@@ -403,8 +402,8 @@ class _CaretakerTasksScreenState extends State<CaretakerTasksScreen> {
                       child: InkWell(
                         borderRadius: BorderRadius.circular(6),
                         onTap: () => _open(item),
-                        child: Padding(
-                          padding: const EdgeInsets.all(4),
+                        child: const Padding(
+                          padding: EdgeInsets.all(4),
                           child: Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.muted),
                         ),
                       ),

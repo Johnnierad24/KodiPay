@@ -106,7 +106,7 @@ class _ConfirmationDetails extends StatelessWidget {
 class _BentoStatusSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return const Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
@@ -117,7 +117,7 @@ class _BentoStatusSummary extends StatelessWidget {
             description: 'A caretaker will review your submission details.',
           ),
         ),
-        const SizedBox(width: 24),
+        SizedBox(width: 24),
         Expanded(
           child: _StatusCard(
             icon: Icons.build_rounded,
@@ -126,7 +126,7 @@ class _BentoStatusSummary extends StatelessWidget {
             description: 'Emergency repair for unit 4B master bath leakage.',
           ),
         ),
-        const SizedBox(width: 24),
+        SizedBox(width: 24),
         Expanded(
           child: _StatusCard(
             icon: Icons.verified_user_rounded,
@@ -206,7 +206,7 @@ class _NextStepsSection extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 32),
-          Row(
+          const Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
@@ -217,7 +217,7 @@ class _NextStepsSection extends StatelessWidget {
                   isActive: true,
                 ),
               ),
-              const SizedBox(width: 32),
+              SizedBox(width: 32),
               Expanded(
                 child: _NextStep(
                   step: '2',
@@ -226,7 +226,7 @@ class _NextStepsSection extends StatelessWidget {
                   isActive: false,
                 ),
               ),
-              const SizedBox(width: 32),
+              SizedBox(width: 32),
               Expanded(
                 child: _NextStep(
                   step: '3',

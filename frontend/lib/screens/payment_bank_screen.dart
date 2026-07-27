@@ -165,10 +165,10 @@ class _PaymentBankScreenState extends State<PaymentBankScreen> {
                     ],
                   ),
                   const SizedBox(height: 20),
-                  _DetailRow(label: 'Bank Name', value: 'Equity Bank Kenya'),
-                  _DetailRow(label: 'Account Name', value: 'KodiPay Solutions Ltd'),
-                  _DetailRow(label: 'Account Number', value: '1234567890'),
-                  _DetailRow(label: 'Branch', value: 'Upper Hill, Nairobi'),
+                  const _DetailRow(label: 'Bank Name', value: 'Equity Bank Kenya'),
+                  const _DetailRow(label: 'Account Name', value: 'KodiPay Solutions Ltd'),
+                  const _DetailRow(label: 'Account Number', value: '1234567890'),
+                  const _DetailRow(label: 'Branch', value: 'Upper Hill, Nairobi'),
                   _DetailRow(label: 'Amount to Pay', value: amount, highlight: true),
                 ],
               ),
@@ -250,12 +250,12 @@ class _PaymentBankScreenState extends State<PaymentBankScreen> {
                         child: const Icon(Icons.upload_file_rounded, color: AppColors.kodiOrange, size: 24),
                       ),
                       const SizedBox(width: 14),
-                      Expanded(
+                      const Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Proof of Payment', style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.textDark, fontSize: 15)),
-                            const SizedBox(height: 2),
+                            Text('Proof of Payment', style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.textDark, fontSize: 15)),
+                            SizedBox(height: 2),
                             Text('Upload bank deposit slip, screenshot, or transaction confirmation', style: AppStyles.caption),
                           ],
                         ),
@@ -276,12 +276,12 @@ class _PaymentBankScreenState extends State<PaymentBankScreen> {
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(color: AppColors.outlineVariant, width: 2),
                         ),
-                        child: Column(
+                        child: const Column(
                           children: [
                             Icon(Icons.cloud_upload_outlined, size: 42, color: AppColors.muted),
-                            const SizedBox(height: 12),
-                            const Text('Tap to upload file', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textDark, fontSize: 14)),
-                            const SizedBox(height: 4),
+                            SizedBox(height: 12),
+                            Text('Tap to upload file', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textDark, fontSize: 14)),
+                            SizedBox(height: 4),
                             Text('JPG, PNG, or PDF (max 10MB)', style: AppStyles.caption),
                           ],
                         ),
@@ -294,29 +294,32 @@ class _PaymentBankScreenState extends State<PaymentBankScreen> {
             // Confirmation checkbox
             GestureDetector(
               onTap: () => setState(() => _confirmed = !_confirmed),
-              child: Row(
-                children: [
-                  Container(
-                    width: 24, height: 24,
-                    decoration: BoxDecoration(
-                      color: _confirmed ? AppColors.kodiGreen : Colors.transparent,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: _confirmed ? AppColors.kodiGreen : AppColors.outlineVariant, width: 2),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 24, height: 24,
+                      decoration: BoxDecoration(
+                        color: _confirmed ? AppColors.kodiGreen : Colors.transparent,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: _confirmed ? AppColors.kodiGreen : AppColors.outlineVariant, width: 2),
+                      ),
+                      child: _confirmed ? const Icon(Icons.check_rounded, size: 16, color: Colors.white) : null,
                     ),
-                    child: _confirmed ? const Icon(Icons.check_rounded, size: 16, color: Colors.white) : null,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'I have made the bank transfer and uploaded proof of payment',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: _confirmed ? AppColors.textDark : AppColors.textLight,
-                        fontSize: 14,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'I have made the bank transfer and uploaded proof of payment',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: _confirmed ? AppColors.textDark : AppColors.textLight,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 24),

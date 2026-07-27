@@ -97,7 +97,7 @@ class _CaretakerAlertsScreenState extends State<CaretakerAlertsScreen> {
                               children: [
                                 const Icon(Icons.error_outline_rounded, size: 48, color: AppColors.danger),
                                 const SizedBox(height: 10),
-                                Text('Could not load alerts', style: AppStyles.bodyMedium),
+                                const Text('Could not load alerts', style: AppStyles.bodyMedium),
                                 const SizedBox(height: 12),
                                 OutlinedButton.icon(
                                   onPressed: _reload,
@@ -109,7 +109,7 @@ class _CaretakerAlertsScreenState extends State<CaretakerAlertsScreen> {
                           ),
                         );
                       }
-                      final bundle = snapshot.data ?? _AlertBundle(emergency: [], recent: [], completed: []);
+                      final bundle = snapshot.data ?? const _AlertBundle(emergency: [], recent: [], completed: []);
                       final urgentCount = bundle.emergency.length;
                       final pendingCount = bundle.recent.where((i) => i.priority != 'emergency').length;
 

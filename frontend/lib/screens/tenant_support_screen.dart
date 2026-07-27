@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../utils/constants.dart';
-import '../widgets/shared_screen_components.dart';
 import 'raise_maintenance_details_screen.dart';
 import 'tenant_maintenance_screen.dart';
 
@@ -25,24 +24,50 @@ class TenantSupportScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          // Top row: Maintenance + Caretaker
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(flex: 8, child: _MaintenanceCard()),
-              const SizedBox(width: 16),
-              Expanded(flex: 4, child: _CaretakerCard()),
-            ],
+          // Top row: Maintenance + Caretaker (stack on mobile)
+          LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < 500) {
+                return Column(
+                  children: [
+                    _MaintenanceCard(),
+                    const SizedBox(height: 16),
+                    _CaretakerCard(),
+                  ],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(flex: 8, child: _MaintenanceCard()),
+                  const SizedBox(width: 16),
+                  Expanded(flex: 4, child: _CaretakerCard()),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 16),
-          // Bottom row: Tickets + FAQ
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(flex: 5, child: _OpenTicketsCard()),
-              const SizedBox(width: 16),
-              Expanded(flex: 7, child: _FaqCard()),
-            ],
+          // Bottom row: Tickets + FAQ (stack on mobile)
+          LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < 500) {
+                return Column(
+                  children: [
+                    _OpenTicketsCard(),
+                    const SizedBox(height: 16),
+                    _FaqCard(),
+                  ],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(flex: 5, child: _OpenTicketsCard()),
+                  const SizedBox(width: 16),
+                  Expanded(flex: 7, child: _FaqCard()),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 20),
           // Bottom banner
@@ -71,7 +96,7 @@ class _MaintenanceCard extends StatelessWidget {
             children: [
               const Text('Need a repair?', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textDark, fontSize: 20)),
               const SizedBox(height: 8),
-              Text(
+              const Text(
                 'Report any plumbing, electrical, or structural issues. We usually respond within 4 business hours.',
                 style: TextStyle(fontSize: 14, color: AppColors.secondary, height: 1.5),
               ),
@@ -130,7 +155,7 @@ class _CaretakerCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(99),
                   border: Border.all(color: AppColors.kodiGreen.withValues(alpha: 0.3)),
                 ),
-                child: Text('Available', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.tertiaryFixed)),
+                child: const Text('Available', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.tertiaryFixed)),
               ),
             ],
           ),
@@ -178,10 +203,10 @@ class _OpenTicketsCard extends StatelessWidget {
               const Text('Open Tickets', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textDark, fontSize: 18)),
               TextButton(
                 onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TenantMaintenanceScreen())),
-                child: Row(
+                child: const Row(
                   children: [
                     Text('View All', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary)),
-                    const SizedBox(width: 4),
+                    SizedBox(width: 4),
                     Icon(Icons.arrow_forward_rounded, size: 14, color: AppColors.primary),
                   ],
                 ),
@@ -190,7 +215,7 @@ class _OpenTicketsCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           // Ticket 1
-          _TicketItem(
+          const _TicketItem(
             id: '#TK-8821',
             status: 'In Progress',
             statusColor: AppColors.kodiOrange,
@@ -201,7 +226,7 @@ class _OpenTicketsCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           // Ticket 2
-          _TicketItem(
+          const _TicketItem(
             id: '#TK-8790',
             status: 'Scheduled',
             statusColor: AppColors.info,
@@ -236,7 +261,7 @@ class _TicketItem extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(id, style: TextStyle(fontSize: 12, fontFamily: 'Inter', fontWeight: FontWeight.w500, color: AppColors.secondary)),
+              Text(id, style: const TextStyle(fontSize: 12, fontFamily: 'Inter', fontWeight: FontWeight.w500, color: AppColors.secondary)),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
@@ -244,7 +269,7 @@ class _TicketItem extends StatelessWidget {
                   borderRadius: BorderRadius.circular(99),
                   border: Border.all(color: statusColor.withValues(alpha: 0.2)),
                 ),
-                child: Text(status, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: statusColor)),
+                child: Text(status, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: statusColor)),
               ),
             ],
           ),
@@ -253,13 +278,13 @@ class _TicketItem extends StatelessWidget {
           const SizedBox(height: 6),
           Row(
             children: [
-              Icon(Icons.calendar_today_rounded, size: 13, color: AppColors.secondary),
+              const Icon(Icons.calendar_today_rounded, size: 13, color: AppColors.secondary),
               const SizedBox(width: 4),
-              Text(date, style: TextStyle(fontSize: 12, color: AppColors.secondary)),
+              Text(date, style: const TextStyle(fontSize: 12, color: AppColors.secondary)),
               const SizedBox(width: 12),
               Icon(badgeIcon, size: 13, color: AppColors.secondary),
               const SizedBox(width: 4),
-              Text(badge, style: TextStyle(fontSize: 12, color: AppColors.secondary)),
+              Text(badge, style: const TextStyle(fontSize: 12, color: AppColors.secondary)),
             ],
           ),
         ],
@@ -336,7 +361,7 @@ class _FaqCardState extends State<_FaqCard> {
                   firstChild: const SizedBox.shrink(),
                   secondChild: Padding(
                     padding: const EdgeInsets.only(bottom: 14),
-                    child: Text(_faqs[i].a, style: TextStyle(fontSize: 13, color: AppColors.secondary, height: 1.5)),
+                    child: Text(_faqs[i].a, style: const TextStyle(fontSize: 13, color: AppColors.secondary, height: 1.5)),
                   ),
                   crossFadeState: isExpanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
                   duration: const Duration(milliseconds: 200),
@@ -360,7 +385,7 @@ class _BannerSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 140,
+      constraints: const BoxConstraints(minHeight: 140),
       decoration: BoxDecoration(
         color: AppColors.primary,
         borderRadius: BorderRadius.circular(20),
@@ -371,7 +396,7 @@ class _BannerSection extends StatelessWidget {
             child: Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(20),
-                gradient: LinearGradient(
+                gradient: const LinearGradient(
                   colors: [AppColors.primary, AppColors.primaryContainer],
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight,
@@ -380,31 +405,29 @@ class _BannerSection extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Silicon Savannah Living', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 20)),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Experience the future of property management with\nautomated payments and instant support.',
-                      style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.6), height: 1.5),
-                    ),
-                  ],
+                const Text('Silicon Savannah Living', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 20)),
+                const SizedBox(height: 6),
+                Text(
+                  'Experience the future of property management with automated payments and instant support.',
+                  style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.6), height: 1.5),
                 ),
-                ElevatedButton(
-                  onPressed: () {},
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.tertiaryFixed,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                const SizedBox(height: 14),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: ElevatedButton(
+                    onPressed: () {},
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.tertiaryFixed,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: const Text('Learn More', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                   ),
-                  child: const Text('Learn More', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                 ),
               ],
             ),

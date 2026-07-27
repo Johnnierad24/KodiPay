@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
-import '../widgets/shared_screen_components.dart';
 
 class CaretakerPropertiesScreen extends StatefulWidget {
   const CaretakerPropertiesScreen({super.key});
@@ -70,7 +69,7 @@ class _CaretakerPropertiesScreenState extends State<CaretakerPropertiesScreen> {
                           children: [
                             const Icon(Icons.error_outline_rounded, size: 48, color: AppColors.danger),
                             const SizedBox(height: 10),
-                            Text('Could not load properties', style: AppStyles.bodyMedium),
+                            const Text('Could not load properties', style: AppStyles.bodyMedium),
                             const SizedBox(height: 12),
                             OutlinedButton.icon(
                               onPressed: _reload,
@@ -178,7 +177,7 @@ class _CaretakerPropertiesScreenState extends State<CaretakerPropertiesScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(label.toUpperCase(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textLight, letterSpacing: 0.5)),
+              Text(label.toUpperCase(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textLight, letterSpacing: 0.5)),
               Icon(icon, size: 20, color: color),
             ],
           ),

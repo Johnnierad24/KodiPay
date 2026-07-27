@@ -59,16 +59,16 @@ class _RaiseMaintenanceDetailsScreenState extends State<RaiseMaintenanceDetailsS
 class _Breadcrumbs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return const Row(
       children: [
         Text(
           'Support',
           style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.secondary),
         ),
-        const SizedBox(width: 8),
-        const Icon(Icons.chevron_right_rounded, color: AppColors.secondary, size: 16),
-        const SizedBox(width: 8),
-        const Text(
+        SizedBox(width: 8),
+        Icon(Icons.chevron_right_rounded, color: AppColors.secondary, size: 16),
+        SizedBox(width: 8),
+        Text(
           'New Maintenance Request',
           style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.primary),
         ),
@@ -84,7 +84,7 @@ class _Stepper extends StatelessWidget {
       children: [
         Row(
           children: [
-            _StepCircle(step: '1', label: 'Details', isActive: true),
+            const _StepCircle(step: '1', label: 'Details', isActive: true),
             Expanded(
               child: Container(
                 height: 2,
@@ -92,7 +92,7 @@ class _Stepper extends StatelessWidget {
                 color: AppColors.outlineVariant,
               ),
             ),
-            _StepCircle(step: '2', label: 'Photos', isActive: false),
+            const _StepCircle(step: '2', label: 'Photos', isActive: false),
             Expanded(
               child: Container(
                 height: 2,
@@ -100,7 +100,7 @@ class _Stepper extends StatelessWidget {
                 color: AppColors.outlineVariant,
               ),
             ),
-            _StepCircle(step: '3', label: 'Schedule', isActive: false),
+            const _StepCircle(step: '3', label: 'Schedule', isActive: false),
           ],
         ),
         const SizedBox(height: 16),
@@ -323,10 +323,10 @@ class _WizardCard extends StatelessWidget {
               children: [
                 GestureDetector(
                   onTap: () => Navigator.pop(context),
-                  child: Row(
+                  child: const Row(
                     children: [
-                      const Icon(Icons.arrow_back_rounded, color: AppColors.secondary, size: 18),
-                      const SizedBox(width: 8),
+                      Icon(Icons.arrow_back_rounded, color: AppColors.secondary, size: 18),
+                      SizedBox(width: 8),
                       Text(
                         'Cancel Request',
                         style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.secondary),
@@ -411,7 +411,7 @@ class _CategoryRadio extends StatelessWidget {
 class _TipsBento extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return const Row(
       children: [
         Expanded(
           child: _TipCard(
@@ -420,7 +420,7 @@ class _TipsBento extends StatelessWidget {
             description: 'Average response time is under 12 hours.',
           ),
         ),
-        const SizedBox(width: 16),
+        SizedBox(width: 16),
         Expanded(
           child: _TipCard(
             icon: Icons.verified_user_rounded,
@@ -428,7 +428,7 @@ class _TipsBento extends StatelessWidget {
             description: 'All technicians are background checked.',
           ),
         ),
-        const SizedBox(width: 16),
+        SizedBox(width: 16),
         Expanded(
           child: _TipCard(
             icon: Icons.notifications_active_rounded,

@@ -182,7 +182,7 @@ class NotificationApiCard extends StatelessWidget {
   final NotificationItem item;
   final VoidCallback onMarkRead;
 
-  const NotificationApiCard({required this.item, required this.onMarkRead});
+  const NotificationApiCard({super.key, required this.item, required this.onMarkRead});
 
   @override
   Widget build(BuildContext context) {

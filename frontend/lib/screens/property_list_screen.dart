@@ -94,7 +94,7 @@ class _PropertyListScreenState extends State<PropertyListScreen> {
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.surfaceLowest,
         border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
       ),
@@ -218,9 +218,9 @@ class _PropertyListScreenState extends State<PropertyListScreen> {
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
-        Text('Property Locations', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, fontFamily: 'Lexend', color: AppColors.onSurface)),
+        const Text('Property Locations', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, fontFamily: 'Lexend', color: AppColors.onSurface)),
         const SizedBox(height: 8),
-        Text('Tap a property to view its location on Google Maps', style: TextStyle(fontSize: 13, color: AppColors.onSurfaceVariant)),
+        const Text('Tap a property to view its location on Google Maps', style: TextStyle(fontSize: 13, color: AppColors.onSurfaceVariant)),
         const SizedBox(height: 16),
         ..._filtered.map((p) => Card(
           margin: const EdgeInsets.only(bottom: 12),

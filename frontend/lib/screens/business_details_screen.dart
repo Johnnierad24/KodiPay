@@ -61,15 +61,15 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: AppColors.outlineVariant),
                   ),
-                  child: Center(
+                  child: const Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.map_outlined, size: 36, color: AppColors.muted),
-                        const SizedBox(height: 6),
-                        Text('Map Preview', style: const TextStyle(fontSize: 12, color: AppColors.textLight, fontWeight: FontWeight.w600)),
-                        const SizedBox(height: 4),
-                        Text('Ngong Road, Nairobi, Kenya', style: const TextStyle(fontSize: 10, color: AppColors.muted)),
+                        Icon(Icons.map_outlined, size: 36, color: AppColors.muted),
+                        SizedBox(height: 6),
+                        Text('Map Preview', style: TextStyle(fontSize: 12, color: AppColors.textLight, fontWeight: FontWeight.w600)),
+                        SizedBox(height: 4),
+                        Text('Ngong Road, Nairobi, Kenya', style: TextStyle(fontSize: 10, color: AppColors.muted)),
                       ],
                     ),
                   ),
@@ -163,7 +163,7 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('KRA PIN', style: const TextStyle(fontSize: 11, color: AppColors.textLight, fontWeight: FontWeight.w600)),
+        const Text('KRA PIN', style: TextStyle(fontSize: 11, color: AppColors.textLight, fontWeight: FontWeight.w600)),
         const SizedBox(height: 4),
         Container(
           width: double.infinity,

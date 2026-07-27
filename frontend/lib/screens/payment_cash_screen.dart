@@ -144,12 +144,12 @@ class _PaymentCashScreenState extends State<PaymentCashScreen> {
                 children: [
                   const Text('Cash Payment Instructions', style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.textDark, fontSize: 16)),
                   const SizedBox(height: 6),
-                  Text('Follow these steps to complete your cash payment', style: AppStyles.caption),
+                  const Text('Follow these steps to complete your cash payment', style: AppStyles.caption),
                   const SizedBox(height: 20),
-                  _StepItem(number: '1', title: 'Visit the Caretaker Office', desc: 'Go to the caretaker office at your property during office hours.'),
+                  const _StepItem(number: '1', title: 'Visit the Caretaker Office', desc: 'Go to the caretaker office at your property during office hours.'),
                   _StepItem(number: '2', title: 'Make Cash Payment', desc: 'Pay $amount in cash. Request a signed receipt from the caretaker.'),
-                  _StepItem(number: '3', title: 'Confirmation', desc: 'The caretaker will confirm your payment in the system within 24 hours.'),
-                  _StepItem(number: '4', title: 'Payment Updated', desc: 'Your balance will be updated automatically once confirmed.'),
+                  const _StepItem(number: '3', title: 'Confirmation', desc: 'The caretaker will confirm your payment in the system within 24 hours.'),
+                  const _StepItem(number: '4', title: 'Payment Updated', desc: 'Your balance will be updated automatically once confirmed.'),
                 ],
               ),
             ),
@@ -167,11 +167,11 @@ class _PaymentCashScreenState extends State<PaymentCashScreen> {
                 children: [
                   const Text('Caretaker Information', style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.textDark, fontSize: 15)),
                   const SizedBox(height: 16),
-                  _InfoRow(icon: Icons.person_outline_rounded, label: 'Name', value: 'John Kamau'),
+                  const _InfoRow(icon: Icons.person_outline_rounded, label: 'Name', value: 'John Kamau'),
                   const SizedBox(height: 12),
-                  _InfoRow(icon: Icons.phone_outlined, label: 'Phone', value: '+254 712 345 678'),
+                  const _InfoRow(icon: Icons.phone_outlined, label: 'Phone', value: '+254 712 345 678'),
                   const SizedBox(height: 12),
-                  _InfoRow(icon: Icons.schedule_outlined, label: 'Office Hours', value: 'Mon–Fri, 8 AM – 5 PM'),
+                  const _InfoRow(icon: Icons.schedule_outlined, label: 'Office Hours', value: 'Mon–Fri, 8 AM – 5 PM'),
                   const SizedBox(height: 12),
                   _InfoRow(icon: Icons.location_on_outlined, label: 'Location', value: 'Ground Floor, ${widget.due.propertyName}'),
                 ],
@@ -204,32 +204,35 @@ class _PaymentCashScreenState extends State<PaymentCashScreen> {
             // Confirmation checkbox
             GestureDetector(
               onTap: () => setState(() => _confirmed = !_confirmed),
-              child: Row(
-                children: [
-                  Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      color: _confirmed ? AppColors.kodiGreen : Colors.transparent,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: _confirmed ? AppColors.kodiGreen : AppColors.outlineVariant, width: 2),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: _confirmed ? AppColors.kodiGreen : Colors.transparent,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: _confirmed ? AppColors.kodiGreen : AppColors.outlineVariant, width: 2),
+                      ),
+                      child: _confirmed
+                          ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
+                          : null,
                     ),
-                    child: _confirmed
-                        ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
-                        : null,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'I have made the cash payment',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: _confirmed ? AppColors.textDark : AppColors.textLight,
-                        fontSize: 15,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'I have made the cash payment',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: _confirmed ? AppColors.textDark : AppColors.textLight,
+                          fontSize: 15,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 24),
@@ -274,7 +277,7 @@ class _StepItem extends StatelessWidget {
         children: [
           Container(
             width: 32, height: 32,
-            decoration: BoxDecoration(color: AppColors.kodiGreen, shape: BoxShape.circle),
+            decoration: const BoxDecoration(color: AppColors.kodiGreen, shape: BoxShape.circle),
             child: Center(child: Text(number, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800))),
           ),
           const SizedBox(width: 14),
@@ -303,16 +306,19 @@ class _InfoRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(icon, size: 18, color: AppColors.kodiBlue),
         const SizedBox(width: 10),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: AppStyles.caption),
-            const SizedBox(height: 2),
-            Text(value, style: const TextStyle(color: AppColors.textDark, fontWeight: FontWeight.w700, fontSize: 13)),
-          ],
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: AppStyles.caption),
+              const SizedBox(height: 2),
+              Text(value, style: const TextStyle(color: AppColors.textDark, fontWeight: FontWeight.w700, fontSize: 13)),
+            ],
+          ),
         ),
       ],
     );
