@@ -74,7 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
       child: Column(
         children: [
           SizedBox(
-            height: MediaQuery.of(context).size.height * 0.28,
+            height: MediaQuery.of(context).size.height * 0.22,
             child: _HeroSide(compact: true),
           ),
           _FormSide(

@@ -276,8 +276,7 @@ class _LandlordReportsScreenState extends State<LandlordReportsScreen> {
         children: [
           Row(
             children: [
-              const Text('Recent Payments', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: AppColors.onSurface)),
-              const Spacer(),
+              const Expanded(child: Text('Recent Payments', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: AppColors.onSurface))),
               TextButton.icon(
                 onPressed: () {},
                 icon: const Icon(Icons.download_rounded, size: 16),
@@ -286,36 +285,87 @@ class _LandlordReportsScreenState extends State<LandlordReportsScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          // Table header
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-            decoration: BoxDecoration(color: AppColors.surfaceLow, borderRadius: BorderRadius.circular(8)),
-            child: const Row(
-              children: [
-                SizedBox(width: 120, child: Text('Tenant', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.secondary))),
-                SizedBox(width: 80, child: Text('Unit', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.secondary))),
-                Expanded(child: Text('Property', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.secondary))),
-                SizedBox(width: 80, child: Text('Amount', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.secondary))),
-                SizedBox(width: 60, child: Text('Status', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.secondary))),
-                SizedBox(width: 80, child: Text('Date', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.secondary))),
-              ],
-            ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 550;
+              if (isNarrow) {
+                return Column(
+                  children: _payments.map((p) => _paymentCard(p)).toList(),
+                );
+              }
+              return Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                    decoration: BoxDecoration(color: AppColors.surfaceLow, borderRadius: BorderRadius.circular(8)),
+                    child: const Row(
+                      children: [
+                        Expanded(flex: 3, child: Text('Tenant', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.secondary))),
+                        Expanded(flex: 2, child: Text('Unit', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.secondary))),
+                        Expanded(flex: 2, child: Text('Amount', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.secondary))),
+                        Expanded(flex: 2, child: Text('Status', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.secondary))),
+                        Expanded(flex: 2, child: Text('Date', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.secondary))),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ..._payments.map((p) => Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                    decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.outlineVariant))),
+                    child: Row(
+                      children: [
+                        Expanded(flex: 3, child: Text(p['tenant']!, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.onSurface))),
+                        Expanded(flex: 2, child: Text(p['unit']!, style: const TextStyle(fontSize: 12, color: AppColors.textLight))),
+                        Expanded(flex: 2, child: Text(p['amount']!, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.onSurface))),
+                        Expanded(flex: 2, child: _StatusBadge(label: p['status']!, paid: p['status'] == 'Paid')),
+                        Expanded(flex: 2, child: Text(p['date']!, style: const TextStyle(fontSize: 12, color: AppColors.textLight))),
+                      ],
+                    ),
+                  )),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _paymentCard(Map<String, String> p) {
+    final color = p['status'] == 'Paid' ? AppColors.kodiGreen : (p['status'] == 'Overdue' ? AppColors.danger : AppColors.warning);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(child: Text(p['tenant']!, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.onSurface))),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(6)),
+                child: Text(p['status']!, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color)),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
-          ..._payments.map((p) => Container(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-            decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.outlineVariant))),
-            child: Row(
-              children: [
-                SizedBox(width: 120, child: Text(p['tenant']!, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.onSurface))),
-                SizedBox(width: 80, child: Text(p['unit']!, style: const TextStyle(fontSize: 12, color: AppColors.textLight))),
-                Expanded(child: Text(p['property']!, style: const TextStyle(fontSize: 12, color: AppColors.textLight))),
-                SizedBox(width: 80, child: Text(p['amount']!, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.onSurface))),
-                SizedBox(width: 60, child: _StatusBadge(label: p['status']!, paid: p['status'] == 'Paid')),
-                SizedBox(width: 80, child: Text(p['date']!, style: const TextStyle(fontSize: 12, color: AppColors.textLight))),
-              ],
-            ),
-          )),
+          Row(
+            children: [
+              Text('Unit ${p['unit']!}', style: const TextStyle(fontSize: 12, color: AppColors.textLight)),
+              const SizedBox(width: 12),
+              Text(p['property']!, style: const TextStyle(fontSize: 12, color: AppColors.textLight)),
+              const Spacer(),
+              Text(p['amount']!, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.onSurface)),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(p['date']!, style: const TextStyle(fontSize: 11, color: AppColors.muted)),
         ],
       ),
     );

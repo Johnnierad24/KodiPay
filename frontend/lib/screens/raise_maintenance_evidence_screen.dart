@@ -186,28 +186,50 @@ class _BentoContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          flex: 7,
-          child: _PhotoUploadSection(
-            images: images,
-            onAdd: onImageAdd,
-            onRemove: onImageRemove,
-          ),
-        ),
-        const SizedBox(width: 32),
-        Expanded(
-          flex: 5,
-          child: _UrgencySection(
-            urgency: urgency,
-            showEmergencyTooltip: showEmergencyTooltip,
-            onChanged: onUrgencyChanged,
-            onTooltipToggle: onTooltipToggle,
-          ),
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 600) {
+          return Column(
+            children: [
+              _PhotoUploadSection(
+                images: images,
+                onAdd: onImageAdd,
+                onRemove: onImageRemove,
+              ),
+              const SizedBox(height: 24),
+              _UrgencySection(
+                urgency: urgency,
+                showEmergencyTooltip: showEmergencyTooltip,
+                onChanged: onUrgencyChanged,
+                onTooltipToggle: onTooltipToggle,
+              ),
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: 7,
+              child: _PhotoUploadSection(
+                images: images,
+                onAdd: onImageAdd,
+                onRemove: onImageRemove,
+              ),
+            ),
+            const SizedBox(width: 32),
+            Expanded(
+              flex: 5,
+              child: _UrgencySection(
+                urgency: urgency,
+                showEmergencyTooltip: showEmergencyTooltip,
+                onChanged: onUrgencyChanged,
+                onTooltipToggle: onTooltipToggle,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -225,8 +247,9 @@ class _PhotoUploadSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return Container(
-      padding: const EdgeInsets.all(32),
+      padding: EdgeInsets.all(isMobile ? 20 : 32),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -238,11 +261,13 @@ class _PhotoUploadSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
-            children: [
+          Row(
+            children: const [
               Icon(Icons.add_a_photo_rounded, color: AppColors.primary, size: 24),
               SizedBox(width: 12),
-              Text('Upload Evidence', style: AppStyles.headlineMd),
+              Expanded(
+                child: Text('Upload Evidence', style: AppStyles.headlineMd, overflow: TextOverflow.ellipsis),
+              ),
             ],
           ),
           const SizedBox(height: 24),
@@ -288,7 +313,7 @@ class _PhotoUploadSection extends StatelessWidget {
           if (images.isNotEmpty) ...[
             const SizedBox(height: 32),
             GridView.count(
-              crossAxisCount: 4,
+              crossAxisCount: MediaQuery.of(context).size.width < 400 ? 3 : 4,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               mainAxisSpacing: 16,
@@ -366,8 +391,9 @@ class _UrgencySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return Container(
-      padding: const EdgeInsets.all(32),
+      padding: EdgeInsets.all(isMobile ? 20 : 32),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -379,11 +405,13 @@ class _UrgencySection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
-            children: [
+          Row(
+            children: const [
               Icon(Icons.priority_high_rounded, color: AppColors.primary, size: 24),
               SizedBox(width: 12),
-              Text('Urgency Level', style: AppStyles.headlineMd),
+              Expanded(
+                child: Text('Urgency Level', style: AppStyles.headlineMd, overflow: TextOverflow.ellipsis),
+              ),
             ],
           ),
           const SizedBox(height: 24),
@@ -597,10 +625,14 @@ class _EmergencyCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(
-                              'High - Emergency',
-                              style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.error, fontSize: 16),
+                            Flexible(
+                              child: Text(
+                                'High - Emergency',
+                                style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.error, fontSize: 16),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                             SizedBox(width: 4),
                             Icon(Icons.help_outline_rounded, color: AppColors.secondary, size: 16),
@@ -674,6 +706,7 @@ class _NavigationFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
       decoration: BoxDecoration(
@@ -683,49 +716,74 @@ class _NavigationFooter extends StatelessWidget {
       ),
       child: SafeArea(
         top: false,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            SizedBox(
-              height: 48,
-              child: OutlinedButton.icon(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.arrow_back_rounded, size: 18),
-                label: const Text('Back'),
-              ),
-            ),
-            Row(
-              children: [
-                const Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      'PROGRESS',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.secondary),
-                    ),
-                    SizedBox(height: 2),
-                    Text(
-                      '66% Complete',
-                      style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.primary, fontSize: 14),
-                    ),
-                  ],
-                ),
-                const SizedBox(width: 16),
-                SizedBox(
-                  height: 56,
-                  child: ElevatedButton.icon(
-                    onPressed: canProceed ? onContinue : null,
-                    icon: const Icon(Icons.calendar_today_rounded, size: 18),
-                    label: const Text('Next Step: Scheduling', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: isMobile
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton.icon(
+                      onPressed: canProceed ? onContinue : null,
+                      icon: const Icon(Icons.calendar_today_rounded, size: 18),
+                      label: const Text('Next Step: Scheduling', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
                     ),
                   ),
-                ),
-              ],
-            ),
-          ],
-        ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: OutlinedButton.icon(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.arrow_back_rounded, size: 18),
+                      label: const Text('Back'),
+                    ),
+                  ),
+                ],
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  SizedBox(
+                    height: 48,
+                    child: OutlinedButton.icon(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.arrow_back_rounded, size: 18),
+                      label: const Text('Back'),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      const Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            'PROGRESS',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.secondary),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            '66% Complete',
+                            style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.primary, fontSize: 14),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 16),
+                      SizedBox(
+                        height: 56,
+                        child: ElevatedButton.icon(
+                          onPressed: canProceed ? onContinue : null,
+                          icon: const Icon(Icons.calendar_today_rounded, size: 18),
+                          label: const Text('Next Step: Scheduling', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 32),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
       ),
     );
   }

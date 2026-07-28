@@ -197,18 +197,18 @@ class _PaymentContent extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(vertical: 20),
             decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.outlineVariant))),
-            child: const Column(
+            child: Column(
               children: [
-                Text('© 2023 Silicon Savannah Fintech. Regulated by the Central Bank of Kenya.', style: TextStyle(fontSize: 11, color: AppColors.onSurfaceVariant)),
-                SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Flexible(child: Text('Privacy Policy', style: TextStyle(fontSize: 11, color: AppColors.secondary, decoration: TextDecoration.underline))),
-                    SizedBox(width: 16),
-                    Flexible(child: Text('Terms of Service', style: TextStyle(fontSize: 11, color: AppColors.secondary, decoration: TextDecoration.underline))),
-                    SizedBox(width: 16),
-                    Flexible(child: Text('Secure Hosting by AWS Africa', style: TextStyle(fontSize: 11, color: AppColors.secondary, decoration: TextDecoration.underline))),
+                const Text('© 2023 Silicon Savannah Fintech. Regulated by the Central Bank of Kenya.', style: TextStyle(fontSize: 11, color: AppColors.onSurfaceVariant)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.center,
+                  children: const [
+                    Text('Privacy Policy', style: TextStyle(fontSize: 11, color: AppColors.secondary, decoration: TextDecoration.underline)),
+                    Text('Terms of Service', style: TextStyle(fontSize: 11, color: AppColors.secondary, decoration: TextDecoration.underline)),
+                    Text('Secure Hosting by AWS Africa', style: TextStyle(fontSize: 11, color: AppColors.secondary, decoration: TextDecoration.underline)),
                   ],
                 ),
               ],
@@ -221,15 +221,14 @@ class _PaymentContent extends StatelessWidget {
 
   Widget _buildStepper() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const _StepperItem(number: '1', label: 'SELECT METHOD', completed: true),
+          const Flexible(child: _StepperItem(number: '1', label: 'METHOD', completed: true)),
           const _StepperLine(completed: true),
-          _StepperItem(number: '2', label: 'PAYMENT DETAILS', active: step == 2),
+          Flexible(child: _StepperItem(number: '2', label: 'DETAILS', active: step == 2)),
           const _StepperLine(completed: false),
-          _StepperItem(number: '3', label: 'CONFIRMATION', active: step == 3),
+          Flexible(child: _StepperItem(number: '3', label: 'CONFIRM', active: step == 3)),
         ],
       ),
     );

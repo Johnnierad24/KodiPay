@@ -76,7 +76,7 @@ class _HeroBanner extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               ElevatedButton.icon(
-                onPressed: () => launchUrl(Uri.parse('http://kenyalaw.org/kl/index.php?id=41049'), mode: LaunchMode.externalApplication),
+                onPressed: () => launchUrl(Uri.parse('https://new.kenyalaw.org/akn/ke/bill/na/2021/3/eng@2021-02-12'), mode: LaunchMode.externalApplication),
                 icon: const Icon(Icons.download_rounded, size: 20),
                 label: const Text('Download Bill (PDF)', style: TextStyle(fontWeight: FontWeight.w700)),
                 style: ElevatedButton.styleFrom(

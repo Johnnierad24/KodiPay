@@ -184,8 +184,9 @@ class _WizardCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return Container(
-      padding: const EdgeInsets.all(32),
+      padding: EdgeInsets.all(isMobile ? 20 : 32),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -200,46 +201,37 @@ class _WizardCard extends StatelessWidget {
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.onSurface),
           ),
           const SizedBox(height: 16),
-          Row(
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
             children: [
-              Expanded(
-                child: _CategoryRadio(
-                  icon: Icons.plumbing_rounded,
-                  label: 'Plumbing',
-                  value: 'plumbing',
-                  isSelected: selectedCategory == 'plumbing',
-                  onTap: () => onCategoryChanged('plumbing'),
-                ),
+              _CategoryRadio(
+                icon: Icons.plumbing_rounded,
+                label: 'Plumbing',
+                value: 'plumbing',
+                isSelected: selectedCategory == 'plumbing',
+                onTap: () => onCategoryChanged('plumbing'),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _CategoryRadio(
-                  icon: Icons.electrical_services_rounded,
-                  label: 'Electrical',
-                  value: 'electrical',
-                  isSelected: selectedCategory == 'electrical',
-                  onTap: () => onCategoryChanged('electrical'),
-                ),
+              _CategoryRadio(
+                icon: Icons.electrical_services_rounded,
+                label: 'Electrical',
+                value: 'electrical',
+                isSelected: selectedCategory == 'electrical',
+                onTap: () => onCategoryChanged('electrical'),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _CategoryRadio(
-                  icon: Icons.kitchen_rounded,
-                  label: 'Appliances',
-                  value: 'appliances',
-                  isSelected: selectedCategory == 'appliances',
-                  onTap: () => onCategoryChanged('appliances'),
-                ),
+              _CategoryRadio(
+                icon: Icons.kitchen_rounded,
+                label: 'Appliances',
+                value: 'appliances',
+                isSelected: selectedCategory == 'appliances',
+                onTap: () => onCategoryChanged('appliances'),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _CategoryRadio(
-                  icon: Icons.construction_rounded,
-                  label: 'General',
-                  value: 'general',
-                  isSelected: selectedCategory == 'general',
-                  onTap: () => onCategoryChanged('general'),
-                ),
+              _CategoryRadio(
+                icon: Icons.construction_rounded,
+                label: 'General',
+                value: 'general',
+                isSelected: selectedCategory == 'general',
+                onTap: () => onCategoryChanged('general'),
               ),
             ],
           ),
@@ -263,16 +255,21 @@ class _WizardCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            spacing: 8,
             children: [
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.info_outline_rounded, color: AppColors.secondary.withValues(alpha: 0.6), size: 14),
                   const SizedBox(width: 4),
-                  Text(
-                    'Accurate descriptions help us send the right expert.',
-                    style: TextStyle(color: AppColors.secondary.withValues(alpha: 0.6), fontSize: 14, fontStyle: FontStyle.italic),
+                  Flexible(
+                    child: Text(
+                      'Accurate descriptions help us send the right expert.',
+                      style: TextStyle(color: AppColors.secondary.withValues(alpha: 0.6), fontSize: 14, fontStyle: FontStyle.italic),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
@@ -318,23 +315,10 @@ class _WizardCard extends StatelessWidget {
             decoration: const BoxDecoration(
               border: Border(top: BorderSide(color: AppColors.outlineVariant)),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
               children: [
-                GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.arrow_back_rounded, color: AppColors.secondary, size: 18),
-                      SizedBox(width: 8),
-                      Text(
-                        'Cancel Request',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.secondary),
-                      ),
-                    ],
-                  ),
-                ),
                 SizedBox(
+                  width: double.infinity,
                   height: 48,
                   child: ElevatedButton.icon(
                     onPressed: onContinue,
@@ -343,6 +327,21 @@ class _WizardCard extends StatelessWidget {
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 32),
                     ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.arrow_back_rounded, color: AppColors.secondary, size: 18),
+                      SizedBox(width: 8),
+                      Text(
+                        'Cancel Request',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.secondary),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -375,6 +374,7 @@ class _CategoryRadio extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
+        width: 120,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.primaryFixed.withValues(alpha: 0.3) : Colors.white,
@@ -411,30 +411,24 @@ class _CategoryRadio extends StatelessWidget {
 class _TipsBento extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return const Row(
-      children: [
-        Expanded(
-          child: _TipCard(
-            icon: Icons.schedule_rounded,
-            title: 'Fast Turnaround',
-            description: 'Average response time is under 12 hours.',
-          ),
+    return Wrap(
+      spacing: 16,
+      runSpacing: 16,
+      children: const [
+        _TipCard(
+          icon: Icons.schedule_rounded,
+          title: 'Fast Turnaround',
+          description: 'Average response time is under 12 hours.',
         ),
-        SizedBox(width: 16),
-        Expanded(
-          child: _TipCard(
-            icon: Icons.verified_user_rounded,
-            title: 'Certified Pros',
-            description: 'All technicians are background checked.',
-          ),
+        _TipCard(
+          icon: Icons.verified_user_rounded,
+          title: 'Certified Pros',
+          description: 'All technicians are background checked.',
         ),
-        SizedBox(width: 16),
-        Expanded(
-          child: _TipCard(
-            icon: Icons.notifications_active_rounded,
-            title: 'Live Tracking',
-            description: 'Track the technician\'s arrival on the map.',
-          ),
+        _TipCard(
+          icon: Icons.notifications_active_rounded,
+          title: 'Live Tracking',
+          description: 'Track the technician\'s arrival on the map.',
         ),
       ],
     );

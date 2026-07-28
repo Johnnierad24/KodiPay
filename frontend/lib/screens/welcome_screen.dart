@@ -450,16 +450,23 @@ class _TrustSection extends StatelessWidget {
       child: Column(
         children: [
           // Avatars
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 12,
+            runSpacing: 12,
             children: [
-              _avatar('https://lh3.googleusercontent.com/aida-public/AB6AXuCa28b2mZrUX5BTu-SbdmeCSKUPGD1xI-UYIMA-_xPSps4e5dV-6T2cxCT2UTRJcmoAraZpK5c_c_jgnmVOS86AzOocfdFF4-IiXGlC6Mi7zTo3lpFZIVlMtFGY5wKxxb10UJsKrgmwYXIaccvgv7_R7iEBN2bXgL_w-n0ETmKjvy2v0P7UhIeo3F4u7tcxwucYbn_rdj70NpJLNDtlDTxhRlm8gF5x_EY__brXryejDYaty5Hn0qKp'),
-              const SizedBox(width: 8),
-              _avatar('https://lh3.googleusercontent.com/aida-public/AB6AXuBSZwYN7ZlIEc04yHnsSWtvzZ-ieCbDDNUnUiZoDfhaGRon6Ch8xY5y3eVnQUixzsG6zecF9yQTvajsJVDYNgTjzOi2Ya-HpEzg5Fy9IxHcnRFfca3wdjYsJKeYvWBm47vNCZ3Gt8_ghDd1aXhAYdaxTI1ofK8Ch3ef_f64Bw6BqeenBGNRZfb8OuPVZtgtgF5wXu4hqJxRv70CEAc4NlN_t9fD2dibQb2uIEVebENvA9wm2DJRZr6T'),
-              const SizedBox(width: 8),
-              _avatar('https://lh3.googleusercontent.com/aida-public/AB6AXuAZYUOpkZQI1a9gPxRnP1HOhkXzHTAIlJQvd4svuFb4NoS7cyE-9svOnvLYaFvxsSmk1xYXdrwp6wAWk09XAMjy3wY8t_4XvKAwy3iztB9rQJ-hBl3o9Vadlgit793G92f7S1ffCQoohr9Ihc_wqM9dH7KT_21EzpAh9rvUReUHPH8CTevjaCAXKda7dDiSan0-6lkboVKHuaq4ef8OiXtVlFx6E4FLMOtkEOrQidJlhoKtegDGwP9z'),
-              const SizedBox(width: 12),
-              const Text('SecureFast 24/7 Support', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, fontFamily: 'Lexend', color: AppColors.tertiaryFixed)),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _avatar('https://lh3.googleusercontent.com/aida-public/AB6AXuCa28b2mZrUX5BTu-SbdmeCSKUPGD1xI-UYIMA-_xPSps4e5dV-6T2cxCT2UTRJcmoAraZpK5c_c_jgnmVOS86AzOocfdFF4-IiXGlC6Mi7zTo3lpFZIVlMtFGY5wKxxb10UJsKrgmwYXIaccvgv7_R7iEBN2bXgL_w-n0ETmKjvy2v0P7UhIeo3F4u7tcxwucYbn_rdj70NpJLNDtlDTxhRlm8gF5x_EY__brXryejDYaty5Hn0qKp'),
+                  const SizedBox(width: 8),
+                  _avatar('https://lh3.googleusercontent.com/aida-public/AB6AXuBSZwYN7ZlIEc04yHnsSWtvzZ-ieCbDDNUnUiZoDfhaGRon6Ch8xY5y3eVnQUixzsG6zecF9yQTvajsJVDYNgTjzOi2Ya-HpEzg5Fy9IxHcnRFfca3wdjYsJKeYvWBm47vNCZ3Gt8_ghDd1aXhAYdaxTI1ofK8Ch3ef_f64Bw6BqeenBGNRZfb8OuPVZtgtgF5wXu4hqJxRv70CEAc4NlN_t9fD2dibQb2uIEVebENvA9wm2DJRZr6T'),
+                  const SizedBox(width: 8),
+                  _avatar('https://lh3.googleusercontent.com/aida-public/AB6AXuAZYUOpkZQI1a9gPxRnP1HOhkXzHTAIlJQvd4svuFb4NoS7cyE-9svOnvLYaFvxsSmk1xYXdrwp6wAWk09XAMjy3wY8t_4XvKAwy3iztB9rQJ-hBl3o9Vadlgit793G92f7S1ffCQoohr9Ihc_wqM9dH7KT_21EzpAh9rvUReUHPH8CTevjaCAXKda7dDiSan0-6lkboVKHuaq4ef8OiXtVlFx6E4FLMOtkEOrQidJlhoKtegDGwP9z'),
+                ],
+              ),
+              const Text('SecureFast 24/7 Support', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, fontFamily: 'Lexend', color: AppColors.tertiaryFixed)),
             ],
           ),
           const SizedBox(height: 32),

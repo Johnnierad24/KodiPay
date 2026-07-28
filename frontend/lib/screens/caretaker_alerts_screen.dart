@@ -165,7 +165,8 @@ class _CaretakerAlertsScreenState extends State<CaretakerAlertsScreen> {
             ],
           ),
         ),
-        Row(
+        Wrap(
+          spacing: 8,
           children: [
             Material(
               color: AppColors.surfaceHigh,
@@ -186,7 +187,6 @@ class _CaretakerAlertsScreenState extends State<CaretakerAlertsScreen> {
                 ),
               ),
             ),
-            const SizedBox(width: 8),
             Material(
               color: AppColors.kodiNavy,
               borderRadius: BorderRadius.circular(10),

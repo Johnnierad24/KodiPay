@@ -8,6 +8,7 @@ import 'caretaker_tasks_screen.dart';
 import 'caretaker_properties_screen.dart';
 import 'caretaker_profile_screen.dart';
 import 'caretaker_alerts_screen.dart';
+import 'login_screen.dart';
 
 class CaretakerDashboard extends StatefulWidget {
   const CaretakerDashboard({super.key});
@@ -18,24 +19,12 @@ class CaretakerDashboard extends StatefulWidget {
 
 class _CaretakerDashboardState extends State<CaretakerDashboard> {
   int _navIndex = 0;
+  bool _sidebarOpen = false;
 
   @override
   Widget build(BuildContext context) {
     final screenW = MediaQuery.of(context).size.width;
     final isDesktop = screenW > 768;
-
-    final navLabels = ['Home', 'Tasks', 'Properties', 'Alerts', 'Profile'];
-    final navIcons = [
-      Icons.home_outlined, Icons.assignment_outlined, Icons.domain_outlined,
-      Icons.notifications_outlined, Icons.person_outlined,
-    ];
-    final navIconsFilled = [
-      Icons.home_rounded, Icons.assignment_rounded, Icons.domain_rounded,
-      Icons.notifications_rounded, Icons.person_rounded,
-    ];
-    final navColors = List<Color>.filled(5, const Color(0xFF8192A7));
-    navColors[3] = const Color(0xFF8192A7); // alerts default
-    if (_navIndex == 3) navColors[3] = AppColors.kodiGreen;
 
     final screens = <Widget>[
       _CaretakerHomeTab(),
@@ -45,105 +34,126 @@ class _CaretakerDashboardState extends State<CaretakerDashboard> {
       const CaretakerProfileScreen(),
     ];
 
-    final sidebar = _buildSidebar(
-      navLabels, navIcons, navIconsFilled, navColors,
-    );
-
-    final topBar = _buildTopBar();
-
-    final body = IndexedStack(index: _navIndex, children: screens);
-
-    if (isDesktop) {
-      return Scaffold(
-        body: Row(
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Stack(
           children: [
-            sidebar,
-            Expanded(
-              child: Column(
-                children: [
-                  topBar,
-                  Expanded(child: body),
-                ],
-              ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (isDesktop) _CaretakerSidebar(
+                  navIndex: _navIndex,
+                  onTap: (i) {
+                    setState(() {
+                      _navIndex = i;
+                      _sidebarOpen = false;
+                    });
+                  },
+                ),
+                Expanded(
+                  child: Column(
+                    children: [
+                      _CaretakerTopBar(
+                        onMenuTap: () => setState(() => _sidebarOpen = !_sidebarOpen),
+                      ),
+                      Expanded(child: IndexedStack(index: _navIndex, children: screens)),
+                    ],
+                  ),
+                ),
+              ],
             ),
+            if (!isDesktop && _sidebarOpen) ...[
+              GestureDetector(
+                onTap: () => setState(() => _sidebarOpen = false),
+                child: Container(color: Colors.black.withValues(alpha: 0.4)),
+              ),
+              Positioned(
+                left: 0, top: 0, bottom: 0,
+                child: _CaretakerSidebar(
+                  navIndex: _navIndex,
+                  onTap: (i) {
+                    setState(() {
+                      _navIndex = i;
+                      _sidebarOpen = false;
+                    });
+                  },
+                ),
+              ),
+            ],
           ],
         ),
-      );
-    }
-
-    // Mobile
-    return Scaffold(
-      body: Column(
-        children: [
-          topBar,
-          Expanded(child: body),
-        ],
       ),
-      bottomNavigationBar: _buildBottomNav(navLabels, navIcons, navIconsFilled),
     );
   }
+}
 
-  Widget _buildSidebar(
-    List<String> labels,
-    List<IconData> icons,
-    List<IconData> iconsFilled,
-    List<Color> activeColors,
-  ) {
+// ── Sidebar ──────────────────────────────────────────
+class _CaretakerSidebar extends StatelessWidget {
+  final int navIndex;
+  final ValueChanged<int> onTap;
+
+  const _CaretakerSidebar({required this.navIndex, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final items = [
+      ('Home', Icons.home_outlined, Icons.home),
+      ('Tasks', Icons.assignment_outlined, Icons.assignment),
+      ('Properties', Icons.domain_outlined, Icons.domain),
+      ('Alerts', Icons.notifications_outlined, Icons.notifications),
+      ('Profile', Icons.person_outline, Icons.person),
+    ];
+
     return Container(
       width: 280,
-      height: double.infinity,
       color: AppColors.kodiNavy,
       child: Column(
         children: [
-          const SizedBox(height: 32),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('KodiPay', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.white)),
-                  SizedBox(height: 2),
-                  Text('Caretaker Portal', style: TextStyle(fontSize: 13, color: Color(0xFF8192A7))),
-                ],
-              ),
+          const SizedBox(height: 24),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 32, height: 32,
+                      decoration: BoxDecoration(color: AppColors.kodiGreen, borderRadius: BorderRadius.circular(8)),
+                      child: const Center(child: Text('K', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white))),
+                    ),
+                    const SizedBox(width: 10),
+                    const Text('KodiPay', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, fontFamily: 'Lexend', color: Colors.white)),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text('CARETAKER PORTAL', style: TextStyle(fontSize: 12, letterSpacing: 1.5, fontWeight: FontWeight.w700, color: Colors.white.withValues(alpha: 0.6))),
+              ],
             ),
           ),
-          const SizedBox(height: 32),
-          ...List.generate(5, (i) {
-            final isActive = _navIndex == i;
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+          const SizedBox(height: 24),
+          ...List.generate(items.length, (i) {
+            final item = items[i];
+            final active = navIndex == i;
+            return Container(
+              decoration: active ? const BoxDecoration(
+                border: Border(left: BorderSide(color: AppColors.kodiGreen, width: 4)),
+              ) : null,
               child: Material(
-                color: isActive ? Colors.white.withValues(alpha: 0.1) : Colors.transparent,
-                borderRadius: BorderRadius.circular(10),
+                color: active ? Colors.white.withValues(alpha: 0.1) : Colors.transparent,
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(10),
-                  onTap: () => setState(() => _navIndex = i),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: isActive
-                          ? const Border(left: BorderSide(color: AppColors.kodiGreen, width: 4))
-                          : null,
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  onTap: () => onTap(i),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                     child: Row(
                       children: [
-                        Icon(
-                          isActive ? iconsFilled[i] : icons[i],
-                          size: 22,
-                          color: isActive ? Colors.white : const Color(0xFF8192A7),
-                        ),
-                        const SizedBox(width: 16),
-                        Text(
-                          labels[i],
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                            color: isActive ? Colors.white : const Color(0xFF8192A7),
-                          ),
-                        ),
+                        Icon(active ? item.$3 : item.$2, size: 22, color: active ? Colors.white : const Color(0xFF8192A7)),
+                        const SizedBox(width: 12),
+                        Text(item.$1, style: TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5,
+                          color: active ? Colors.white : const Color(0xFF8192A7),
+                        )),
                       ],
                     ),
                   ),
@@ -152,79 +162,91 @@ class _CaretakerDashboardState extends State<CaretakerDashboard> {
             );
           }),
           const Spacer(),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: _navIndex == 3
-                ? Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 40, height: 40,
-                          decoration: const BoxDecoration(color: AppColors.surfaceHigh, shape: BoxShape.circle),
-                          child: const Icon(Icons.support_agent_rounded, color: AppColors.kodiNavy, size: 20),
-                        ),
-                        const SizedBox(width: 12),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Support Hub', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
-                              Text('24/7 Availability', style: TextStyle(fontSize: 11, color: Color(0xFF8192A7))),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 20,
-                          backgroundColor: AppColors.surfaceHigh,
-                          child: Text('JK', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.kodiNavy)),
-                        ),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Alex Mwangi', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
-                              Text('Senior Caretaker', style: TextStyle(fontSize: 11, color: Color(0xFF8192A7))),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+          // Support Hub
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 40, height: 40,
+                  decoration: const BoxDecoration(color: AppColors.surfaceHigh, shape: BoxShape.circle),
+                  child: const Icon(Icons.support_agent_rounded, color: AppColors.kodiNavy, size: 20),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Support Hub', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
+                      Text('24/7 Availability', style: TextStyle(fontSize: 11, color: Color(0xFF8192A7))),
+                    ],
                   ),
+                ),
+              ],
+            ),
           ),
+          // Logout
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+            child: SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  final api = ApiService();
+                  await api.clearToken();
+                  if (!context.mounted) return;
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    (_) => false,
+                  );
+                },
+                icon: const Icon(Icons.logout_rounded, size: 16, color: AppColors.danger),
+                label: const Text('Sign Out', style: TextStyle(color: AppColors.danger, fontWeight: FontWeight.w600, fontSize: 12)),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: AppColors.danger.withValues(alpha: 0.3)),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
         ],
       ),
     );
   }
+}
 
-  Widget _buildTopBar() {
+// ── Top Bar ──────────────────────────────────────────
+class _CaretakerTopBar extends StatelessWidget {
+  final VoidCallback onMenuTap;
+
+  const _CaretakerTopBar({required this.onMenuTap});
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      height: 64,
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      height: 56,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: const BoxDecoration(
         color: AppColors.white,
         border: Border(bottom: BorderSide(color: AppColors.surfaceHigh)),
       ),
       child: Row(
         children: [
+          IconButton(
+            icon: const Icon(Icons.menu_outlined),
+            onPressed: onMenuTap,
+          ),
           Expanded(
             child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 8),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
                 color: AppColors.surfaceLow,
@@ -246,7 +268,6 @@ class _CaretakerDashboardState extends State<CaretakerDashboard> {
               ),
             ),
           ),
-          const SizedBox(width: 16),
           Material(
             color: Colors.transparent,
             child: InkWell(
@@ -268,60 +289,6 @@ class _CaretakerDashboardState extends State<CaretakerDashboard> {
             child: const Center(child: Text('JK', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.kodiGreen))),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildBottomNav(
-    List<String> labels,
-    List<IconData> icons,
-    List<IconData> iconsFilled,
-  ) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: AppColors.surfaceHigh)),
-      ),
-      child: SafeArea(
-        child: SizedBox(
-          height: 64,
-          child: Row(
-            children: List.generate(5, (i) {
-              final isActive = _navIndex == i;
-              return Expanded(
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () => setState(() => _navIndex = i),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          isActive ? iconsFilled[i] : icons[i],
-                          size: 22,
-                          color: isActive
-                              ? (i == 3 ? AppColors.kodiGreen : AppColors.kodiNavy)
-                              : AppColors.muted,
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          labels[i],
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                            color: isActive
-                                ? (i == 3 ? AppColors.kodiGreen : AppColors.kodiNavy)
-                                : AppColors.muted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }),
-          ),
-        ),
       ),
     );
   }

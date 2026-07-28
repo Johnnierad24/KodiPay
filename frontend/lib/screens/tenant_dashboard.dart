@@ -4,13 +4,13 @@ import '../services/api_service.dart';
 import '../utils/constants.dart';
 import '../widgets/shared_screen_components.dart';
 import 'tenant_payments_screen.dart';
-import 'tenant_maintenance_screen.dart';
 import 'tenant_profile_screen.dart';
 import 'tenant_support_screen.dart';
 import 'tenant_rights_screen.dart';
 import 'landlord_tenant_act_screen.dart';
 import 'pay_rent_screen.dart';
 import 'login_screen.dart';
+import 'raise_maintenance_details_screen.dart';
 
 class TenantDashboard extends StatefulWidget {
   const TenantDashboard({super.key});
@@ -22,6 +22,7 @@ class TenantDashboard extends StatefulWidget {
 class _TenantDashboardState extends State<TenantDashboard> {
   final ApiService _api = ApiService();
   int _navIndex = 0;
+  bool _sidebarOpen = false;
   _TenantOverview? _overview;
 
   @override
@@ -39,7 +40,12 @@ class _TenantDashboardState extends State<TenantDashboard> {
     } catch (_) {}
   }
 
-  void _onNavTap(int i) => setState(() => _navIndex = i);
+  void _onNavTap(int i) {
+    setState(() {
+      _navIndex = i;
+      _sidebarOpen = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,78 +56,48 @@ class _TenantDashboardState extends State<TenantDashboard> {
       const TenantSupportScreen(),
     ];
 
-    final navItems = [
-      ('Home', Icons.home_outlined, Icons.home),
-      ('Payments', Icons.account_balance_wallet_outlined, Icons.account_balance_wallet),
-      ('Profile', Icons.person_outline, Icons.person),
-      ('Support', Icons.help_outline, Icons.help),
-    ];
-
     final isWide = MediaQuery.of(context).size.width > 900;
 
     return Scaffold(
-      body: Row(
-        children: [
-          if (isWide)
-            _TenantSidebar(
-              navIndex: _navIndex,
-              onTap: _onNavTap,
-            ),
-          Expanded(
-            child: Column(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Stack(
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _TenantTopBar(
-                  navIndex: _navIndex,
-                  userName: _overview?.tenantName ?? 'Tenant',
-                ),
+                if (isWide) _TenantSidebar(navIndex: _navIndex, onTap: _onNavTap),
                 Expanded(
-                  child: IndexedStack(index: _navIndex, children: screens),
+                  child: Column(
+                    children: [
+                      _TenantTopBar(
+                        navIndex: _navIndex,
+                        userName: _overview?.tenantName ?? 'Tenant',
+                        onMenuTap: () => setState(() => _sidebarOpen = !_sidebarOpen),
+                        onNotifications: () {},
+                        onProfileTap: () => _onNavTap(2),
+                      ),
+                      Expanded(
+                        child: IndexedStack(index: _navIndex, children: screens),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
-          ),
-        ],
+            if (!isWide && _sidebarOpen) ...[
+              GestureDetector(
+                onTap: () => setState(() => _sidebarOpen = false),
+                child: Container(color: Colors.black.withValues(alpha: 0.4)),
+              ),
+              Positioned(
+                left: 0, top: 0, bottom: 0,
+                child: _TenantSidebar(navIndex: _navIndex, onTap: _onNavTap),
+              ),
+            ],
+          ],
+        ),
       ),
-      bottomNavigationBar: !isWide
-          ? Container(
-              decoration: const BoxDecoration(
-                color: AppColors.white,
-                border: Border(top: BorderSide(color: AppColors.outlineVariant)),
-              ),
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: List.generate(navItems.length, (i) {
-                      final sel = _navIndex == i;
-                      final item = navItems[i];
-                      return Expanded(
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(10),
-                            onTap: () => _onNavTap(i),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(sel ? item.$3 : item.$2, size: 22, color: sel ? AppColors.kodiGreen : AppColors.muted),
-                                  const SizedBox(height: 2),
-                                   Text(item.$1, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: sel ? AppColors.kodiGreen : AppColors.muted)),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }),
-                  ),
-                ),
-              ),
-            )
-          : null,
     );
   }
 }
@@ -143,77 +119,101 @@ class _TenantSidebar extends StatelessWidget {
 
     return Container(
       width: 280,
-      color: AppColors.primaryContainer,
+      color: AppColors.primary,
       child: Column(
         children: [
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('KodiPay', style: TextStyle(fontFamily: 'Lexend', fontSize: 24, fontWeight: FontWeight.w700, color: Colors.white)),
+                Row(
+                  children: [
+                    Container(
+                      width: 32, height: 32,
+                      decoration: BoxDecoration(color: AppColors.tertiaryFixed, borderRadius: BorderRadius.circular(8)),
+                      child: const Center(child: Text('K', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.onTertiaryFixed))),
+                    ),
+                    const SizedBox(width: 10),
+                    const Text('KodiPay', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, fontFamily: 'Lexend', color: AppColors.onPrimary)),
+                  ],
+                ),
                 const SizedBox(height: 4),
-                Text('Property Management', style: TextStyle(fontSize: 10, letterSpacing: 0.5, color: Colors.white.withValues(alpha: 0.6), fontWeight: FontWeight.w700)),
+                Text('TENANT PORTAL', style: TextStyle(fontSize: 12, letterSpacing: 1.5, fontWeight: FontWeight.w700, color: AppColors.onPrimary.withValues(alpha: 0.6))),
               ],
             ),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
           ...List.generate(items.length, (i) {
             final item = items[i];
             final sel = navIndex == i;
-            return ListTile(
-              leading: Icon(sel ? item.$3 : item.$2, color: sel ? Colors.white : Colors.white54, size: 22),
-              title: Text(item.$1, style: TextStyle(color: sel ? Colors.white : Colors.white54, fontWeight: sel ? FontWeight.w800 : FontWeight.w600, fontSize: 13)),
-              selected: sel,
-              selectedTileColor: Colors.white.withValues(alpha: 0.1),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 2),
-              onTap: () => onTap(i),
+            return Container(
+              decoration: sel ? const BoxDecoration(
+                border: Border(left: BorderSide(color: AppColors.tertiaryFixed, width: 4)),
+              ) : null,
+              child: Material(
+                color: sel ? AppColors.onPrimary.withValues(alpha: 0.1) : Colors.transparent,
+                child: InkWell(
+                  onTap: () => onTap(i),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                    child: Row(
+                      children: [
+                        Icon(sel ? item.$3 : item.$2, size: 22, color: sel ? AppColors.onPrimary : AppColors.onPrimary.withValues(alpha: 0.7)),
+                        const SizedBox(width: 12),
+                        Text(item.$1, style: TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5,
+                          color: sel ? AppColors.onPrimary : AppColors.onPrimary.withValues(alpha: 0.7),
+                        )),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             );
           }),
           const Spacer(),
           // Legal Corner
           Container(
-            margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.all(16),
+            margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.05),
+              color: AppColors.onPrimary.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('LEGAL CORNER', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.tertiaryFixed)),
-                const SizedBox(height: 12),
+                Text('LEGAL CORNER', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.tertiaryFixed)),
+                const SizedBox(height: 10),
                 GestureDetector(
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TenantRightsScreen())),
                   child: Row(
                     children: [
-                      Icon(Icons.gavel, size: 16, color: Colors.white.withValues(alpha: 0.5)),
+                      Icon(Icons.gavel, size: 16, color: AppColors.onPrimary.withValues(alpha: 0.5)),
                       const SizedBox(width: 8),
-                      Text('Tenant Rights', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 13)),
+                      Text('Tenant Rights', style: TextStyle(color: AppColors.onPrimary.withValues(alpha: 0.5), fontSize: 13)),
                     ],
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 GestureDetector(
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LandlordTenantActScreen())),
                   child: Row(
                     children: [
-                      Icon(Icons.menu_book, size: 16, color: Colors.white.withValues(alpha: 0.5)),
+                      Icon(Icons.menu_book, size: 16, color: AppColors.onPrimary.withValues(alpha: 0.5)),
                       const SizedBox(width: 8),
-                      Text('Landlord-Tenant Act', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 13)),
+                      Text('Landlord-Tenant Act', style: TextStyle(color: AppColors.onPrimary.withValues(alpha: 0.5), fontSize: 13)),
                     ],
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 16),
           // Logout
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
             child: SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
@@ -227,18 +227,17 @@ class _TenantSidebar extends StatelessWidget {
                     (_) => false,
                   );
                 },
-                icon: const Icon(Icons.logout_rounded, size: 18),
-                label: const Text('Log Out', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                icon: const Icon(Icons.logout_rounded, size: 16, color: AppColors.danger),
+                label: const Text('Sign Out', style: TextStyle(color: AppColors.danger, fontWeight: FontWeight.w600, fontSize: 12)),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.white70,
-                  side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  side: BorderSide(color: AppColors.danger.withValues(alpha: 0.3)),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
         ],
       ),
     );
@@ -249,7 +248,10 @@ class _TenantSidebar extends StatelessWidget {
 class _TenantTopBar extends StatelessWidget {
   final int navIndex;
   final String userName;
-  const _TenantTopBar({required this.navIndex, required this.userName});
+  final VoidCallback onMenuTap;
+  final VoidCallback onNotifications;
+  final VoidCallback onProfileTap;
+  const _TenantTopBar({required this.navIndex, required this.userName, required this.onMenuTap, required this.onNotifications, required this.onProfileTap});
 
   @override
   Widget build(BuildContext context) {
@@ -264,6 +266,10 @@ class _TenantTopBar extends StatelessWidget {
       ),
       child: Row(
         children: [
+          IconButton(
+            icon: const Icon(Icons.menu_outlined),
+            onPressed: onMenuTap,
+          ),
           Text(titles[navIndex], style: const TextStyle(fontFamily: 'Lexend', fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.primary)),
           const Spacer(),
           if (!isNarrow)
@@ -281,14 +287,20 @@ class _TenantTopBar extends StatelessWidget {
               ),
             ),
           if (!isNarrow) const SizedBox(width: 12),
-          const Icon(Icons.notifications_outlined, color: AppColors.secondary),
-          const SizedBox(width: 12),
-          CircleAvatar(
-            radius: 16,
-            backgroundColor: AppColors.surfaceHigh,
-            child: Text(userName.isNotEmpty ? userName[0].toUpperCase() : 'T', style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 14)),
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined, color: AppColors.secondary),
+            onPressed: onNotifications,
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
+          GestureDetector(
+            onTap: onProfileTap,
+            child: CircleAvatar(
+              radius: 16,
+              backgroundColor: AppColors.surfaceHigh,
+              child: Text(userName.isNotEmpty ? userName[0].toUpperCase() : 'T', style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 14)),
+            ),
+          ),
+          const SizedBox(width: 4),
           IconButton(
             tooltip: 'Log out',
             icon: const Icon(Icons.logout_rounded, size: 20, color: AppColors.secondary),
@@ -528,7 +540,7 @@ class _MaintenanceCard extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TenantMaintenanceScreen())),
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RaiseMaintenanceDetailsScreen())),
               icon: const Icon(Icons.add_circle, size: 18),
               label: const Text('Raise Maintenance Issue', style: TextStyle(fontWeight: FontWeight.w700)),
               style: OutlinedButton.styleFrom(

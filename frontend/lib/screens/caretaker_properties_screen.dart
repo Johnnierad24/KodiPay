@@ -120,14 +120,14 @@ class _CaretakerPropertiesScreenState extends State<CaretakerPropertiesScreen> {
           ),
         ),
         Material(
-          color: AppColors.kodiNavy,
+          color: AppColors.kodiOrange,
           borderRadius: BorderRadius.circular(10),
           child: InkWell(
             borderRadius: BorderRadius.circular(10),
             onTap: () {},
             child: const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              child: Text('+ Add Property', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white)),
+              child: Text('+ Report Vacancy', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white)),
             ),
           ),
         ),
@@ -516,7 +516,9 @@ class _CaretakerPropertiesScreenState extends State<CaretakerPropertiesScreen> {
             style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.8)),
           ),
           const SizedBox(height: 20),
-          Row(
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
             children: [
               Material(
                 color: AppColors.kodiGreen,
@@ -530,7 +532,6 @@ class _CaretakerPropertiesScreenState extends State<CaretakerPropertiesScreen> {
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
               Material(
                 color: Colors.white.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),

@@ -34,8 +34,6 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
     _loadOverview();
   }
 
-  bool _isLoading = true;
-
   Future<void> _loadUnreadCount() async {
     try {
       final response = await _api.get('/notifications');
@@ -58,8 +56,6 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
       setState(() => _overview = _DashboardOverview.fromJson(data));
     } catch (e) {
       debugPrint('Failed to load dashboard overview: $e');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -188,44 +184,41 @@ class _Sidebar extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
           // Nav items
-          Expanded(
-            child: Column(
-              children: List.generate(items.length, (i) {
-                final active = navIndex == i;
-                final item = items[i];
-                return Container(
-                  decoration: active ? const BoxDecoration(
-                    border: Border(left: BorderSide(color: AppColors.tertiaryFixed, width: 4)),
-                  ) : null,
-                  child: Material(
-                    color: active ? AppColors.onPrimary.withValues(alpha: 0.1) : Colors.transparent,
-                    child: InkWell(
-                      onTap: () => onTap(i),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                        child: Row(
-                          children: [
-                            Icon(active ? item.$3 : item.$2, size: 22, color: active ? AppColors.onPrimary : AppColors.onPrimary.withValues(alpha: 0.7)),
-                            const SizedBox(width: 12),
-                            Text(item.$1, style: TextStyle(
-                              fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5,
-                              color: active ? AppColors.onPrimary : AppColors.onPrimary.withValues(alpha: 0.7),
-                            )),
-                          ],
-                        ),
-                      ),
+          ...List.generate(items.length, (i) {
+            final active = navIndex == i;
+            final item = items[i];
+            return Container(
+              decoration: active ? const BoxDecoration(
+                border: Border(left: BorderSide(color: AppColors.tertiaryFixed, width: 4)),
+              ) : null,
+              child: Material(
+                color: active ? AppColors.onPrimary.withValues(alpha: 0.1) : Colors.transparent,
+                child: InkWell(
+                  onTap: () => onTap(i),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                    child: Row(
+                      children: [
+                        Icon(active ? item.$3 : item.$2, size: 22, color: active ? AppColors.onPrimary : AppColors.onPrimary.withValues(alpha: 0.7)),
+                        const SizedBox(width: 12),
+                        Text(item.$1, style: TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5,
+                          color: active ? AppColors.onPrimary : AppColors.onPrimary.withValues(alpha: 0.7),
+                        )),
+                      ],
                     ),
                   ),
-                );
-              }),
-            ),
-          ),
+                ),
+              ),
+            );
+          }),
+          const Spacer(),
           // Legal Corner
           Container(
             margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: AppColors.onPrimary.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(12),
@@ -234,7 +227,7 @@ class _Sidebar extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('LEGAL CORNER', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.tertiaryFixed)),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 GestureDetector(
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TenantRightsScreen())),
                   child: Row(
@@ -245,7 +238,7 @@ class _Sidebar extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 GestureDetector(
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LandlordTenantActScreen())),
                   child: Row(
@@ -259,7 +252,6 @@ class _Sidebar extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 12),
           // Logout
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
@@ -277,6 +269,7 @@ class _Sidebar extends StatelessWidget {
               ),
             ),
           ),
+          const SizedBox(height: 8),
         ],
       ),
     );

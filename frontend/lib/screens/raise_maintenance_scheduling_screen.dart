@@ -32,31 +32,56 @@ class _RaiseMaintenanceSchedulingScreenState extends State<RaiseMaintenanceSched
         children: [
           _WizardProgress(),
           const SizedBox(height: 48),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                flex: 7,
-                child: _CalendarSection(
-                  selectedDate: _selectedDate,
-                  focusedMonth: _focusedMonth,
-                  onDateSelected: (d) => setState(() => _selectedDate = d),
-                  onMonthChanged: (m) => setState(() => _focusedMonth = m),
-                  selectedTime: _selectedTime,
-                  onTimeSelected: (t) => setState(() => _selectedTime = t),
-                ),
-              ),
-              const SizedBox(width: 32),
-              Expanded(
-                flex: 5,
-                child: _RightColumn(
-                  allowUnattended: _allowUnattended,
-                  selectedDate: _selectedDate,
-                  selectedTime: _selectedTime,
-                  onToggleUnattended: (v) => setState(() => _allowUnattended = v),
-                ),
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < 600) {
+                return Column(
+                  children: [
+                    _CalendarSection(
+                      selectedDate: _selectedDate,
+                      focusedMonth: _focusedMonth,
+                      onDateSelected: (d) => setState(() => _selectedDate = d),
+                      onMonthChanged: (m) => setState(() => _focusedMonth = m),
+                      selectedTime: _selectedTime,
+                      onTimeSelected: (t) => setState(() => _selectedTime = t),
+                    ),
+                    const SizedBox(height: 24),
+                    _RightColumn(
+                      allowUnattended: _allowUnattended,
+                      selectedDate: _selectedDate,
+                      selectedTime: _selectedTime,
+                      onToggleUnattended: (v) => setState(() => _allowUnattended = v),
+                    ),
+                  ],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 7,
+                    child: _CalendarSection(
+                      selectedDate: _selectedDate,
+                      focusedMonth: _focusedMonth,
+                      onDateSelected: (d) => setState(() => _selectedDate = d),
+                      onMonthChanged: (m) => setState(() => _focusedMonth = m),
+                      selectedTime: _selectedTime,
+                      onTimeSelected: (t) => setState(() => _selectedTime = t),
+                    ),
+                  ),
+                  const SizedBox(width: 32),
+                  Expanded(
+                    flex: 5,
+                    child: _RightColumn(
+                      allowUnattended: _allowUnattended,
+                      selectedDate: _selectedDate,
+                      selectedTime: _selectedTime,
+                      onToggleUnattended: (v) => setState(() => _allowUnattended = v),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -119,8 +144,9 @@ class _CalendarSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isMobile ? 20 : 24),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -133,8 +159,11 @@ class _CalendarSection extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Select Preferred Date', style: AppStyles.headlineMd),
+              const Expanded(
+                child: Text('Select Preferred Date', style: AppStyles.headlineMd, overflow: TextOverflow.ellipsis),
+              ),
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   _NavArrow(
                     icon: Icons.chevron_left_rounded,
@@ -173,9 +202,12 @@ class _CalendarSection extends StatelessWidget {
                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.secondary),
                 ),
                 const SizedBox(height: 16),
-                Row(
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
                   children: [
-                    Expanded(
+                    SizedBox(
+                      width: 140,
                       child: _TimeSlotChip(
                         icon: Icons.light_mode_rounded,
                         label: 'Morning',
@@ -184,8 +216,8 @@ class _CalendarSection extends StatelessWidget {
                         onTap: () => onTimeSelected('morning'),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
+                    SizedBox(
+                      width: 140,
                       child: _TimeSlotChip(
                         icon: Icons.wb_sunny_rounded,
                         label: 'Afternoon',
@@ -194,8 +226,8 @@ class _CalendarSection extends StatelessWidget {
                         onTap: () => onTimeSelected('afternoon'),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
+                    SizedBox(
+                      width: 140,
                       child: _TimeSlotChip(
                         icon: Icons.dark_mode_rounded,
                         label: 'Evening',
@@ -518,23 +550,26 @@ class _RequestSummaryCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'ISSUE TYPE',
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.secondary),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Plumbing - Leaking Faucet',
-                          style: AppStyles.bodyMd.copyWith(color: AppColors.primary),
-                        ),
-                      ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'ISSUE TYPE',
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.secondary),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Plumbing - Leaking Faucet',
+                            style: AppStyles.bodyMd.copyWith(color: AppColors.primary),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(

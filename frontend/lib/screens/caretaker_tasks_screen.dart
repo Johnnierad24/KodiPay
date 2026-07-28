@@ -335,7 +335,9 @@ class _CaretakerTasksScreenState extends State<CaretakerTasksScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 10),
-                Row(
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -348,7 +350,6 @@ class _CaretakerTasksScreenState extends State<CaretakerTasksScreen> {
                         style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: priorityColor),
                       ),
                     ),
-                    const SizedBox(width: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
