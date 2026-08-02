@@ -75,7 +75,7 @@ class _LoginScreenState extends State<LoginScreen> {
         children: [
           SizedBox(
             height: MediaQuery.of(context).size.height * 0.22,
-            child: _HeroSide(compact: true),
+            child: const _HeroSide(compact: true),
           ),
           _FormSide(
             auth: auth,
@@ -134,7 +134,7 @@ class _HeroSide extends StatelessWidget {
             Text('KodiPay', style: TextStyle(fontSize: compact ? 20 : 28, fontWeight: FontWeight.w800, color: Colors.white, fontFamily: 'Lexend')),
             SizedBox(height: compact ? 6 : 8),
             Text('Secure Property Management\nStarts Here', style: TextStyle(fontSize: compact ? 12 : 15, color: Colors.white.withValues(alpha: 0.7), height: 1.4)),
-            Spacer(flex: 2),
+            const Spacer(flex: 2),
           ],
         ),
       ),

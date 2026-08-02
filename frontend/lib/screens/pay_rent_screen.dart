@@ -197,15 +197,15 @@ class _PaymentContent extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(vertical: 20),
             decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.outlineVariant))),
-            child: Column(
+            child: const Column(
               children: [
-                const Text('© 2023 Silicon Savannah Fintech. Regulated by the Central Bank of Kenya.', style: TextStyle(fontSize: 11, color: AppColors.onSurfaceVariant)),
-                const SizedBox(height: 8),
+                Text('© 2023 Silicon Savannah Fintech. Regulated by the Central Bank of Kenya.', style: TextStyle(fontSize: 11, color: AppColors.onSurfaceVariant)),
+                SizedBox(height: 8),
                 Wrap(
                   spacing: 16,
                   runSpacing: 8,
                   alignment: WrapAlignment.center,
-                  children: const [
+                  children: [
                     Text('Privacy Policy', style: TextStyle(fontSize: 11, color: AppColors.secondary, decoration: TextDecoration.underline)),
                     Text('Terms of Service', style: TextStyle(fontSize: 11, color: AppColors.secondary, decoration: TextDecoration.underline)),
                     Text('Secure Hosting by AWS Africa', style: TextStyle(fontSize: 11, color: AppColors.secondary, decoration: TextDecoration.underline)),

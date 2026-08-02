@@ -71,14 +71,19 @@ exports.createRequest = async (req, res) => {
     if (['landlord', 'agent'].includes(req.user.role) && !ownsProperty(req.user, unitAccess)) {
       return res.status(403).json({ error: 'Access denied' });
     }
-    if (!requestTenantId) return res.status(400).json({ error: 'Tenant is required' });
+    if (req.user.role === 'caretaker' && !(await caretakerCoversProperty(req.user.id, unitAccess.property_id))) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    if (!requestTenantId && req.user.role !== 'caretaker') {
+      return res.status(400).json({ error: 'Tenant is required' });
+    }
 
     const result = await pool.query(
       `INSERT INTO maintenance_requests (unit_id, tenant_id, title, description, category, priority, image_urls)
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
       [
         unit_id,
-        requestTenantId,
+        requestTenantId || null,
         title,
         description,
         normalizeCategory(category),
@@ -106,6 +111,34 @@ exports.createRequest = async (req, res) => {
           ? `${t.property_name || ''} • Unit ${t.unit_number}`.trim()
           : t.property_name || '';
         const message = `${tenantName} reported "${title}"${where ? ' at ' + where : ''}.`;
+        await pool.query(
+          `INSERT INTO notifications (user_id, type, title, message, related_id, related_type)
+           VALUES ($1, $2, $3, $4, $5, 'maintenance_request')`,
+          [unitAccess.landlord_id, notifType, notifTitle, message, result.rows[0].id]
+        );
+      } catch (notifyErr) {
+        console.error('Maintenance create notification failed:', notifyErr.message);
+      }
+    }
+
+    if (req.user.role === 'caretaker') {
+      try {
+        const isEmergency = normalizePriority(priority) === 'emergency';
+        const notifType = isEmergency ? 'alert' : 'maintenance';
+        const notifTitle = isEmergency
+          ? 'Emergency reported'
+          : 'New maintenance request';
+        const unitInfo = await pool.query(
+          `SELECT un.unit_number, p.name AS property_name
+             FROM units un JOIN properties p ON un.property_id = p.id
+            WHERE un.id = $1`,
+          [unit_id]
+        );
+        const t = unitInfo.rows[0] || {};
+        const where = t.unit_number
+          ? `${t.property_name || ''} • Unit ${t.unit_number}`.trim()
+          : t.property_name || '';
+        const message = `A caretaker reported "${title}"${where ? ' at ' + where : ''}.`;
         await pool.query(
           `INSERT INTO notifications (user_id, type, title, message, related_id, related_type)
            VALUES ($1, $2, $3, $4, $5, 'maintenance_request')`,

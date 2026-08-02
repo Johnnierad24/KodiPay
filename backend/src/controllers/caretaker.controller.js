@@ -18,6 +18,14 @@ async function landlordOwnsProperty(landlordId, propertyId) {
   return result.rows.length > 0;
 }
 
+async function caretakerCoversProperty(caretakerId, propertyId) {
+  const result = await pool.query(
+    'SELECT id FROM caretaker_assignments WHERE caretaker_id = $1 AND property_id = $2 LIMIT 1',
+    [caretakerId, propertyId]
+  );
+  return result.rows.length > 0;
+}
+
 exports.listMyCaretakers = async (req, res) => {
   try {
     if (!['landlord', 'agent'].includes(req.user.role)) {
@@ -168,5 +176,136 @@ exports.removeCaretaker = async (req, res) => {
   } catch (error) {
     console.error('removeCaretaker failed:', error.message);
     res.status(500).json({ error: 'Failed to remove caretaker' });
+  }
+};
+
+exports.getMyProperties = async (req, res) => {
+  if (req.user.role !== 'caretaker') {
+    return res.status(403).json({ error: 'Only caretakers can view their assigned properties' });
+  }
+  try {
+    const result = await pool.query(
+      `SELECT p.id,
+              p.name AS property_name,
+              p.address,
+              COUNT(u.id)::int AS total_units,
+              COUNT(u.id) FILTER (WHERE u.status = 'occupied')::int AS occupied_units,
+              COUNT(u.id) FILTER (WHERE u.status = 'vacant')::int AS vacant_units,
+              COUNT(u.id) FILTER (WHERE u.status = 'maintenance')::int AS maintenance_units,
+              (SELECT COUNT(*) FROM maintenance_requests mr
+                 JOIN units uu ON mr.unit_id = uu.id
+                WHERE uu.property_id = p.id
+                  AND mr.status IN ('pending', 'in_progress'))::int AS open_maintenance
+         FROM caretaker_assignments ca
+         JOIN properties p ON ca.property_id = p.id
+         LEFT JOIN units u ON u.property_id = p.id
+        WHERE ca.caretaker_id = $1
+        GROUP BY p.id, p.name, p.address
+        ORDER BY p.name`,
+      [req.user.id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('getMyProperties failed:', error.message);
+    res.status(500).json({ error: 'Failed to fetch assigned properties' });
+  }
+};
+
+exports.getMyUnits = async (req, res) => {
+  if (req.user.role !== 'caretaker') {
+    return res.status(403).json({ error: 'Only caretakers can view their assigned units' });
+  }
+  try {
+    const propertyId = req.query.propertyId ? parseInt(req.query.propertyId, 10) : null;
+
+    let whereClause = 'ca.caretaker_id = $1';
+    const params = [req.user.id];
+    if (propertyId && !Number.isNaN(propertyId)) {
+      params.push(propertyId);
+      whereClause += ` AND u.property_id = $${params.length}`;
+    }
+
+    const result = await pool.query(
+      `SELECT u.id, u.property_id, u.unit_number, u.rent_amount, u.deposit_amount, u.status,
+              p.name AS property_name,
+              active.tenancy_id, active.tenant_id,
+              active.tenant_name, active.tenant_phone
+         FROM units u
+         JOIN properties p ON u.property_id = p.id
+         JOIN caretaker_assignments ca ON ca.property_id = p.id
+         LEFT JOIN LATERAL (
+           SELECT
+             t.id AS tenancy_id,
+             t.tenant_id,
+             us.first_name || ' ' || us.last_name AS tenant_name,
+             us.phone AS tenant_phone
+           FROM tenancies t
+           JOIN users us ON us.id = t.tenant_id
+           WHERE t.unit_id = u.id AND t.status = 'active'
+           ORDER BY t.start_date DESC
+           LIMIT 1
+         ) active ON TRUE
+        WHERE ${whereClause}
+        ORDER BY p.name, u.unit_number`,
+      params
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('getMyUnits failed:', error.message);
+    res.status(500).json({ error: 'Failed to fetch assigned units' });
+  }
+};
+
+exports.reportVacancy = async (req, res) => {
+  if (req.user.role !== 'caretaker') {
+    return res.status(403).json({ error: 'Only caretakers can report vacancies' });
+  }
+  const { notes } = req.body || {};
+  try {
+    const unitAccess = await pool.query(
+      `SELECT u.id, u.property_id, u.status, u.unit_number,
+              p.name AS property_name, p.landlord_id
+         FROM units u
+         JOIN properties p ON u.property_id = p.id
+        WHERE u.id = $1`,
+      [req.params.unitId]
+    );
+    const unit = unitAccess.rows[0];
+    if (!unit) return res.status(404).json({ error: 'Unit not found' });
+
+    if (!(await caretakerCoversProperty(req.user.id, unit.property_id))) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    let result;
+    if (unit.status === 'vacant') {
+      result = await pool.query('SELECT * FROM units WHERE id = $1', [req.params.unitId]);
+    } else {
+      result = await pool.query(
+        'UPDATE units SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
+        ['vacant', req.params.unitId]
+      );
+    }
+
+    try {
+      await pool.query(
+        `INSERT INTO notifications (user_id, type, title, message, related_id, related_type)
+         VALUES ($1, $2, $3, $4, $5, 'unit')`,
+        [
+          unit.landlord_id,
+          'alert',
+          'Vacancy reported',
+          `Caretaker reported ${unit.unit_number} at ${unit.property_name} as vacant${notes ? ` (${notes})` : ''}.`,
+          unit.id,
+        ]
+      );
+    } catch (notifyErr) {
+      console.error('Vacancy notification failed:', notifyErr.message);
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('reportVacancy failed:', error.message);
+    res.status(500).json({ error: 'Failed to report vacancy' });
   }
 };

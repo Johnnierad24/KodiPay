@@ -201,7 +201,7 @@ class _PaymentsContentState extends State<_PaymentsContent> {
           Container(
             padding: const EdgeInsets.symmetric(vertical: 20),
             decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.outlineVariant))),
-            child: Column(
+            child: const Column(
               children: [
                 Wrap(
                   spacing: 16,
@@ -210,7 +210,7 @@ class _PaymentsContentState extends State<_PaymentsContent> {
                   children: [
                     Row(
                       mainAxisSize: MainAxisSize.min,
-                      children: const [
+                      children: [
                         Icon(Icons.lock, size: 16),
                         SizedBox(width: 6),
                         Text('SSL Secured', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.onSurfaceVariant)),
@@ -218,7 +218,7 @@ class _PaymentsContentState extends State<_PaymentsContent> {
                     ),
                     Row(
                       mainAxisSize: MainAxisSize.min,
-                      children: const [
+                      children: [
                         Icon(Icons.policy, size: 16),
                         SizedBox(width: 6),
                         Text('PCI-DSS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.onSurfaceVariant)),
@@ -226,8 +226,8 @@ class _PaymentsContentState extends State<_PaymentsContent> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
-                const Text('© 2023 KodiPay Silicon Savannah. All transactions are final.', style: TextStyle(fontSize: 12, color: AppColors.onSurfaceVariant)),
+                SizedBox(height: 6),
+                Text('© 2023 KodiPay Silicon Savannah. All transactions are final.', style: TextStyle(fontSize: 12, color: AppColors.onSurfaceVariant)),
               ],
             ),
           ),
