@@ -261,8 +261,8 @@ class _PhotoUploadSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: const [
+          const Row(
+            children: [
               Icon(Icons.add_a_photo_rounded, color: AppColors.primary, size: 24),
               SizedBox(width: 12),
               Expanded(
@@ -405,8 +405,8 @@ class _UrgencySection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: const [
+          const Row(
+            children: [
               Icon(Icons.priority_high_rounded, color: AppColors.primary, size: 24),
               SizedBox(width: 12),
               Expanded(

@@ -244,6 +244,7 @@ class _WizardCard extends StatelessWidget {
           TextField(
             controller: descriptionController,
             maxLines: 6,
+            maxLength: 1000,
             decoration: InputDecoration(
               hintText: 'Please provide as much detail as possible. For example: \'The kitchen faucet is leaking from the base and causing water to pool on the counter...\'',
               hintStyle: TextStyle(color: AppColors.secondary.withValues(alpha: 0.5), fontSize: 16),
@@ -252,6 +253,7 @@ class _WizardCard extends StatelessWidget {
                 borderSide: const BorderSide(color: AppColors.outlineVariant),
               ),
               contentPadding: const EdgeInsets.all(16),
+              counterText: '',
             ),
           ),
           const SizedBox(height: 8),
@@ -273,9 +275,14 @@ class _WizardCard extends StatelessWidget {
                   ),
                 ],
               ),
-              Text(
-                '${descriptionController.text.length} / 1000',
-                style: AppStyles.bodySm.copyWith(color: AppColors.secondary),
+              ListenableBuilder(
+                listenable: descriptionController,
+                builder: (context, _) {
+                  return Text(
+                    '${descriptionController.text.length} / 1000',
+                    style: AppStyles.bodySm.copyWith(color: AppColors.secondary),
+                  );
+                },
               ),
             ],
           ),
@@ -411,26 +418,42 @@ class _CategoryRadio extends StatelessWidget {
 class _TipsBento extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 16,
-      runSpacing: 16,
-      children: const [
-        _TipCard(
-          icon: Icons.schedule_rounded,
-          title: 'Fast Turnaround',
-          description: 'Average response time is under 12 hours.',
-        ),
-        _TipCard(
-          icon: Icons.verified_user_rounded,
-          title: 'Certified Pros',
-          description: 'All technicians are background checked.',
-        ),
-        _TipCard(
-          icon: Icons.notifications_active_rounded,
-          title: 'Live Tracking',
-          description: 'Track the technician\'s arrival on the map.',
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final available = constraints.maxWidth;
+        final double cardWidth;
+        if (available >= 900) {
+          cardWidth = (available - 32) / 3;
+        } else if (available >= 480) {
+          cardWidth = (available - 16) / 2;
+        } else {
+          cardWidth = available;
+        }
+        const cards = [
+          _TipCard(
+            icon: Icons.schedule_rounded,
+            title: 'Fast Turnaround',
+            description: 'Average response time is under 12 hours.',
+          ),
+          _TipCard(
+            icon: Icons.verified_user_rounded,
+            title: 'Certified Pros',
+            description: 'All technicians are background checked.',
+          ),
+          _TipCard(
+            icon: Icons.notifications_active_rounded,
+            title: 'Live Tracking',
+            description: 'Track the technician\'s arrival on the map.',
+          ),
+        ];
+        return Wrap(
+          spacing: 16,
+          runSpacing: 16,
+          children: [
+            for (var i = 0; i < cards.length; i++) SizedBox(width: cardWidth, child: cards[i]),
+          ],
+        );
+      },
     );
   }
 }

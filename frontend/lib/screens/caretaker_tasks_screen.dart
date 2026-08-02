@@ -4,7 +4,10 @@ import '../models/maintenance_item.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
 import '../widgets/shared_screen_components.dart';
+import 'caretaker_new_incident_screen.dart';
 import 'caretaker_task_detail_screen.dart';
+
+enum _TaskFilter { all, todo, inProgress, done, critical }
 
 class CaretakerTasksScreen extends StatefulWidget {
   const CaretakerTasksScreen({super.key});
@@ -16,6 +19,7 @@ class CaretakerTasksScreen extends StatefulWidget {
 class _CaretakerTasksScreenState extends State<CaretakerTasksScreen> {
   final ApiService _api = ApiService();
   Future<List<MaintenanceItem>>? _future;
+  _TaskFilter _filter = _TaskFilter.all;
 
   @override
   void initState() {
@@ -38,6 +42,44 @@ class _CaretakerTasksScreenState extends State<CaretakerTasksScreen> {
         .map((item) => MaintenanceItem.fromJson(item as Map<String, dynamic>))
         .toList();
     return all;
+  }
+
+  List<MaintenanceItem> _applyFilter(List<MaintenanceItem> src) {
+    switch (_filter) {
+      case _TaskFilter.todo:
+        return src.where((i) => i.status.toLowerCase() == 'pending').toList();
+      case _TaskFilter.inProgress:
+        return src.where((i) => i.status.toLowerCase() == 'in_progress').toList();
+      case _TaskFilter.done:
+        return src.where((i) => i.status.toLowerCase() == 'completed').toList();
+      case _TaskFilter.critical:
+        return src.where((i) => i.priority == 'emergency' || i.priority == 'urgent').toList();
+      case _TaskFilter.all:
+        return src;
+    }
+  }
+
+  String _filterLabel() {
+    switch (_filter) {
+      case _TaskFilter.all:
+        return 'All Tasks';
+      case _TaskFilter.todo:
+        return 'To Do';
+      case _TaskFilter.inProgress:
+        return 'In Progress';
+      case _TaskFilter.done:
+        return 'Completed';
+      case _TaskFilter.critical:
+        return 'Critical';
+    }
+  }
+
+  Future<void> _openNewTask() async {
+    final created = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const CaretakerNewIncidentScreen()),
+    );
+    if (created == true && mounted) _reload();
   }
 
   Future<void> _open(MaintenanceItem item) async {
@@ -117,9 +159,10 @@ class _CaretakerTasksScreenState extends State<CaretakerTasksScreen> {
                     );
                   }
                   final items = snapshot.data ?? const <MaintenanceItem>[];
-                  final todo = items.where((i) => i.status.toLowerCase() == 'pending').toList();
-                  final inProgress = items.where((i) => i.status.toLowerCase() == 'in_progress').toList();
-                  final done = items.where((i) => i.status.toLowerCase() == 'completed').toList();
+                  final filtered = _applyFilter(items);
+                  final todo = filtered.where((i) => i.status.toLowerCase() == 'pending').toList();
+                  final inProgress = filtered.where((i) => i.status.toLowerCase() == 'in_progress').toList();
+                  final done = filtered.where((i) => i.status.toLowerCase() == 'completed').toList();
                   final allOpen = items.where((i) => !i.isResolved).toList();
                   final critical = items.where((i) => i.priority == 'emergency' && !i.isResolved).length;
 
@@ -164,20 +207,31 @@ class _CaretakerTasksScreenState extends State<CaretakerTasksScreen> {
         const Expanded(
           child: Text('Task Management', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textDark)),
         ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: AppColors.white,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: AppColors.outlineVariant),
-          ),
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('All Tasks', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textDark)),
-              SizedBox(width: 6),
-              Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: AppColors.muted),
-            ],
+        PopupMenuButton<_TaskFilter>(
+          initialValue: _filter,
+          onSelected: (f) => setState(() => _filter = f),
+          itemBuilder: (context) => const [
+            PopupMenuItem(value: _TaskFilter.all, child: Text('All Tasks')),
+            PopupMenuItem(value: _TaskFilter.todo, child: Text('To Do')),
+            PopupMenuItem(value: _TaskFilter.inProgress, child: Text('In Progress')),
+            PopupMenuItem(value: _TaskFilter.done, child: Text('Completed')),
+            PopupMenuItem(value: _TaskFilter.critical, child: Text('Critical / Urgent')),
+          ],
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.outlineVariant),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(_filterLabel(), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textDark)),
+                const SizedBox(width: 6),
+                const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: AppColors.muted),
+              ],
+            ),
           ),
         ),
         const SizedBox(width: 8),
@@ -186,7 +240,7 @@ class _CaretakerTasksScreenState extends State<CaretakerTasksScreen> {
           borderRadius: BorderRadius.circular(10),
           child: InkWell(
             borderRadius: BorderRadius.circular(10),
-            onTap: () {},
+            onTap: _openNewTask,
             child: const Padding(
               padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               child: Row(

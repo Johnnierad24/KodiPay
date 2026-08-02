@@ -2,6 +2,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
+import '../widgets/shared_screen_components.dart';
+import 'caretaker_report_vacancy_screen.dart';
+import 'caretaker_units_screen.dart';
 
 class CaretakerPropertiesScreen extends StatefulWidget {
   const CaretakerPropertiesScreen({super.key});
@@ -26,12 +29,43 @@ class _CaretakerPropertiesScreenState extends State<CaretakerPropertiesScreen> {
   }
 
   Future<List<Map<String, dynamic>>> _fetch() async {
-    final response = await _api.get('/tenancies');
+    final response = await _api.get('/caretakers/my-properties');
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as List<dynamic>;
-      return data.cast<Map<String, dynamic>>();
+      return (jsonDecode(response.body) as List<dynamic>).cast<Map<String, dynamic>>();
     }
-    return [];
+    throw Exception('Could not load properties (${response.statusCode})');
+  }
+
+  Future<void> _openReportVacancy() async {
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const CaretakerReportVacancyScreen()),
+    );
+    if (changed == true && mounted) {
+      showSnack(context, 'Vacancy reported');
+      _reload();
+    }
+  }
+
+  Future<void> _openUnits(Map<String, dynamic> property) async {
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CaretakerUnitsScreen(
+          propertyId: _toInt(property['id']),
+          propertyName: (property['property_name'] ?? '').toString(),
+          propertyAddress: (property['address'] ?? '').toString(),
+        ),
+      ),
+    );
+    if (changed == true && mounted) _reload();
+  }
+
+  int _toInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString()) ?? 0;
   }
 
   @override
@@ -43,10 +77,6 @@ class _CaretakerPropertiesScreenState extends State<CaretakerPropertiesScreen> {
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
             sliver: SliverToBoxAdapter(child: _buildHeader()),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
-            sliver: SliverToBoxAdapter(child: _buildStatsGrid()),
           ),
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
@@ -81,23 +111,24 @@ class _CaretakerPropertiesScreenState extends State<CaretakerPropertiesScreen> {
                       ),
                     );
                   }
-                  final properties = _buildPropertyCards();
+                  final properties = snapshot.data ?? const <Map<String, dynamic>>[];
+                  if (properties.isEmpty) {
+                    return _buildEmptyState();
+                  }
                   return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      _buildStatsGrid(properties),
+                      const SizedBox(height: 18),
                       ...properties.map((p) => Padding(
                         padding: const EdgeInsets.only(bottom: 16),
-                        child: p,
+                        child: _propertyCard(properties.indexOf(p), p),
                       )),
-                      _buildAddPropertyCard(),
                     ],
                   );
                 },
               ),
             ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
-            sliver: SliverToBoxAdapter(child: _buildRentCollection()),
           ),
           const SliverPadding(padding: EdgeInsets.only(bottom: 24)),
         ],
@@ -108,23 +139,25 @@ class _CaretakerPropertiesScreenState extends State<CaretakerPropertiesScreen> {
   Widget _buildHeader() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Managed Properties', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: AppColors.textDark)),
+              Text('Managed Properties', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: AppColors.textDark, fontFamily: 'Lexend')),
               SizedBox(height: 4),
-              Text('Overview of your real estate portfolio in Nairobi', style: TextStyle(fontSize: 13, color: AppColors.textLight)),
+              Text('Properties assigned to you and their units', style: TextStyle(fontSize: 13, color: AppColors.textLight)),
             ],
           ),
         ),
+        const SizedBox(width: 12),
         Material(
           color: AppColors.kodiOrange,
           borderRadius: BorderRadius.circular(10),
           child: InkWell(
             borderRadius: BorderRadius.circular(10),
-            onTap: () {},
+            onTap: _openReportVacancy,
             child: const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               child: Text('+ Report Vacancy', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white)),
@@ -135,36 +168,45 @@ class _CaretakerPropertiesScreenState extends State<CaretakerPropertiesScreen> {
     );
   }
 
-  Widget _buildStatsGrid() {
+  Widget _buildStatsGrid(List<Map<String, dynamic>> properties) {
+    var totalUnits = 0;
+    var occupied = 0;
+    var vacant = 0;
+    for (final p in properties) {
+      totalUnits += _toInt(p['total_units']);
+      occupied += _toInt(p['occupied_units']);
+      vacant += _toInt(p['vacant_units']);
+    }
+
+    final cards = [
+      _statCard('Assigned Properties', '${properties.length}', Icons.apartment_rounded, AppColors.kodiNavy),
+      _statCard('Total Units', '$totalUnits', Icons.meeting_room_outlined, AppColors.kodiBlue),
+      _statCard('Occupied', '$occupied', Icons.people_outline, AppColors.kodiGreen),
+      _statCard('Vacant', '$vacant', Icons.door_front_door_outlined, AppColors.kodiOrange),
+    ];
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final isNarrow = constraints.maxWidth < 600;
-        return isNarrow
-            ? Column(
-                children: [
-                  _statCard('Total Portfolio Value', 'KSh 12.4M', Icons.payments_rounded, AppColors.kodiGreen, change: '+4.2% from last month', changeColor: AppColors.kodiGreen),
-                  const SizedBox(height: 12),
-                  _statCard('Average Occupancy', '94.8%', Icons.group_outlined, AppColors.kodiNavy, showProgress: true, progressValue: 0.948),
-                  const SizedBox(height: 12),
-                  _statCard('Pending Issues', '12', Icons.warning_amber_rounded, AppColors.danger, subtitle: 'Requires immediate attention'),
-                ],
-              )
-            : Row(
-                children: [
-                  Expanded(child: _statCard('Total Portfolio Value', 'KSh 12.4M', Icons.payments_rounded, AppColors.kodiGreen, change: '+4.2% from last month', changeColor: AppColors.kodiGreen)),
-                  const SizedBox(width: 16),
-                  Expanded(child: _statCard('Average Occupancy', '94.8%', Icons.group_outlined, AppColors.kodiNavy, showProgress: true, progressValue: 0.948)),
-                  const SizedBox(width: 16),
-                  Expanded(child: _statCard('Pending Issues', '12', Icons.warning_amber_rounded, AppColors.danger, subtitle: 'Requires immediate attention')),
-                ],
-              );
+        if (isNarrow) {
+          return Column(
+            children: [
+              Row(children: [Expanded(child: cards[0]), const SizedBox(width: 12), Expanded(child: cards[1])]),
+              const SizedBox(height: 12),
+              Row(children: [Expanded(child: cards[2]), const SizedBox(width: 12), Expanded(child: cards[3])]),
+            ],
+          );
+        }
+        return Row(
+          children: cards.map((c) => Expanded(child: Padding(padding: const EdgeInsets.only(right: 12), child: c))).toList(),
+        );
       },
     );
   }
 
-  Widget _statCard(String label, String value, IconData icon, Color color, {String? change, Color? changeColor, bool showProgress = false, double? progressValue, String? subtitle}) {
+  Widget _statCard(String label, String value, IconData icon, Color color) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(16),
@@ -177,96 +219,48 @@ class _CaretakerPropertiesScreenState extends State<CaretakerPropertiesScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(label.toUpperCase(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textLight, letterSpacing: 0.5)),
+              Text(label.toUpperCase(), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.textLight, letterSpacing: 0.5)),
               Icon(icon, size: 20, color: color),
             ],
           ),
           const SizedBox(height: 12),
-          Text(value, style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: color, fontFamily: 'Lexend', letterSpacing: -0.02)),
-          if (change != null) ...[
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(Icons.trending_up_rounded, size: 14, color: changeColor ?? AppColors.kodiGreen),
-                const SizedBox(width: 4),
-                Text(change, style: TextStyle(fontSize: 12, color: changeColor ?? AppColors.kodiGreen, fontWeight: FontWeight.w600)),
-              ],
-            ),
-          ],
-          if (showProgress && progressValue != null) ...[
-            const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(999),
-              child: LinearProgressIndicator(
-                value: progressValue,
-                backgroundColor: AppColors.surfaceHigh,
-                valueColor: AlwaysStoppedAnimation(color),
-                minHeight: 8,
-              ),
-            ),
-          ],
-          if (subtitle != null) ...[
-            const SizedBox(height: 8),
-            Text(subtitle, style: const TextStyle(fontSize: 12, color: AppColors.textLight)),
-          ],
+          Text(value, style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: color, fontFamily: 'Lexend')),
         ],
       ),
     );
   }
 
-  List<Widget> _buildPropertyCards() {
-    return [
-      _propertyCard(
-        name: 'Blue Heights Estate',
-        location: 'Westlands, Nairobi',
-        badge: 'Premium Asset',
-        badgeColor: AppColors.kodiNavy,
-        occupancy: '96%',
-        totalUnits: '120',
-        moveouts: '3',
-        monthlyRev: 'KSh 1.2M',
-        avatarCount: 12,
-        gradientColors: const [Color(0xFF1E3A5F), Color(0xFF0D2137)],
+  Widget _buildEmptyState() {
+    return Container(
+      padding: const EdgeInsets.all(40),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.6)),
       ),
-      _propertyCard(
-        name: 'Crimson Courts',
-        location: 'Kilimani, Nairobi',
-        badge: 'High Yield',
-        badgeColor: AppColors.kodiGreen,
-        occupancy: '88%',
-        totalUnits: '45',
-        moveouts: '8',
-        monthlyRev: 'KSh 640K',
-        avatarCount: 5,
-        gradientColors: const [Color(0xFF7B2D2D), Color(0xFF5C1A1A)],
+      child: const Column(
+        children: [
+          Icon(Icons.domain_add_outlined, size: 48, color: AppColors.muted),
+          SizedBox(height: 12),
+          Text('No properties assigned', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textDark)),
+          SizedBox(height: 4),
+          Text('You have not been assigned to any property yet.', style: TextStyle(fontSize: 13, color: AppColors.textLight)),
+        ],
       ),
-      _propertyCard(
-        name: 'Emerald Gardens',
-        location: 'Lavington, Nairobi',
-        badge: 'Stable Growth',
-        badgeColor: AppColors.secondary,
-        occupancy: '100%',
-        totalUnits: '18',
-        moveouts: '0',
-        monthlyRev: 'KSh 920K',
-        avatarCount: 2,
-        gradientColors: const [Color(0xFF2D6A4F), Color(0xFF1B4332)],
-      ),
-    ];
+    );
   }
 
-  Widget _propertyCard({
-    required String name,
-    required String location,
-    required String badge,
-    required Color badgeColor,
-    required String occupancy,
-    required String totalUnits,
-    required String moveouts,
-    required String monthlyRev,
-    required int avatarCount,
-    required List<Color> gradientColors,
-  }) {
+  Widget _propertyCard(int index, Map<String, dynamic> p) {
+    final name = (p['property_name'] ?? 'Unnamed Property').toString();
+    final address = (p['address'] ?? '').toString();
+    final totalUnits = _toInt(p['total_units']);
+    final occupied = _toInt(p['occupied_units']);
+    final vacant = _toInt(p['vacant_units']);
+    final maintenance = _toInt(p['maintenance_units']);
+    final openMaint = _toInt(p['open_maintenance']);
+    final occupancy = totalUnits > 0 ? ((occupied / totalUnits) * 100).round() : 0;
+    final gradient = _gradientFor(index);
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.white,
@@ -278,33 +272,22 @@ class _CaretakerPropertiesScreenState extends State<CaretakerPropertiesScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            height: 180,
+            height: 150,
             decoration: BoxDecoration(
-              gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: gradientColors),
+              gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: gradient),
               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
             ),
             child: Stack(
               children: [
-                Positioned.fill(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Colors.transparent, Colors.black.withValues(alpha: 0.3)],
-                      ),
-                    ),
-                  ),
-                ),
                 Positioned(
                   top: 16, left: 16,
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                     decoration: BoxDecoration(
-                      color: badgeColor,
+                      color: AppColors.kodiGreen,
                       borderRadius: BorderRadius.circular(999),
                     ),
-                    child: Text(badge.toUpperCase(), style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 1)),
+                    child: const Text('ASSIGNED', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 1)),
                   ),
                 ),
                 Positioned(
@@ -326,7 +309,7 @@ class _CaretakerPropertiesScreenState extends State<CaretakerPropertiesScreen> {
                   ),
                 ),
                 Center(
-                  child: Icon(_propertyIcon(name), size: 64, color: Colors.white.withValues(alpha: 0.15)),
+                  child: Icon(Icons.apartment_rounded, size: 60, color: Colors.white.withValues(alpha: 0.15)),
                 ),
               ],
             ),
@@ -350,7 +333,9 @@ class _CaretakerPropertiesScreenState extends State<CaretakerPropertiesScreen> {
                             children: [
                               const Icon(Icons.location_on_outlined, size: 14, color: AppColors.textLight),
                               const SizedBox(width: 4),
-                              Text(location, style: const TextStyle(fontSize: 13, color: AppColors.textLight)),
+                              Expanded(
+                                child: Text(address.isEmpty ? 'Address unavailable' : address, style: const TextStyle(fontSize: 13, color: AppColors.textLight)),
+                              ),
                             ],
                           ),
                         ],
@@ -359,7 +344,7 @@ class _CaretakerPropertiesScreenState extends State<CaretakerPropertiesScreen> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(occupancy, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.kodiNavy, fontFamily: 'Lexend')),
+                        Text('$occupancy%', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.kodiNavy, fontFamily: 'Lexend')),
                         const Text('Occupancy', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: AppColors.textLight, letterSpacing: 0.5)),
                       ],
                     ),
@@ -373,57 +358,40 @@ class _CaretakerPropertiesScreenState extends State<CaretakerPropertiesScreen> {
                   ),
                   child: Row(
                     children: [
-                      _unitStat(totalUnits, 'Total Units'),
+                      _unitStat('$totalUnits', 'Total Units'),
                       Container(width: 1, height: 30, color: AppColors.outlineVariant.withValues(alpha: 0.5)),
-                      _unitStat(moveouts, 'Move-outs', isAlert: int.tryParse(moveouts) != null && int.parse(moveouts) > 0),
+                      _unitStat('$occupied', 'Occupied'),
                       Container(width: 1, height: 30, color: AppColors.outlineVariant.withValues(alpha: 0.5)),
-                      _unitStat(monthlyRev, 'Monthly Rev', isRevenue: true),
+                      _unitStat('$vacant', 'Vacant', isAlert: vacant > 0),
+                      Container(width: 1, height: 30, color: AppColors.outlineVariant.withValues(alpha: 0.5)),
+                      _unitStat('$maintenance', 'In Maint', isRevenue: true),
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: List.generate(
-                        avatarCount > 3 ? 3 : avatarCount,
-                        (i) => Container(
-                          margin: const EdgeInsets.only(right: 4),
-                          width: 32, height: 32,
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceHigh,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
-                          ),
-                          child: Center(
-                            child: Text(
-                              String.fromCharCode(65 + i),
-                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.textDark),
-                            ),
-                          ),
+                const SizedBox(height: 14),
+                if (openMaint > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.warning_amber_rounded, size: 15, color: AppColors.kodiOrange),
+                        const SizedBox(width: 6),
+                        Text(
+                          '$openMaint open maintenance ${openMaint == 1 ? 'request' : 'requests'}',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.kodiOrange),
                         ),
-                      ),
+                      ],
                     ),
-                    if (avatarCount > 3)
-                      Container(
-                        width: 32, height: 32,
-                        decoration: BoxDecoration(
-                          color: AppColors.kodiNavy,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
-                        ),
-                        child: Center(
-                          child: Text('+$avatarCount', style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: Colors.white)),
-                        ),
-                      ),
-                    const Spacer(),
+                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
                     Material(
-                      color: AppColors.primaryContainer,
+                      color: AppColors.kodiNavy,
                       borderRadius: BorderRadius.circular(10),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(10),
-                        onTap: () {},
+                        onTap: () => _openUnits(p),
                         child: const Padding(
                           padding: EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                           child: Row(
@@ -460,105 +428,19 @@ class _CaretakerPropertiesScreenState extends State<CaretakerPropertiesScreen> {
             ),
           ),
           const SizedBox(height: 2),
-          Text(label, style: const TextStyle(fontSize: 10, color: AppColors.textLight, fontWeight: FontWeight.w500)),
+          Text(label, style: const TextStyle(fontSize: 9, color: AppColors.textLight, fontWeight: FontWeight.w500)),
         ],
       ),
     );
   }
 
-  Widget _buildAddPropertyCard() {
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () {},
-        child: Container(
-          padding: const EdgeInsets.all(40),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceLow,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.outlineVariant, width: 2, strokeAlign: BorderSide.strokeAlignInside),
-          ),
-          child: Column(
-            children: [
-              Container(
-                width: 64, height: 64,
-                decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8)]),
-                child: const Icon(Icons.add_business_rounded, color: AppColors.kodiNavy, size: 28),
-              ),
-              const SizedBox(height: 16),
-              const Text('Onboard New Property', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textDark, fontFamily: 'Lexend')),
-              const SizedBox(height: 8),
-              const Text('Expand your portfolio. Start the verification\nprocess for a new building.', textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: AppColors.textLight)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRentCollection() {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [AppColors.kodiNavy, Color(0xFF0A2744)]),
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [BoxShadow(color: AppColors.kodiNavy.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4))],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Automated Rent Collection', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white, fontFamily: 'Lexend')),
-          const SizedBox(height: 8),
-          Text(
-            'Your properties at Blue Heights Estate have successfully processed 84% of this month\'s rent. Automated reminders will be sent to the remaining 16 tenants tomorrow morning.',
-            style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.8)),
-          ),
-          const SizedBox(height: 20),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              Material(
-                color: AppColors.kodiGreen,
-                borderRadius: BorderRadius.circular(10),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(10),
-                  onTap: () {},
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                    child: Text('View Collection Report', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white)),
-                  ),
-                ),
-              ),
-              Material(
-                color: Colors.white.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(10),
-                  onTap: () {},
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-                    ),
-                    child: const Text('Settings', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white)),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  IconData _propertyIcon(String name) {
-    if (name.toLowerCase().contains('height') || name.toLowerCase().contains('tower')) return Icons.apartment_rounded;
-    if (name.toLowerCase().contains('court') || name.toLowerCase().contains('apartment')) return Icons.villa_rounded;
-    if (name.toLowerCase().contains('garden')) return Icons.park_rounded;
-    return Icons.business_rounded;
+  List<Color> _gradientFor(int index) {
+    const pool = [
+      [Color(0xFF1E3A5F), Color(0xFF0D2137)],
+      [Color(0xFF2D6A4F), Color(0xFF1B4332)],
+      [Color(0xFF7B2D2D), Color(0xFF5C1A1A)],
+      [Color(0xFF3E4C59), Color(0xFF1F2933)],
+    ];
+    return pool[index % pool.length];
   }
 }

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../utils/constants.dart';
+import 'landlord_tenant_act_screen.dart';
+import 'tenant_maintenance_screen.dart';
+import 'tenant_rights_screen.dart';
 
 class MaintenanceSubmittedScreen extends StatelessWidget {
   const MaintenanceSubmittedScreen({super.key});
@@ -106,36 +109,48 @@ class _ConfirmationDetails extends StatelessWidget {
 class _BentoStatusSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return const Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: _StatusCard(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const cards = [
+          _StatusCard(
             icon: Icons.schedule_rounded,
             title: 'Estimated Response',
             value: '4 Hours',
             description: 'A caretaker will review your submission details.',
           ),
-        ),
-        SizedBox(width: 24),
-        Expanded(
-          child: _StatusCard(
+          _StatusCard(
             icon: Icons.build_rounded,
             title: 'Service Type',
             value: 'Plumbing',
             description: 'Emergency repair for unit 4B master bath leakage.',
           ),
-        ),
-        SizedBox(width: 24),
-        Expanded(
-          child: _StatusCard(
+          _StatusCard(
             icon: Icons.verified_user_rounded,
             title: 'Assigned Agent',
             value: 'KodiCare HQ',
             description: 'Automated routing to the Silicon Savannah team.',
           ),
-        ),
-      ],
+        ];
+        if (constraints.maxWidth < 600) {
+          return Column(
+            children: [
+              for (var i = 0; i < cards.length; i++) ...[
+                if (i > 0) const SizedBox(height: 16),
+                cards[i],
+              ],
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var i = 0; i < cards.length; i++) ...[
+              if (i > 0) const SizedBox(width: 24),
+              Expanded(child: cards[i]),
+            ],
+          ],
+        );
+      },
     );
   }
 }
@@ -206,50 +221,63 @@ class _NextStepsSection extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 32),
-          const Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _NextStep(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              const steps = [
+                _NextStep(
                   step: '1',
                   title: 'Review',
                   description: 'Our supervisor validates the urgency of your plumbing request.',
                   isActive: true,
                 ),
-              ),
-              SizedBox(width: 32),
-              Expanded(
-                child: _NextStep(
+                _NextStep(
                   step: '2',
                   title: 'Dispatch',
                   description: 'A local technician is notified and assigned your ticket.',
                   isActive: false,
                 ),
-              ),
-              SizedBox(width: 32),
-              Expanded(
-                child: _NextStep(
+                _NextStep(
                   step: '3',
                   title: 'Resolution',
                   description: 'Technician visits your unit to perform the necessary repairs.',
                   isActive: false,
                 ),
-              ),
-            ],
+              ];
+              if (constraints.maxWidth < 600) {
+                return Column(
+                  children: [
+                    for (var i = 0; i < steps.length; i++) ...[
+                      if (i > 0) const SizedBox(height: 24),
+                      steps[i],
+                    ],
+                  ],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (var i = 0; i < steps.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 32),
+                    Expanded(child: steps[i]),
+                  ],
+                ],
+              );
+            },
           ),
           const SizedBox(height: 32),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 16,
+            runSpacing: 16,
             children: [
               SizedBox(
                 height: 56,
                 child: ElevatedButton.icon(
-                  onPressed: () {},
+                  onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const TenantMaintenanceScreen())),
                   icon: const Icon(Icons.track_changes_rounded, size: 20),
                   label: const Text('TRACK PROGRESS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.05)),
                 ),
               ),
-              const SizedBox(width: 16),
               SizedBox(
                 height: 56,
                 child: OutlinedButton.icon(
@@ -324,12 +352,15 @@ class _NextStep extends StatelessWidget {
 class _FooterLinks extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 32,
+      runSpacing: 16,
       children: [
         GestureDetector(
-          onTap: () {},
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TenantRightsScreen())),
           child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               const Icon(Icons.gavel_rounded, color: AppColors.secondary, size: 14),
               const SizedBox(width: 8),
@@ -340,10 +371,10 @@ class _FooterLinks extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(width: 32),
         GestureDetector(
-          onTap: () {},
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LandlordTenantActScreen())),
           child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               const Icon(Icons.description_rounded, color: AppColors.secondary, size: 14),
               const SizedBox(width: 8),

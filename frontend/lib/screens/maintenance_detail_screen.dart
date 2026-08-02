@@ -53,15 +53,15 @@ class MaintenanceDetailScreen extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 14),
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
                     StatusPill(label: statusLabel, color: statusColor),
-                    const SizedBox(width: 8),
                     MaintenanceTag(
                       label: capitalizeWord(item.priority),
                       color: maintenancePriorityColor(item.priority),
                     ),
-                    const SizedBox(width: 8),
                     MaintenanceTag(
                       label: capitalizeWord(item.category),
                       color: AppColors.kodiNavy,

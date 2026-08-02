@@ -4,6 +4,8 @@ import '../models/maintenance_item.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
 import '../widgets/shared_screen_components.dart';
+import 'caretaker_alert_history_screen.dart';
+import 'caretaker_new_incident_screen.dart';
 import 'caretaker_task_detail_screen.dart';
 
 class CaretakerAlertsScreen extends StatefulWidget {
@@ -16,6 +18,10 @@ class CaretakerAlertsScreen extends StatefulWidget {
 class _CaretakerAlertsScreenState extends State<CaretakerAlertsScreen> {
   final ApiService _api = ApiService();
   Future<_AlertBundle>? _future;
+
+  String _priority = 'All';
+  String _category = 'All';
+  String _status = 'All';
 
   @override
   void initState() {
@@ -45,6 +51,130 @@ class _CaretakerAlertsScreenState extends State<CaretakerAlertsScreen> {
         : [];
 
     return _AlertBundle(emergency: emergency, recent: recent, completed: completed);
+  }
+
+  bool _matches(MaintenanceItem item) {
+    if (_priority != 'All' && item.priority.toLowerCase() != _priority.toLowerCase()) return false;
+    if (_category != 'All' && item.category.toLowerCase() != _category.toLowerCase()) return false;
+    if (_status != 'All' && item.status.toLowerCase() != _status.toLowerCase()) return false;
+    return true;
+  }
+
+  Future<void> _showFilterSheet() async {
+    var tempPriority = _priority;
+    var tempCategory = _category;
+    var tempStatus = _status;
+
+    final result = await showModalBottomSheet<Map<String, String>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            return Container(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+              decoration: const BoxDecoration(
+                color: AppColors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text('Filter Alerts', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.textDark, fontFamily: 'Lexend')),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  _filterDropdown('Priority', const ['All', 'Emergency', 'Urgent', 'High', 'Medium', 'Low'], tempPriority, (v) => setSheetState(() => tempPriority = v)),
+                  const SizedBox(height: 14),
+                  _filterDropdown('Category', const ['All', 'Electrical', 'Plumbing', 'Structural', 'Other'], tempCategory, (v) => setSheetState(() => tempCategory = v)),
+                  const SizedBox(height: 14),
+                  _filterDropdown('Status', const ['All', 'Pending', 'In Progress', 'Completed'], tempStatus, (v) => setSheetState(() => tempStatus = v)),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => setSheetState(() {
+                            tempPriority = 'All';
+                            tempCategory = 'All';
+                            tempStatus = 'All';
+                          }),
+                          child: const Text('Reset'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.kodiNavy,
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: () => Navigator.pop(ctx, {'priority': tempPriority, 'category': tempCategory, 'status': tempStatus}),
+                          child: const Text('Apply Filters'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    if (result != null && mounted) {
+      setState(() {
+        _priority = result['priority'] ?? 'All';
+        _category = result['category'] ?? 'All';
+        _status = result['status'] ?? 'All';
+      });
+    }
+  }
+
+  Widget _filterDropdown(String label, List<String> values, String current, ValueChanged<String> onChanged) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label.toUpperCase(), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.textLight, letterSpacing: 0.5)),
+        const SizedBox(height: 6),
+        DropdownButtonFormField<String>(
+          initialValue: current,
+          decoration: InputDecoration(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+            isDense: true,
+          ),
+          items: values.map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
+          onChanged: (v) { if (v != null) onChanged(v); },
+        ),
+      ],
+    );
+  }
+
+  Future<void> _openHistory() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const CaretakerAlertHistoryScreen()),
+    );
+  }
+
+  Future<void> _openNewIncident() async {
+    final created = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const CaretakerNewIncidentScreen()),
+    );
+    if (created == true && mounted) _reload();
   }
 
   Future<void> _acknowledge(MaintenanceItem item) async {
@@ -110,24 +240,29 @@ class _CaretakerAlertsScreenState extends State<CaretakerAlertsScreen> {
                         );
                       }
                       final bundle = snapshot.data ?? const _AlertBundle(emergency: [], recent: [], completed: []);
-                      final urgentCount = bundle.emergency.length;
-                      final pendingCount = bundle.recent.where((i) => i.priority != 'emergency').length;
+                      final filtered = _AlertBundle(
+                        emergency: bundle.emergency.where(_matches).toList(),
+                        recent: bundle.recent.where(_matches).toList(),
+                        completed: bundle.completed.where(_matches).toList(),
+                      );
+                      final urgentCount = filtered.emergency.length;
+                      final pendingCount = filtered.recent.where((i) => i.priority != 'emergency').length;
 
                       if (isWide) {
                         return Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(flex: 5, child: _buildAlertsFeed(bundle)),
+                            Expanded(flex: 5, child: _buildAlertsFeed(filtered)),
                             const SizedBox(width: 18),
-                            SizedBox(width: 320, child: _buildSidePanel(bundle, urgentCount, pendingCount)),
+                            SizedBox(width: 320, child: _buildSidePanel(filtered, urgentCount, pendingCount)),
                           ],
                         );
                       }
                       return Column(
                         children: [
-                          _buildAlertsFeed(bundle),
+                          _buildAlertsFeed(filtered),
                           const SizedBox(height: 18),
-                          _buildSidePanel(bundle, urgentCount, pendingCount),
+                          _buildSidePanel(filtered, urgentCount, pendingCount),
                         ],
                       );
                     },
@@ -142,7 +277,7 @@ class _CaretakerAlertsScreenState extends State<CaretakerAlertsScreen> {
           right: 24,
           bottom: 24,
           child: FloatingActionButton(
-            onPressed: () => showSnack(context, 'New incident report'),
+            onPressed: _openNewIncident,
             backgroundColor: AppColors.kodiGreen,
             child: const Icon(Icons.add, color: Colors.white, size: 28),
           ),
@@ -173,7 +308,7 @@ class _CaretakerAlertsScreenState extends State<CaretakerAlertsScreen> {
               borderRadius: BorderRadius.circular(10),
               child: InkWell(
                 borderRadius: BorderRadius.circular(10),
-                onTap: () {},
+                onTap: _showFilterSheet,
                 child: const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   child: Row(
@@ -192,7 +327,7 @@ class _CaretakerAlertsScreenState extends State<CaretakerAlertsScreen> {
               borderRadius: BorderRadius.circular(10),
               child: InkWell(
                 borderRadius: BorderRadius.circular(10),
-                onTap: () {},
+                onTap: _openHistory,
                 child: const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   child: Row(

@@ -27,7 +27,7 @@ class _CaretakerDashboardState extends State<CaretakerDashboard> {
     final isDesktop = screenW > 768;
 
     final screens = <Widget>[
-      _CaretakerHomeTab(),
+      _CaretakerHomeTab(onOpenProfile: () => setState(() => _navIndex = 4)),
       const CaretakerTasksScreen(),
       const CaretakerPropertiesScreen(),
       const CaretakerAlertsScreen(),
@@ -56,6 +56,8 @@ class _CaretakerDashboardState extends State<CaretakerDashboard> {
                     children: [
                       _CaretakerTopBar(
                         onMenuTap: () => setState(() => _sidebarOpen = !_sidebarOpen),
+                        onNotificationsTap: () => setState(() => _navIndex = 3),
+                        onAvatarTap: () => setState(() => _navIndex = 4),
                       ),
                       Expanded(child: IndexedStack(index: _navIndex, children: screens)),
                     ],
@@ -226,8 +228,14 @@ class _CaretakerSidebar extends StatelessWidget {
 // ── Top Bar ──────────────────────────────────────────
 class _CaretakerTopBar extends StatelessWidget {
   final VoidCallback onMenuTap;
+  final VoidCallback onNotificationsTap;
+  final VoidCallback onAvatarTap;
 
-  const _CaretakerTopBar({required this.onMenuTap});
+  const _CaretakerTopBar({
+    required this.onMenuTap,
+    required this.onNotificationsTap,
+    required this.onAvatarTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -272,7 +280,7 @@ class _CaretakerTopBar extends StatelessWidget {
             color: Colors.transparent,
             child: InkWell(
               borderRadius: BorderRadius.circular(999),
-              onTap: () {},
+              onTap: onNotificationsTap,
               child: Padding(
                 padding: const EdgeInsets.all(8),
                 child: Icon(Icons.notifications_outlined, size: 22, color: AppColors.textDark.withValues(alpha: 0.6)),
@@ -280,13 +288,21 @@ class _CaretakerTopBar extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          Container(
-            width: 32, height: 32,
-            decoration: BoxDecoration(
-              color: AppColors.kodiGreen.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
+          Material(
+            color: Colors.transparent,
+            shape: const CircleBorder(),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: onAvatarTap,
+              child: Container(
+                width: 32, height: 32,
+                decoration: BoxDecoration(
+                  color: AppColors.kodiGreen.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(child: Text('JK', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.kodiGreen))),
+              ),
             ),
-            child: const Center(child: Text('JK', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.kodiGreen))),
           ),
         ],
       ),
@@ -297,6 +313,9 @@ class _CaretakerTopBar extends StatelessWidget {
 // ── Home Tab ──────────────────────────────────────────
 
 class _CaretakerHomeTab extends StatefulWidget {
+  final VoidCallback onOpenProfile;
+  const _CaretakerHomeTab({required this.onOpenProfile});
+
   @override
   State<_CaretakerHomeTab> createState() => _CaretakerHomeTabState();
 }
@@ -412,10 +431,18 @@ class _CaretakerHomeTabState extends State<_CaretakerHomeTab> {
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 30,
-            backgroundColor: AppColors.kodiGreen.withValues(alpha: 0.2),
-            child: const Text('JK', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.kodiGreen)),
+          Material(
+            color: Colors.transparent,
+            shape: const CircleBorder(),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: widget.onOpenProfile,
+              child: CircleAvatar(
+                radius: 30,
+                backgroundColor: AppColors.kodiGreen.withValues(alpha: 0.2),
+                child: const Text('JK', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.kodiGreen)),
+              ),
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -709,14 +736,16 @@ class _CaretakerHomeTabState extends State<_CaretakerHomeTab> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        icon: const Icon(Icons.emergency_rounded, color: AppColors.danger, size: 40),
-        title: const Text('Emergency Dispatch'),
-        content: const Text('This will connect you to the emergency services line. Continue?'),
+        icon: const Icon(Icons.rocket_launch_outlined, color: AppColors.kodiBlue, size: 40),
+        title: const Text('Coming Soon'),
+        content: const Text(
+          'Emergency Call Dispatch is not available yet. '
+          'For urgent issues, raise an incident from the Alerts tab.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           TextButton(
-            onPressed: () { Navigator.pop(ctx); showSnack(context, 'Connecting to emergency services...'); },
-            child: const Text('Call Now', style: TextStyle(color: AppColors.danger)),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Got It', style: TextStyle(color: AppColors.kodiBlue)),
           ),
         ],
       ),

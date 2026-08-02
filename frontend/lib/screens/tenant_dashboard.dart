@@ -185,7 +185,7 @@ class _TenantSidebar extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('LEGAL CORNER', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.tertiaryFixed)),
+                const Text('LEGAL CORNER', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.tertiaryFixed)),
                 const SizedBox(height: 10),
                 GestureDetector(
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TenantRightsScreen())),
