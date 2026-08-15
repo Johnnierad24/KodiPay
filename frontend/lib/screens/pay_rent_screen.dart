@@ -14,6 +14,7 @@ class PayRentScreen extends StatefulWidget {
 class _PayRentScreenState extends State<PayRentScreen> {
   final ApiService _api = ApiService();
   final _phoneCtrl = TextEditingController(text: '0712 345 678');
+  final _amountCtrl = TextEditingController();
   Future<RentDue?>? _future;
   int _step = 1;
   bool _sending = false;
@@ -28,6 +29,7 @@ class _PayRentScreenState extends State<PayRentScreen> {
   @override
   void dispose() {
     _phoneCtrl.dispose();
+    _amountCtrl.dispose();
     super.dispose();
   }
 
@@ -44,7 +46,14 @@ class _PayRentScreenState extends State<PayRentScreen> {
     final list = (jsonDecode(response.body) as List).cast<Map<String, dynamic>>();
     if (list.isEmpty) return null;
     final active = list.firstWhere((t) => (t['status']?.toString() ?? 'active') == 'active', orElse: () => list.first);
-    return RentDue.fromJson(active);
+    final due = RentDue.fromJson(active);
+    _amountCtrl.text = _formatAmount(due.outstanding > 0 ? due.outstanding : due.rentAmount);
+    return due;
+  }
+
+  String _formatAmount(num value) {
+    final v = value.toDouble();
+    return v % 1 == 0 ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
   }
 
   Future<void> _sendPrompt(RentDue due) async {
@@ -55,13 +64,18 @@ class _PayRentScreenState extends State<PayRentScreen> {
         setState(() { _sending = false; _error = 'Please enter a valid M-Pesa phone number.'; });
         return;
       }
+      final amount = double.tryParse(_amountCtrl.text.replaceAll(',', '').trim());
+      if (amount == null || amount <= 0) {
+        setState(() { _sending = false; _error = 'Please enter a valid amount to pay.'; });
+        return;
+      }
       // Daraja requires international format: 254XXXXXXXXX
       if (phone.startsWith('0')) {
         phone = '254${phone.substring(1)}';
       }
       final body = {
         'tenancy_id': due.tenancyId,
-        'amount': due.rentAmount,
+        'amount': amount,
         'payment_method': 'mpesa',
         'phone_number': phone,
       };
@@ -131,6 +145,7 @@ class _PayRentScreenState extends State<PayRentScreen> {
               sent: _sent,
               error: _error,
               phoneCtrl: _phoneCtrl,
+              amountCtrl: _amountCtrl,
               onSendPrompt: (d) => _sendPrompt(d),
             );
           },
@@ -147,9 +162,10 @@ class _PaymentContent extends StatelessWidget {
   final bool sent;
   final String? error;
   final TextEditingController phoneCtrl;
+  final TextEditingController amountCtrl;
   final ValueChanged<RentDue> onSendPrompt;
 
-  const _PaymentContent({required this.due, required this.step, required this.sending, required this.sent, this.error, required this.phoneCtrl, required this.onSendPrompt});
+  const _PaymentContent({required this.due, required this.step, required this.sending, required this.sent, this.error, required this.phoneCtrl, required this.amountCtrl, required this.onSendPrompt});
 
   @override
   Widget build(BuildContext context) {
@@ -170,7 +186,7 @@ class _PaymentContent extends StatelessWidget {
                       children: [
                         _buildMpesaCard(context),
                         const SizedBox(height: 16),
-                        _buildSummaryCard(due),
+                        _buildSummaryCard(due, amountCtrl),
                         const SizedBox(height: 16),
                         _buildSecurityCard(),
                       ],
@@ -182,7 +198,7 @@ class _PaymentContent extends StatelessWidget {
                         const SizedBox(width: 16),
                         Expanded(flex: 5, child: Column(
                           children: [
-                            _buildSummaryCard(due),
+                            _buildSummaryCard(due, amountCtrl),
                             const SizedBox(height: 16),
                             _buildSecurityCard(),
                           ],
@@ -307,6 +323,37 @@ class _PaymentContent extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 24),
+                const Text('AMOUNT TO PAY (KSh)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.primary)),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: amountCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  style: const TextStyle(fontSize: 18, fontFamily: 'Inter', fontWeight: FontWeight.w500),
+                  decoration: InputDecoration(
+                    prefixIcon: const Padding(
+                      padding: EdgeInsets.only(left: 16, right: 8),
+                      child: Icon(Icons.payments_outlined, color: AppColors.secondary),
+                    ),
+                    hintText: '0.00',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline, size: 14, color: AppColors.secondary),
+                    SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Type the exact amount you have. Partial payments are allowed.',
+                        style: TextStyle(fontSize: 13, color: AppColors.onSurfaceVariant),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
 
                 if (!sent) ...[
                   if (error != null) ...[
@@ -352,18 +399,25 @@ class _PaymentContent extends StatelessWidget {
                       color: AppColors.surfaceLow,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(Icons.info_outline, size: 16, color: AppColors.secondary),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Ensure your phone is unlocked and you have sufficient funds to complete the KSh ${formatKsh(due.rentAmount)} transaction.',
-                            style: const TextStyle(fontSize: 14, color: AppColors.secondary, fontStyle: FontStyle.italic),
-                          ),
-                        ),
-                      ],
+                    child: ValueListenableBuilder<TextEditingValue>(
+                      valueListenable: amountCtrl,
+                      builder: (context, value, _) {
+                        final entered = double.tryParse(value.text.replaceAll(',', '').trim());
+                        final display = (entered == null || entered <= 0) ? formatKsh(due.rentAmount) : formatKsh(entered);
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.info_outline, size: 16, color: AppColors.secondary),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Ensure your phone is unlocked and you have sufficient funds to complete the KSh $display transaction.',
+                                style: const TextStyle(fontSize: 14, color: AppColors.secondary, fontStyle: FontStyle.italic),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -399,7 +453,7 @@ class _PaymentContent extends StatelessWidget {
     );
   }
 
-  Widget _buildSummaryCard(RentDue due) {
+  Widget _buildSummaryCard(RentDue due, TextEditingController amountCtrl) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -412,11 +466,11 @@ class _PaymentContent extends StatelessWidget {
         children: [
           const Text('Payment Summary', style: TextStyle(fontFamily: 'Lexend', fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.primary)),
           const SizedBox(height: 20),
-          _SummaryRow(label: 'Rent (October 2023)', value: 'KSh ${formatKsh(due.rentAmount)}.00'),
+          _SummaryRow(label: 'Rent (${due.propertyName} • Unit ${due.unitNumber})', value: 'KSh ${formatKsh(due.rentAmount)}.00'),
           const SizedBox(height: 12),
-          const _SummaryRow(label: 'Service Charge', value: 'KSh 3,000.00'),
+          _SummaryRow(label: 'Amount paid so far', value: 'KSh ${formatKsh(due.rentPaid)}.00'),
           const SizedBox(height: 12),
-          const _SummaryRow(label: 'Utility Balance', value: 'KSh 0.00'),
+          _SummaryRow(label: 'Amount remaining to clear rent', value: 'KSh ${formatKsh(due.outstanding)}.00', highlight: true),
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.only(top: 16),
@@ -432,7 +486,14 @@ class _PaymentContent extends StatelessWidget {
                   ),
                 ),
                 Flexible(
-                  child: Text('KSh ${formatKsh(due.rentAmount)}', textAlign: TextAlign.end, style: const TextStyle(fontFamily: 'Lexend', fontSize: 28, fontWeight: FontWeight.w600, color: AppColors.primary)),
+                  child: ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: amountCtrl,
+                    builder: (context, value, _) {
+                      final entered = double.tryParse(value.text.replaceAll(',', '').trim());
+                      final display = (entered == null || entered <= 0) ? formatKsh(due.outstanding > 0 ? due.outstanding : due.rentAmount) : formatKsh(entered);
+                      return Text('KSh $display', textAlign: TextAlign.end, style: const TextStyle(fontFamily: 'Lexend', fontSize: 28, fontWeight: FontWeight.w600, color: AppColors.primary));
+                    },
+                  ),
                 ),
               ],
             ),
@@ -553,16 +614,17 @@ class _StepperLine extends StatelessWidget {
 class _SummaryRow extends StatelessWidget {
   final String label;
   final String value;
-  const _SummaryRow({required this.label, required this.value});
+  final bool highlight;
+  const _SummaryRow({required this.label, required this.value, this.highlight = false});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Flexible(child: Text(label, style: const TextStyle(fontSize: 14, color: AppColors.secondary))),
+        Flexible(child: Text(label, style: TextStyle(fontSize: 14, color: highlight ? AppColors.onSurface : AppColors.secondary, fontWeight: highlight ? FontWeight.w600 : FontWeight.normal))),
         const SizedBox(width: 12),
-        Flexible(child: Text(value, textAlign: TextAlign.end, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.primary))),
+        Flexible(child: Text(value, textAlign: TextAlign.end, style: TextStyle(fontSize: 14, fontWeight: highlight ? FontWeight.w700 : FontWeight.w500, color: AppColors.primary))),
       ],
     );
   }
@@ -574,19 +636,35 @@ class RentDue {
   final String propertyName;
   final String unitNumber;
   final num rentAmount;
+  final num rentPaid;
+  final num outstanding;
   final DateTime dueDate;
 
-  const RentDue({required this.tenancyId, required this.propertyName, required this.unitNumber, required this.rentAmount, required this.dueDate});
+  const RentDue({
+    required this.tenancyId,
+    required this.propertyName,
+    required this.unitNumber,
+    required this.rentAmount,
+    this.rentPaid = 0,
+    this.outstanding = 0,
+    required this.dueDate,
+  });
+
+  num get amountDue => outstanding > 0 ? outstanding : rentAmount;
 
   factory RentDue.fromJson(Map<String, dynamic> json) {
     final start = DateTime.tryParse(json['start_date']?.toString() ?? '');
     final now = DateTime.now();
     final day = (start?.day ?? 25).clamp(1, 28);
+    final rentAmount = toNum(json['rent_amount']);
+    final outstanding = json['rent_outstanding'] != null ? toNum(json['rent_outstanding']) : rentAmount;
     return RentDue(
       tenancyId: toInt(json['id']),
       propertyName: (json['property_name'] ?? '').toString(),
       unitNumber: (json['unit_number'] ?? '').toString(),
-      rentAmount: toNum(json['rent_amount']),
+      rentAmount: rentAmount,
+      rentPaid: toNum(json['rent_paid']),
+      outstanding: outstanding,
       dueDate: DateTime(now.year, now.month, day),
     );
   }

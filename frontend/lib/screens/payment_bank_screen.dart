@@ -49,7 +49,7 @@ class _PaymentBankScreenState extends State<PaymentBankScreen> {
     try {
       final body = <String, dynamic>{
         'tenancy_id': widget.due.tenancyId,
-        'amount': widget.due.rentAmount,
+        'amount': widget.due.amountDue,
         'payment_method': 'bank_transfer',
         'payer_name': _nameController.text.trim().isNotEmpty ? _nameController.text.trim() : null,
         'transaction_ref': _refController.text.trim().isNotEmpty ? _refController.text.trim() : null,
@@ -67,7 +67,7 @@ class _PaymentBankScreenState extends State<PaymentBankScreen> {
           context,
           MaterialPageRoute(
             builder: (_) => PaymentSuccessScreen(
-              amount: widget.due.rentAmount,
+              amount: widget.due.amountDue,
               method: 'Bank Transfer',
               transactionRef: _extractRef(response.body),
               propertyName: widget.due.propertyName,
@@ -124,7 +124,7 @@ class _PaymentBankScreenState extends State<PaymentBankScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final amount = 'KSh ${formatKsh(widget.due.rentAmount)}';
+    final amount = 'KSh ${formatKsh(widget.due.amountDue)}';
 
     return Scaffold(
       backgroundColor: AppColors.background,

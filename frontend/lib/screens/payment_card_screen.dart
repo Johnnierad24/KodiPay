@@ -62,7 +62,7 @@ class _PaymentCardScreenState extends State<PaymentCardScreen> {
         context,
         MaterialPageRoute(
           builder: (_) => PaymentSuccessScreen(
-            amount: widget.due.rentAmount,
+            amount: widget.due.amountDue,
             method: 'Credit/Debit Card',
             transactionRef: 'CARD-${DateTime.now().millisecondsSinceEpoch}',
             propertyName: widget.due.propertyName,
@@ -308,7 +308,7 @@ class _PaymentCardScreenState extends State<PaymentCardScreen> {
                       ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                       : const Icon(Icons.lock_rounded, size: 20),
                   label: Text(
-                    _isSubmitting ? 'Processing...' : 'Pay KSh ${formatKsh(due.rentAmount)}.00',
+                    _isSubmitting ? 'Processing...' : 'Pay KSh ${formatKsh(due.amountDue)}.00',
                     style: const TextStyle(fontFamily: 'Lexend', fontWeight: FontWeight.w600, fontSize: 16),
                   ),
                   style: ElevatedButton.styleFrom(
@@ -367,7 +367,7 @@ class _PaymentCardScreenState extends State<PaymentCardScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text('Total to Pay', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: AppColors.primary)),
-                    Text('KSh ${formatKsh(due.rentAmount)}.00', style: const TextStyle(fontFamily: 'Lexend', fontSize: 24, fontWeight: FontWeight.w600, color: AppColors.primary)),
+                    Text('KSh ${formatKsh(due.amountDue)}.00', style: const TextStyle(fontFamily: 'Lexend', fontSize: 24, fontWeight: FontWeight.w600, color: AppColors.primary)),
                   ],
                 ),
               ),

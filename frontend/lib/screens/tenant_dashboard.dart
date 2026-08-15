@@ -22,7 +22,8 @@ class TenantDashboard extends StatefulWidget {
 class _TenantDashboardState extends State<TenantDashboard> {
   final ApiService _api = ApiService();
   int _navIndex = 0;
-  bool _sidebarOpen = false;
+  bool _sidebarOpen = true;
+  bool _mobileSidebarOpen = false;
   _TenantOverview? _overview;
 
   @override
@@ -43,7 +44,17 @@ class _TenantDashboardState extends State<TenantDashboard> {
   void _onNavTap(int i) {
     setState(() {
       _navIndex = i;
-      _sidebarOpen = false;
+      _mobileSidebarOpen = false;
+    });
+  }
+
+  void _onMenuTap() {
+    setState(() {
+      if (MediaQuery.of(context).size.width > 900) {
+        _sidebarOpen = !_sidebarOpen;
+      } else {
+        _mobileSidebarOpen = !_mobileSidebarOpen;
+      }
     });
   }
 
@@ -66,14 +77,23 @@ class _TenantDashboardState extends State<TenantDashboard> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (isWide) _TenantSidebar(navIndex: _navIndex, onTap: _onNavTap),
+                if (isWide)
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 260),
+                    curve: Curves.easeInOut,
+                    width: _sidebarOpen ? 280 : 0,
+                    clipBehavior: Clip.hardEdge,
+                    decoration: const BoxDecoration(),
+                    child: _TenantSidebar(navIndex: _navIndex, onTap: _onNavTap),
+                  ),
                 Expanded(
                   child: Column(
                     children: [
                       _TenantTopBar(
                         navIndex: _navIndex,
                         userName: _overview?.tenantName ?? 'Tenant',
-                        onMenuTap: () => setState(() => _sidebarOpen = !_sidebarOpen),
+                        sidebarOpen: isWide ? _sidebarOpen : _mobileSidebarOpen,
+                        onMenuTap: _onMenuTap,
                         onNotifications: () {},
                         onProfileTap: () => _onNavTap(2),
                       ),
@@ -85,14 +105,14 @@ class _TenantDashboardState extends State<TenantDashboard> {
                 ),
               ],
             ),
-            if (!isWide && _sidebarOpen) ...[
+            if (!isWide && _mobileSidebarOpen) ...[
               GestureDetector(
-                onTap: () => setState(() => _sidebarOpen = false),
+                onTap: () => setState(() => _mobileSidebarOpen = false),
                 child: Container(color: Colors.black.withValues(alpha: 0.4)),
               ),
               Positioned(
                 left: 0, top: 0, bottom: 0,
-                child: _TenantSidebar(navIndex: _navIndex, onTap: _onNavTap),
+                child: SizedBox(width: 280, child: _TenantSidebar(navIndex: _navIndex, onTap: _onNavTap)),
               ),
             ],
           ],
@@ -118,7 +138,7 @@ class _TenantSidebar extends StatelessWidget {
     ];
 
     return Container(
-      width: 280,
+      width: double.infinity,
       color: AppColors.primary,
       child: Column(
         children: [
@@ -248,10 +268,11 @@ class _TenantSidebar extends StatelessWidget {
 class _TenantTopBar extends StatelessWidget {
   final int navIndex;
   final String userName;
+  final bool sidebarOpen;
   final VoidCallback onMenuTap;
   final VoidCallback onNotifications;
   final VoidCallback onProfileTap;
-  const _TenantTopBar({required this.navIndex, required this.userName, required this.onMenuTap, required this.onNotifications, required this.onProfileTap});
+  const _TenantTopBar({required this.navIndex, required this.userName, required this.sidebarOpen, required this.onMenuTap, required this.onNotifications, required this.onProfileTap});
 
   @override
   Widget build(BuildContext context) {
@@ -267,7 +288,7 @@ class _TenantTopBar extends StatelessWidget {
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.menu_outlined),
+            icon: Icon(sidebarOpen ? Icons.menu_open : Icons.menu),
             onPressed: onMenuTap,
           ),
           Text(titles[navIndex], style: const TextStyle(fontFamily: 'Lexend', fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.primary)),
@@ -330,7 +351,9 @@ class _TenantHomeTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final o = overview;
-    final rent = o?.rentAmount ?? 45000;
+    final hasData = o != null;
+    final outstanding = hasData ? o.rentOutstanding : 45000;
+    final paid = o?.rentPaid ?? 0;
 
     return RefreshIndicator(
       onRefresh: () async => onRefresh(),
@@ -345,17 +368,19 @@ class _TenantHomeTab extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: AppColors.dangerSoft,
+                color: outstanding > 0 ? AppColors.dangerSoft : AppColors.successSoft,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.danger.withValues(alpha: 0.1)),
+                border: Border.all(color: (outstanding > 0 ? AppColors.danger : AppColors.kodiGreen).withValues(alpha: 0.1)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.schedule, size: 20, color: AppColors.danger),
+                  Icon(outstanding > 0 ? Icons.schedule : Icons.check_circle_outline, size: 20, color: outstanding > 0 ? AppColors.danger : AppColors.kodiGreen),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Your rent for ${o?.propertyName ?? 'your property'}, Unit ${o?.unitNumber ?? ''} is due soon.',
+                      outstanding > 0
+                          ? 'Rent remaining to clear for ${o?.propertyName ?? 'your property'}, Unit ${o?.unitNumber ?? ''}: KSh ${formatKsh(outstanding)}'
+                          : 'Rent for ${o?.propertyName ?? 'your property'}, Unit ${o?.unitNumber ?? ''} is fully paid. You are all clear!',
                       style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                     ),
                   ),
@@ -371,7 +396,7 @@ class _TenantHomeTab extends StatelessWidget {
                 return isNarrow
                     ? Column(
                         children: [
-                          _BalanceHeroCard(amount: rent, propertyName: o?.propertyName ?? 'Your Property', unitNumber: o?.unitNumber ?? '', dueDate: o?.dueDay ?? 5),
+                          _BalanceHeroCard(amount: outstanding, paid: paid, propertyName: o?.propertyName ?? 'Your Property', unitNumber: o?.unitNumber ?? '', dueDate: o?.dueDay ?? 5),
                           const SizedBox(height: 16),
                           _MaintenanceCard(),
                         ],
@@ -379,7 +404,7 @@ class _TenantHomeTab extends StatelessWidget {
                     : Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(flex: 2, child: _BalanceHeroCard(amount: rent, propertyName: o?.propertyName ?? 'Your Property', unitNumber: o?.unitNumber ?? '', dueDate: o?.dueDay ?? 5)),
+                          Expanded(flex: 2, child: _BalanceHeroCard(amount: outstanding, paid: paid, propertyName: o?.propertyName ?? 'Your Property', unitNumber: o?.unitNumber ?? '', dueDate: o?.dueDay ?? 5)),
                           const SizedBox(width: 16),
                           Expanded(flex: 1, child: _MaintenanceCard()),
                         ],
@@ -460,13 +485,16 @@ class _TenantHomeTab extends StatelessWidget {
 // ── Balance Hero Card ────────────────────────────────────
 class _BalanceHeroCard extends StatelessWidget {
   final num amount;
+  final num paid;
   final String propertyName;
   final String unitNumber;
   final int dueDate;
-  const _BalanceHeroCard({required this.amount, required this.propertyName, required this.unitNumber, required this.dueDate});
+  const _BalanceHeroCard({required this.amount, required this.paid, required this.propertyName, required this.unitNumber, required this.dueDate});
 
   @override
   Widget build(BuildContext context) {
+    final cleared = amount <= 0;
+    final accent = cleared ? AppColors.kodiGreen : AppColors.primary;
     return Container(
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
@@ -477,23 +505,30 @@ class _BalanceHeroCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('CURRENT BALANCE DUE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.onSurfaceVariant)),
+          Text(cleared ? 'RENT CLEARED' : 'AMOUNT REMAINING TO CLEAR RENT', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.onSurfaceVariant)),
           const SizedBox(height: 8),
-          Text('KSh ${formatKsh(amount)}', style: const TextStyle(fontFamily: 'Lexend', fontSize: 40, fontWeight: FontWeight.w600, color: AppColors.primary)),
+          Text('KSh ${formatKsh(amount)}', style: TextStyle(fontFamily: 'Lexend', fontSize: 40, fontWeight: FontWeight.w600, color: accent)),
+          const SizedBox(height: 8),
+          Text(
+            paid > 0 ? 'You have paid KSh ${formatKsh(paid)} so far.' : 'No payment recorded yet.',
+            style: const TextStyle(fontSize: 14, color: AppColors.onSurfaceVariant),
+          ),
           const SizedBox(height: 16),
           Wrap(
             spacing: 12,
             runSpacing: 12,
             children: [
               ElevatedButton(
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PayRentScreen())),
+                onPressed: cleared
+                    ? null
+                    : () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PayRentScreen())),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.kodiGreen,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
-                child: const Text('Make Payment', style: TextStyle(fontWeight: FontWeight.w700)),
+                child: Text(cleared ? 'Rent Cleared' : 'Make Payment', style: const TextStyle(fontWeight: FontWeight.w700)),
               ),
               OutlinedButton(
                 onPressed: () {},
@@ -691,12 +726,15 @@ class _TenantOverview {
   final String propertyName;
   final String unitNumber;
   final num rentAmount;
+  final num rentPaid;
+  final num rentOutstanding;
   final int dueDay;
   final String rentStatus;
 
   _TenantOverview({
     required this.tenantName, required this.propertyName, required this.unitNumber,
-    required this.rentAmount, required this.dueDay, required this.rentStatus,
+    required this.rentAmount, required this.rentPaid, required this.rentOutstanding,
+    required this.dueDay, required this.rentStatus,
   });
 
   factory _TenantOverview.fromJson(Map<String, dynamic> json) => _TenantOverview(
@@ -704,6 +742,8 @@ class _TenantOverview {
     propertyName: json['property_name'] ?? 'Property',
     unitNumber: json['unit_number'] ?? '',
     rentAmount: (json['rent_amount'] ?? 0).toDouble(),
+    rentPaid: (json['rent_paid'] ?? 0).toDouble(),
+    rentOutstanding: (json['rent_outstanding'] ?? 0).toDouble(),
     dueDay: (json['due_day'] ?? 5).toInt(),
     rentStatus: json['rent_status'] ?? 'pending',
   );

@@ -17,7 +17,7 @@ class LandlordPaymentsScreen extends StatefulWidget {
 class _LandlordPaymentsScreenState extends State<LandlordPaymentsScreen> {
   final ApiService _api = ApiService();
   String _filter = 'All';
-  Future<List<PaymentRecord>>? _future;
+  Future<_PaymentsData>? _future;
 
   @override
   void initState() {
@@ -31,7 +31,7 @@ class _LandlordPaymentsScreenState extends State<LandlordPaymentsScreen> {
     });
   }
 
-  Future<List<PaymentRecord>> _fetch() async {
+  Future<_PaymentsData> _fetch() async {
     final tenancyResp = await _api.get('/tenancies');
     if (tenancyResp.statusCode != 200) {
       throw Exception('Could not load tenancies (${tenancyResp.statusCode})');
@@ -40,6 +40,10 @@ class _LandlordPaymentsScreenState extends State<LandlordPaymentsScreen> {
         .map((item) =>
             TenancyRecord.fromJson(item as Map<String, dynamic>))
         .toList();
+
+    final outstandingTotal = tenancies
+        .where((t) => t.status == 'active')
+        .fold<num>(0, (sum, t) => sum + t.rentOutstanding);
 
     final records = <PaymentRecord>[];
     for (final tenancy in tenancies) {
@@ -88,7 +92,7 @@ class _LandlordPaymentsScreenState extends State<LandlordPaymentsScreen> {
       if (!a.isPending && b.isPending) return 1;
       return 0;
     });
-    return records;
+    return _PaymentsData(records: records, outstanding: outstandingTotal);
   }
 
   Future<void> _sendPaymentReminder(PaymentRecord payment) async {
@@ -122,7 +126,7 @@ class _LandlordPaymentsScreenState extends State<LandlordPaymentsScreen> {
       accentColor: AppColors.kodiGreen,
       child: RefreshIndicator(
         onRefresh: () async => _reload(),
-        child: FutureBuilder<List<PaymentRecord>>(
+        child: FutureBuilder<_PaymentsData>(
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -154,7 +158,9 @@ class _LandlordPaymentsScreenState extends State<LandlordPaymentsScreen> {
                 ],
               );
             }
-            final allPayments = snapshot.data ?? const <PaymentRecord>[];
+            final data = snapshot.data;
+            final allPayments = data?.records ?? const <PaymentRecord>[];
+            final outstanding = data?.outstanding ?? 0;
             final visiblePayments = _filter == 'All'
                 ? allPayments
                 : allPayments
@@ -202,6 +208,12 @@ class _LandlordPaymentsScreenState extends State<LandlordPaymentsScreen> {
                             label: 'Pending',
                             value: money(totalPending),
                             color: AppColors.kodiOrange)),
+                    const SizedBox(width: 10),
+                    Expanded(
+                        child: MetricCard(
+                            label: 'Outstanding',
+                            value: money(outstanding.toInt()),
+                            color: AppColors.danger)),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -248,5 +260,11 @@ class _LandlordPaymentsScreenState extends State<LandlordPaymentsScreen> {
       ),
     );
   }
+}
+
+class _PaymentsData {
+  final List<PaymentRecord> records;
+  final num outstanding;
+  const _PaymentsData({required this.records, required this.outstanding});
 }
 

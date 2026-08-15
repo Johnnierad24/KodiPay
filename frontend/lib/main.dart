@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'providers/auth_provider.dart';
@@ -13,6 +13,7 @@ import 'screens/register_screen.dart';
 import 'screens/auth_screen.dart';
 import 'screens/check_email_screen.dart';
 import 'screens/welcome_screen.dart';
+import 'screens/info_screen.dart';
 import 'utils/constants.dart';
 
 void main() {
@@ -112,6 +113,12 @@ class KodiPayApp extends StatelessWidget {
         '/welcome': (context) => const WelcomeScreen(),
         '/onboarding': (context) => const OnboardingScreen(),
         '/pay-rent': (context) => const PayRentScreen(),
+        '/features': (context) => InfoScreen.features(),
+        '/roles': (context) => InfoScreen.roles(),
+        '/help': (context) => InfoScreen.help(),
+        '/terms': (context) => InfoScreen.terms(),
+        '/privacy': (context) => InfoScreen.privacy(),
+        '/contact': (context) => InfoScreen.contact(),
       },
     );
   }
@@ -148,3 +155,5 @@ class _AuthWrapperState extends State<AuthWrapper> {
     return const WelcomeScreen();
   }
 }
+
+

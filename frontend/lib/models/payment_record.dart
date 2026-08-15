@@ -100,6 +100,8 @@ class TenancyRecord {
   final String propertyName;
   final int propertyId;
   final num rentAmount;
+  final num rentPaid;
+  final num rentOutstanding;
   final DateTime? startDate;
   final DateTime? endDate;
   final String status;
@@ -115,6 +117,8 @@ class TenancyRecord {
     required this.propertyName,
     required this.propertyId,
     required this.rentAmount,
+    this.rentPaid = 0,
+    this.rentOutstanding = 0,
     this.startDate,
     this.endDate,
     required this.status,
@@ -125,6 +129,11 @@ class TenancyRecord {
     final lastName = json['last_name']?.toString() ?? '';
     final fullName = '$firstName $lastName'.trim();
     final tenantName = fullName.isNotEmpty ? fullName : (json['tenant_name']?.toString() ?? '');
+    final rentAmount = _toNum(json['rent_amount']);
+    final rentPaid = _toNum(json['rent_paid']);
+    final rentOutstanding = json['rent_outstanding'] != null
+        ? _toNum(json['rent_outstanding'])
+        : rentAmount;
     return TenancyRecord(
       id: _toInt(json['id']),
       tenantId: _toInt(json['tenant_id']),
@@ -135,7 +144,9 @@ class TenancyRecord {
       unitId: _toInt(json['unit_id']),
       propertyName: (json['property_name'] ?? '').toString(),
       propertyId: _toInt(json['property_id']),
-      rentAmount: _toNum(json['rent_amount']),
+      rentAmount: rentAmount,
+      rentPaid: rentPaid,
+      rentOutstanding: rentOutstanding,
       startDate: _parseDate(json['start_date']),
       endDate: _parseDate(json['end_date']),
       status: (json['status'] ?? 'active').toString(),

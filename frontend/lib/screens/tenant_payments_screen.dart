@@ -100,6 +100,8 @@ class _PaymentsContentState extends State<_PaymentsContent> {
     propertyName: widget.bundle.tenancy?.propertyName ?? '',
     unitNumber: widget.bundle.tenancy?.unitNumber ?? '',
     rentAmount: widget.bundle.tenancy?.rentAmount ?? 45000,
+    rentPaid: widget.bundle.tenancy?.rentPaid ?? 0,
+    outstanding: widget.bundle.tenancy?.rentOutstanding ?? 0,
     dueDate: DateTime.now(),
   );
 
@@ -126,6 +128,7 @@ class _PaymentsContentState extends State<_PaymentsContent> {
     final tenancy = widget.bundle.tenancy;
     final payments = widget.bundle.payments;
     final rentAmount = tenancy?.rentAmount ?? 45000;
+    final outstanding = tenancy?.rentOutstanding ?? 0;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -138,7 +141,7 @@ class _PaymentsContentState extends State<_PaymentsContent> {
               return isNarrow
                   ? Column(
                       children: [
-                        _BalanceCard(amount: rentAmount, selectedMethod: _selectedMethod, onPayNow: _payNow),
+                        _BalanceCard(amount: outstanding, selectedMethod: _selectedMethod, onPayNow: _payNow),
                         const SizedBox(height: 16),
                         _LastPaymentCard(),
                       ],
@@ -146,7 +149,7 @@ class _PaymentsContentState extends State<_PaymentsContent> {
                   : Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(flex: 2, child: _BalanceCard(amount: rentAmount, selectedMethod: _selectedMethod, onPayNow: _payNow)),
+                        Expanded(flex: 2, child: _BalanceCard(amount: outstanding, selectedMethod: _selectedMethod, onPayNow: _payNow)),
                         const SizedBox(width: 16),
                         Expanded(flex: 1, child: _LastPaymentCard()),
                       ],
@@ -246,6 +249,7 @@ class _BalanceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cleared = amount <= 0;
     return Container(
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
@@ -255,18 +259,23 @@ class _BalanceCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('CURRENT BALANCE DUE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: Colors.white.withValues(alpha: 0.6))),
+          Text(cleared ? 'RENT CLEARED' : 'AMOUNT REMAINING TO CLEAR RENT', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: Colors.white.withValues(alpha: 0.6))),
           const SizedBox(height: 8),
           Text('KSh ${formatKsh(amount)}.00', style: const TextStyle(fontFamily: 'Lexend', fontSize: 40, fontWeight: FontWeight.w600, color: Colors.white)),
           const SizedBox(height: 8),
-          Text('Due by October 1st, 2023 • No late fees yet', style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.8))),
+          Text(
+            cleared
+                ? 'Your rent is fully paid. No amount due.'
+                : 'This is what remains to clear your rent. Partial payments are allowed.',
+            style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.8)),
+          ),
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: onPayNow,
+              onPressed: cleared ? null : onPayNow,
               icon: const Icon(Icons.payments, size: 20),
-              label: const Text('Pay Now', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+              label: Text(cleared ? 'Rent Cleared' : 'Pay Now', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.tertiaryFixed,
                 foregroundColor: AppColors.primary,
@@ -714,13 +723,17 @@ class _TenancySummary {
   final String propertyName;
   final String unitNumber;
   final num rentAmount;
-  const _TenancySummary({required this.id, required this.propertyName, required this.unitNumber, required this.rentAmount});
+  final num rentPaid;
+  final num rentOutstanding;
+  const _TenancySummary({required this.id, required this.propertyName, required this.unitNumber, required this.rentAmount, this.rentPaid = 0, this.rentOutstanding = 0});
 
   factory _TenancySummary.fromJson(Map<String, dynamic> json) => _TenancySummary(
     id: toInt(json['id']),
     propertyName: (json['property_name'] ?? '').toString(),
     unitNumber: (json['unit_number'] ?? '').toString(),
     rentAmount: toNum(json['rent_amount']),
+    rentPaid: toNum(json['rent_paid']),
+    rentOutstanding: json['rent_outstanding'] != null ? toNum(json['rent_outstanding']) : toNum(json['rent_amount']),
   );
 }
 

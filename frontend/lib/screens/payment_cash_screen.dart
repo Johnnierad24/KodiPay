@@ -23,7 +23,7 @@ class _PaymentCashScreenState extends State<PaymentCashScreen> {
     try {
       final body = <String, dynamic>{
         'tenancy_id': widget.due.tenancyId,
-        'amount': widget.due.rentAmount,
+        'amount': widget.due.amountDue,
         'payment_method': 'cash',
       };
       final response = await _api.post('/payments', body);
@@ -66,7 +66,7 @@ class _PaymentCashScreenState extends State<PaymentCashScreen> {
               const Text('Cash Payment Recorded', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20, color: AppColors.textDark)),
               const SizedBox(height: 10),
               Text(
-                'Your cash payment of KSh ${formatKsh(widget.due.rentAmount)} has been submitted. The caretaker will confirm receipt shortly.',
+                'Your cash payment of KSh ${formatKsh(widget.due.amountDue)} has been submitted. The caretaker will confirm receipt shortly.',
                 textAlign: TextAlign.center,
                 style: AppStyles.bodyMedium.copyWith(color: AppColors.textLight, height: 1.5),
               ),
@@ -81,7 +81,7 @@ class _PaymentCashScreenState extends State<PaymentCashScreen> {
                       context,
                       MaterialPageRoute(
                         builder: (_) => PaymentSuccessScreen(
-                          amount: widget.due.rentAmount,
+                          amount: widget.due.amountDue,
                           method: 'Cash',
                           transactionRef: _extractRefLocal(),
                           propertyName: widget.due.propertyName,
@@ -113,7 +113,7 @@ class _PaymentCashScreenState extends State<PaymentCashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final amount = 'KSh ${formatKsh(widget.due.rentAmount)}';
+    final amount = 'KSh ${formatKsh(widget.due.amountDue)}';
 
     return Scaffold(
       backgroundColor: AppColors.background,
