@@ -48,7 +48,11 @@ exports.getTenancies = async (req, res) => {
 
     const query = `
       SELECT t.*, u.unit_number, u.rent_amount, p.id AS property_id, p.name AS property_name,
-             us.first_name, us.last_name, us.email AS tenant_email, us.phone AS tenant_phone
+             us.first_name, us.last_name, us.email AS tenant_email, us.phone AS tenant_phone,
+             (SELECT COALESCE(SUM(i.amount), 0) FROM invoices i
+               WHERE i.tenancy_id = t.id AND i.status IN ('pending','overdue')) AS invoiced,
+             (SELECT COALESCE(SUM(py.amount), 0) FROM payments py
+               WHERE py.tenancy_id = t.id AND py.status = 'completed') AS rent_paid
       FROM tenancies t
       JOIN units u ON t.unit_id = u.id
       JOIN properties p ON u.property_id = p.id
@@ -58,7 +62,17 @@ exports.getTenancies = async (req, res) => {
     `;
 
     const result = await pool.query(query, params);
-    res.json(result.rows);
+    const rows = result.rows.map((row) => {
+      const invoiced = Number(row.invoiced) || 0;
+      const expected = invoiced > 0 ? invoiced : Number(row.rent_amount) || 0;
+      const paid = Number(row.rent_paid) || 0;
+      return {
+        ...row,
+        rent_expected: expected,
+        rent_outstanding: Math.max(expected - paid, 0),
+      };
+    });
+    res.json(rows);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch tenancies' });
   }

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -392,13 +393,68 @@ class _SecurityTab extends StatefulWidget {
 }
 
 class _SecurityTabState extends State<_SecurityTab> {
+  final ApiService _api = ApiService();
+  final _currentCtrl = TextEditingController();
+  final _newCtrl = TextEditingController();
+  final _confirmCtrl = TextEditingController();
   bool _obscureCurrent = true;
   bool _obscureNew = true;
   bool _obscureConfirm = true;
   bool _twoFactorEnabled = false;
+  bool _submitting = false;
+
+  @override
+  void dispose() {
+    _currentCtrl.dispose();
+    _newCtrl.dispose();
+    _confirmCtrl.dispose();
+    super.dispose();
+  }
 
   void _showSnack(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  Future<void> _changePassword() async {
+    final current = _currentCtrl.text;
+    final next = _newCtrl.text;
+    final confirm = _confirmCtrl.text;
+    if (current.isEmpty || next.isEmpty || confirm.isEmpty) {
+      _showSnack('Fill in all three password fields.');
+      return;
+    }
+    if (next.length < 6) {
+      _showSnack('New password must be at least 6 characters.');
+      return;
+    }
+    if (next != confirm) {
+      _showSnack('New password and confirmation do not match.');
+      return;
+    }
+    setState(() => _submitting = true);
+    try {
+      final response = await _api.post('/auth/change-password', {
+        'current_password': current,
+        'new_password': next,
+      });
+      if (!mounted) return;
+      if (response.statusCode == 200) {
+        _currentCtrl.clear();
+        _newCtrl.clear();
+        _confirmCtrl.clear();
+        _showSnack('Password updated successfully');
+        setState(() => _submitting = false);
+        return;
+      }
+      Map<String, dynamic>? data;
+      try { data = jsonDecode(response.body) as Map<String, dynamic>; } catch (_) {}
+      setState(() => _submitting = false);
+      _showSnack(data?['error']?.toString() ?? 'Failed to change password (${response.statusCode}).');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      _showSnack('Failed to change password: $e');
+    }
   }
 
   @override
@@ -408,18 +464,20 @@ class _SecurityTabState extends State<_SecurityTab> {
       children: [
         _sectionHeader('Change Password'),
         const SizedBox(height: 16),
-        _buildPasswordField('Current Password', _obscureCurrent, (v) => setState(() => _obscureCurrent = v)),
+        _buildPasswordField(_currentCtrl, 'Current Password', _obscureCurrent, (v) => setState(() => _obscureCurrent = v)),
         const SizedBox(height: 16),
-        _buildPasswordField('New Password', _obscureNew, (v) => setState(() => _obscureNew = v)),
+        _buildPasswordField(_newCtrl, 'New Password', _obscureNew, (v) => setState(() => _obscureNew = v)),
         const SizedBox(height: 16),
-        _buildPasswordField('Confirm New Password', _obscureConfirm, (v) => setState(() => _obscureConfirm = v)),
+        _buildPasswordField(_confirmCtrl, 'Confirm New Password', _obscureConfirm, (v) => setState(() => _obscureConfirm = v)),
         const SizedBox(height: 20),
         SizedBox(
           height: 48,
           child: ElevatedButton(
-            onPressed: () => _showSnack('Password updated successfully'),
+            onPressed: _submitting ? null : _changePassword,
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.kodiGreen),
-            child: const Text('Update Password', style: TextStyle(fontWeight: FontWeight.w700)),
+            child: _submitting
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Text('Update Password', style: TextStyle(fontWeight: FontWeight.w700)),
           ),
         ),
         const SizedBox(height: 28),
@@ -503,8 +561,9 @@ class _SecurityTabState extends State<_SecurityTab> {
     return Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: AppColors.onSurface, fontFamily: 'Lexend'));
   }
 
-  Widget _buildPasswordField(String label, bool obscure, ValueChanged<bool> onToggle) {
+  Widget _buildPasswordField(TextEditingController controller, String label, bool obscure, ValueChanged<bool> onToggle) {
     return TextField(
+      controller: controller,
       obscureText: obscure,
       decoration: InputDecoration(
         labelText: label,

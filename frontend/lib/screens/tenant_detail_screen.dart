@@ -192,6 +192,20 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
                 const Divider(height: 16, color: AppColors.border),
                 DetailRow(
                   row: DetailRowData(
+                    'Paid so far',
+                    'KSh ${formatKsh(t.rentPaid)}',
+                  ),
+                ),
+                const Divider(height: 16, color: AppColors.border),
+                DetailRow(
+                  row: DetailRowData(
+                    'Amount remaining to clear rent',
+                    'KSh ${formatKsh(t.rentOutstanding)}',
+                  ),
+                ),
+                const Divider(height: 16, color: AppColors.border),
+                DetailRow(
+                  row: DetailRowData(
                     'Start date',
                     t.startDate == null
                         ? '—'

@@ -52,7 +52,7 @@ class _PaymentMpesaScreenState extends State<PaymentMpesaScreen> {
     try {
       final body = <String, dynamic>{
         'tenancy_id': widget.due.tenancyId,
-        'amount': widget.due.rentAmount,
+        'amount': widget.due.amountDue,
         'payment_method': 'mpesa',
         'phone_number': phone,
       };
@@ -65,7 +65,7 @@ class _PaymentMpesaScreenState extends State<PaymentMpesaScreen> {
           context,
           MaterialPageRoute(
             builder: (_) => PaymentSuccessScreen(
-              amount: widget.due.rentAmount,
+              amount: widget.due.amountDue,
               method: 'M-Pesa',
               transactionRef: _extractRef(response.body),
               propertyName: widget.due.propertyName,
@@ -98,7 +98,7 @@ class _PaymentMpesaScreenState extends State<PaymentMpesaScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final amount = 'KSh ${formatKsh(widget.due.rentAmount)}';
+    final amount = 'KSh ${formatKsh(widget.due.amountDue)}';
 
     return Scaffold(
       appBar: AppBar(
@@ -126,7 +126,7 @@ class _PaymentMpesaScreenState extends State<PaymentMpesaScreen> {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         const Text('KSh ', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textLight)),
-                        Flexible(child: Text(formatKsh(widget.due.rentAmount), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: AppColors.textDark))),
+                        Flexible(child: Text(formatKsh(widget.due.amountDue), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: AppColors.textDark))),
                       ],
                     ),
                     const SizedBox(height: 4),

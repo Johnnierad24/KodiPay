@@ -566,6 +566,16 @@ class _DocTile extends StatelessWidget {
 class _AccountSecurityCard extends StatelessWidget {
   const _AccountSecurityCard();
 
+  void _openChangePassword(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (_) => const ChangePasswordSheet(accentColor: AppColors.kodiGreen),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -609,7 +619,7 @@ class _AccountSecurityCard extends StatelessWidget {
                   spacing: 10, runSpacing: 10,
                   children: [
                     OutlinedButton.icon(
-                      onPressed: () => showSnack(context, 'Change password coming soon'),
+                      onPressed: () => _openChangePassword(context),
                       icon: const Icon(Icons.key_rounded, size: 18),
                       label: const Text('Change Password', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                       style: OutlinedButton.styleFrom(
@@ -660,7 +670,7 @@ class _AccountSecurityCard extends StatelessWidget {
                 spacing: 10, runSpacing: 10,
                 children: [
                   OutlinedButton.icon(
-                    onPressed: () => showSnack(context, 'Change password coming soon'),
+                    onPressed: () => _openChangePassword(context),
                     icon: const Icon(Icons.key_rounded, size: 18),
                     label: const Text('Change Password', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                     style: OutlinedButton.styleFrom(

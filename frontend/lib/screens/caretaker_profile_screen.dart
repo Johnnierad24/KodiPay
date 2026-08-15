@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../utils/constants.dart';
+import '../widgets/shared_screen_components.dart';
 
 class CaretakerProfileScreen extends StatefulWidget {
   const CaretakerProfileScreen({super.key});
@@ -434,6 +435,13 @@ class _CaretakerProfileScreenState extends State<CaretakerProfileScreen> {
                   Icons.lock_outline_rounded,
                   'Password',
                   'Last changed 3 months ago',
+                  onTap: () => showModalBottomSheet<void>(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.white,
+                    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+                    builder: (_) => const ChangePasswordSheet(accentColor: AppColors.kodiGreen),
+                  ),
                   trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.muted, size: 20),
                 ),
                 const SizedBox(height: 8),
@@ -455,12 +463,12 @@ class _CaretakerProfileScreenState extends State<CaretakerProfileScreen> {
     );
   }
 
-  Widget _securityTile(IconData icon, String title, String? subtitle, {required Widget trailing}) {
+  Widget _securityTile(IconData icon, String title, String? subtitle, {VoidCallback? onTap, required Widget trailing}) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () {},
+        onTap: onTap ?? () {},
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(

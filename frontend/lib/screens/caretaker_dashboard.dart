@@ -19,7 +19,25 @@ class CaretakerDashboard extends StatefulWidget {
 
 class _CaretakerDashboardState extends State<CaretakerDashboard> {
   int _navIndex = 0;
-  bool _sidebarOpen = false;
+  bool _sidebarOpen = true;
+  bool _mobileSidebarOpen = false;
+
+  void _onNavTap(int i) {
+    setState(() {
+      _navIndex = i;
+      _mobileSidebarOpen = false;
+    });
+  }
+
+  void _onMenuTap() {
+    setState(() {
+      if (MediaQuery.of(context).size.width > 768) {
+        _sidebarOpen = !_sidebarOpen;
+      } else {
+        _mobileSidebarOpen = !_mobileSidebarOpen;
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,20 +60,21 @@ class _CaretakerDashboardState extends State<CaretakerDashboard> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (isDesktop) _CaretakerSidebar(
-                  navIndex: _navIndex,
-                  onTap: (i) {
-                    setState(() {
-                      _navIndex = i;
-                      _sidebarOpen = false;
-                    });
-                  },
-                ),
+                if (isDesktop)
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 260),
+                    curve: Curves.easeInOut,
+                    width: _sidebarOpen ? 280 : 0,
+                    clipBehavior: Clip.hardEdge,
+                    decoration: const BoxDecoration(),
+                    child: _CaretakerSidebar(navIndex: _navIndex, onTap: _onNavTap),
+                  ),
                 Expanded(
                   child: Column(
                     children: [
                       _CaretakerTopBar(
-                        onMenuTap: () => setState(() => _sidebarOpen = !_sidebarOpen),
+                        sidebarOpen: isDesktop ? _sidebarOpen : _mobileSidebarOpen,
+                        onMenuTap: _onMenuTap,
                         onNotificationsTap: () => setState(() => _navIndex = 3),
                         onAvatarTap: () => setState(() => _navIndex = 4),
                       ),
@@ -65,22 +84,14 @@ class _CaretakerDashboardState extends State<CaretakerDashboard> {
                 ),
               ],
             ),
-            if (!isDesktop && _sidebarOpen) ...[
+            if (!isDesktop && _mobileSidebarOpen) ...[
               GestureDetector(
-                onTap: () => setState(() => _sidebarOpen = false),
+                onTap: () => setState(() => _mobileSidebarOpen = false),
                 child: Container(color: Colors.black.withValues(alpha: 0.4)),
               ),
               Positioned(
                 left: 0, top: 0, bottom: 0,
-                child: _CaretakerSidebar(
-                  navIndex: _navIndex,
-                  onTap: (i) {
-                    setState(() {
-                      _navIndex = i;
-                      _sidebarOpen = false;
-                    });
-                  },
-                ),
+                child: SizedBox(width: 280, child: _CaretakerSidebar(navIndex: _navIndex, onTap: _onNavTap)),
               ),
             ],
           ],
@@ -108,7 +119,7 @@ class _CaretakerSidebar extends StatelessWidget {
     ];
 
     return Container(
-      width: 280,
+      width: double.infinity,
       color: AppColors.kodiNavy,
       child: Column(
         children: [
@@ -227,11 +238,13 @@ class _CaretakerSidebar extends StatelessWidget {
 
 // ── Top Bar ──────────────────────────────────────────
 class _CaretakerTopBar extends StatelessWidget {
+  final bool sidebarOpen;
   final VoidCallback onMenuTap;
   final VoidCallback onNotificationsTap;
   final VoidCallback onAvatarTap;
 
   const _CaretakerTopBar({
+    required this.sidebarOpen,
     required this.onMenuTap,
     required this.onNotificationsTap,
     required this.onAvatarTap,
@@ -249,7 +262,7 @@ class _CaretakerTopBar extends StatelessWidget {
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.menu_outlined),
+            icon: Icon(sidebarOpen ? Icons.menu_open : Icons.menu),
             onPressed: onMenuTap,
           ),
           Expanded(

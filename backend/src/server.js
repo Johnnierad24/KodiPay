@@ -45,6 +45,7 @@ app.get('/api/health', (req, res) => {
 const authMiddleware = require('./middleware/auth.middleware');
 
 app.use('/api/auth', require('./routes/auth.routes'));
+app.use('/api/tenant', authMiddleware, require('./routes/tenant.routes'));
 app.use('/api/properties', authMiddleware, require('./routes/property.routes'));
 app.use('/api/units', authMiddleware, require('./routes/unit.routes'));
 app.use('/api/tenancies', authMiddleware, require('./routes/tenancy.routes'));

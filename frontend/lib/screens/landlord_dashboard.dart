@@ -25,7 +25,8 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
   int _unreadCount = 0;
   _DashboardOverview? _overview;
   int _navIndex = 0;
-  bool _sidebarOpen = false;
+  bool _sidebarOpen = true;
+  bool _mobileSidebarOpen = false;
 
   @override
   void initState() {
@@ -62,7 +63,17 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
   void _onNavTap(int index) {
     setState(() {
       _navIndex = index;
-      _sidebarOpen = false;
+      _mobileSidebarOpen = false;
+    });
+  }
+
+  void _onMenuTap() {
+    setState(() {
+      if (MediaQuery.of(context).size.width > 1024) {
+        _sidebarOpen = !_sidebarOpen;
+      } else {
+        _mobileSidebarOpen = !_mobileSidebarOpen;
+      }
     });
   }
 
@@ -79,8 +90,16 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Sidebar (desktop only)
-                if (isWide) _Sidebar(navIndex: _navIndex, onTap: _onNavTap),
+                // Sidebar (desktop, collapsible)
+                if (isWide)
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 260),
+                    curve: Curves.easeInOut,
+                    width: _sidebarOpen ? 280 : 0,
+                    clipBehavior: Clip.hardEdge,
+                    decoration: const BoxDecoration(),
+                    child: _Sidebar(navIndex: _navIndex, onTap: _onNavTap),
+                  ),
 
                 // Main content
                 Expanded(
@@ -90,7 +109,8 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
                       _TopBar(
                         unreadCount: _unreadCount,
                         userName: '${user?.firstName ?? 'Jabari'} ${user?.lastName ?? 'Kamau'}',
-                        onMenuTap: () => setState(() => _sidebarOpen = !_sidebarOpen),
+                        sidebarOpen: isWide ? _sidebarOpen : _mobileSidebarOpen,
+                        onMenuTap: _onMenuTap,
                         onNotifications: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LandlordNotificationsScreen())),
                         onProfileTap: () => _onNavTap(4),
                       ),
@@ -122,14 +142,14 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
             ),
 
             // Mobile sidebar overlay
-            if (!isWide && _sidebarOpen) ...[
+            if (!isWide && _mobileSidebarOpen) ...[
               GestureDetector(
-                onTap: () => setState(() => _sidebarOpen = false),
+                onTap: () => setState(() => _mobileSidebarOpen = false),
                 child: Container(color: Colors.black.withValues(alpha: 0.4)),
               ),
               Positioned(
                 left: 0, top: 0, bottom: 0,
-                child: _Sidebar(navIndex: _navIndex, onTap: _onNavTap),
+                child: SizedBox(width: 280, child: _Sidebar(navIndex: _navIndex, onTap: _onNavTap)),
               ),
             ],
           ],
@@ -157,7 +177,7 @@ class _Sidebar extends StatelessWidget {
     ];
 
     return Container(
-      width: 280,
+      width: double.infinity,
       color: AppColors.primary,
       child: Column(
         children: [
@@ -301,6 +321,7 @@ class _Sidebar extends StatelessWidget {
 class _TopBar extends StatelessWidget {
   final int unreadCount;
   final String userName;
+  final bool sidebarOpen;
   final VoidCallback onMenuTap;
   final VoidCallback onNotifications;
   final VoidCallback onProfileTap;
@@ -308,6 +329,7 @@ class _TopBar extends StatelessWidget {
   const _TopBar({
     required this.unreadCount,
     required this.userName,
+    required this.sidebarOpen,
     required this.onMenuTap,
     required this.onNotifications,
     required this.onProfileTap,
@@ -329,7 +351,7 @@ class _TopBar extends StatelessWidget {
           Row(
             children: [
               IconButton(
-                icon: const Icon(Icons.menu_outlined),
+                icon: Icon(sidebarOpen ? Icons.menu_open : Icons.menu),
                 onPressed: onMenuTap,
               ),
               if (!isNarrow) ...[

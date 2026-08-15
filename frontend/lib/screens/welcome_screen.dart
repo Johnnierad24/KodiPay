@@ -1,8 +1,25 @@
 import 'package:flutter/material.dart';
 import '../utils/constants.dart';
 
-class WelcomeScreen extends StatelessWidget {
+class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
+
+  @override
+  State<WelcomeScreen> createState() => _WelcomeScreenState();
+}
+
+class _WelcomeScreenState extends State<WelcomeScreen> {
+  final GlobalKey _rolesKey = GlobalKey();
+
+  void _scrollToRoles() {
+    final ctx = _rolesKey.currentContext;
+    if (ctx == null) return;
+    Scrollable.ensureVisible(
+      ctx,
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.easeInOut,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -10,13 +27,13 @@ class WelcomeScreen extends StatelessWidget {
       backgroundColor: AppColors.background,
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(64),
-        child: _TopNavBar(),
+        child: _TopNavBar(onRolesPressed: _scrollToRoles),
       ),
       body: SingleChildScrollView(
         child: Column(
           children: [
             _HeroSection(),
-            _RoleSelectionSection(),
+            _RoleSelectionSection(key: _rolesKey),
             _TrustSection(),
             _FooterSection(),
           ],
@@ -28,6 +45,21 @@ class WelcomeScreen extends StatelessWidget {
 
 // ── Top Nav Bar ─────────────────────────────────────────
 class _TopNavBar extends StatelessWidget {
+  final VoidCallback onRolesPressed;
+
+  const _TopNavBar({required this.onRolesPressed});
+
+  Widget _navLink(BuildContext context, String label, VoidCallback onPressed) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: TextButton(
+        onPressed: onPressed,
+        style: TextButton.styleFrom(foregroundColor: AppColors.secondary),
+        child: Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w400)),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -61,16 +93,11 @@ class _TopNavBar extends StatelessWidget {
                 if (!isNarrow) ...[
                   // Nav links (desktop)
                   Row(
-                    children: ['Features', 'Roles', 'Help'].map((label) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: TextButton(
-                          onPressed: () {},
-                          style: TextButton.styleFrom(foregroundColor: AppColors.secondary),
-                          child: Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w400)),
-                        ),
-                      );
-                    }).toList(),
+                    children: [
+                      _navLink(context, 'Features', () => Navigator.pushNamed(context, '/features')),
+                      _navLink(context, 'Roles', onRolesPressed),
+                      _navLink(context, 'Help', () => Navigator.pushNamed(context, '/help')),
+                    ],
                   ),
                   const SizedBox(width: 8),
                 ],
@@ -191,7 +218,7 @@ class _HeroSection extends StatelessWidget {
               children: [
                 Icon(Icons.verified, size: 16, color: AppColors.tertiaryFixed),
                 SizedBox(width: 4),
-                Text('LICENSED & REGULATED', style: TextStyle(fontSize: 10, letterSpacing: 1.2, fontWeight: FontWeight.w700, color: AppColors.tertiaryFixed)),
+                Text('LICENSED & REGULATED', style: TextStyle(fontSize: 10, letterSpacing: 1.2, fontWeight: FontWeight.w700, color: Colors.black)),
               ],
             ),
           ),
@@ -230,7 +257,7 @@ class _HeroSection extends StatelessWidget {
                 ),
               ),
               OutlinedButton(
-                onPressed: () {},
+                onPressed: () => Navigator.pushNamed(context, '/features'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.primary,
                   side: const BorderSide(color: AppColors.outlineVariant, width: 2),
@@ -280,7 +307,7 @@ class _HeroSection extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(32),
         image: const DecorationImage(
-          image: NetworkImage('https://lh3.googleusercontent.com/aida-public/AB6AXuD_moHkLZJiVbncnIrQNIzYL8jeH3Km26h22J8X-vGx-fz26OOMMoT1z79b9PzrXqc3Yy0Pinkvs8Z46uSnxFg40ZQpQPB7OxM9aBDWS-bAwURxyfjpGwRhVedmx-7yfwGOGuYAKJ_AR9HimfbrF8qqJSY8WG1j1LffeWscvDa9iXw6GebvxVGjYIcvjpwpu1rchcO4gbQbx-AHwFjhWyDIvIx8P4UhfrsjB1xvSEgizyOvZuD3GNHX'),
+          image: AssetImage('assets/images/welcome_bg.jpg'),
           fit: BoxFit.cover,
         ),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 40, offset: const Offset(0, 12))],
@@ -325,6 +352,8 @@ class _HeroSection extends StatelessWidget {
 
 // ── Role Selection ─────────────────────────────────────
 class _RoleSelectionSection extends StatelessWidget {
+  const _RoleSelectionSection({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -347,7 +376,7 @@ class _RoleSelectionSection extends StatelessWidget {
                       title: 'Tenant',
                       description: 'Pay rent securely via M-Pesa or Card, track your payment history, and raise maintenance requests with a single tap.',
                       isHighlighted: false,
-                      onGetStarted: () {},
+                      onGetStarted: () => Navigator.pushNamed(context, '/register', arguments: 'tenant'),
                     )),
                     const SizedBox(width: 16),
                     Expanded(child: _roleCard(
@@ -363,18 +392,18 @@ class _RoleSelectionSection extends StatelessWidget {
                       title: 'Caretaker',
                       description: 'Oversee day-to-day operations, verify tenant payments, and manage utility billing with ease and transparency.',
                       isHighlighted: false,
-                      onGetStarted: () {},
+                      onGetStarted: () => Navigator.pushNamed(context, '/register', arguments: 'caretaker'),
                     )),
                   ],
                 );
               }
               return Column(
                 children: [
-                  _roleCard(icon: Icons.person_outline, title: 'Tenant', description: 'Pay rent securely via M-Pesa or Card, track your payment history, and raise maintenance requests with a single tap.', isHighlighted: false, onGetStarted: () {}),
+                  _roleCard(icon: Icons.person_outline, title: 'Tenant', description: 'Pay rent securely via M-Pesa or Card, track your payment history, and raise maintenance requests with a single tap.', isHighlighted: false, onGetStarted: () => Navigator.pushNamed(context, '/register', arguments: 'tenant')),
                   const SizedBox(height: 16),
                   _roleCard(icon: Icons.business_outlined, title: 'Landlord', description: 'Automate rent collection, generate tax-ready financial reports, and manage multi-unit properties from a central dashboard.', isHighlighted: true, onGetStarted: () => Navigator.pushNamed(context, '/register', arguments: 'landlord')),
                   const SizedBox(height: 16),
-                  _roleCard(icon: Icons.assignment_outlined, title: 'Caretaker', description: 'Oversee day-to-day operations, verify tenant payments, and manage utility billing with ease and transparency.', isHighlighted: false, onGetStarted: () {}),
+                  _roleCard(icon: Icons.assignment_outlined, title: 'Caretaker', description: 'Oversee day-to-day operations, verify tenant payments, and manage utility billing with ease and transparency.', isHighlighted: false, onGetStarted: () => Navigator.pushNamed(context, '/register', arguments: 'caretaker')),
                 ],
               );
             },
@@ -568,13 +597,13 @@ class _FooterSection extends StatelessWidget {
               spacing: 24, runSpacing: 12,
               alignment: WrapAlignment.center,
               children: [
-                TextButton(onPressed: () {}, child: const Text('Terms of Service', style: AppStyles.bodySm)),
-                TextButton(onPressed: () {}, child: const Text('Privacy Policy', style: AppStyles.bodySm)),
-                TextButton(onPressed: () {}, child: const Text('Contact Support', style: AppStyles.bodySm)),
+                TextButton(onPressed: () => Navigator.pushNamed(context, '/terms'), child: const Text('Terms of Service', style: AppStyles.bodySm)),
+                TextButton(onPressed: () => Navigator.pushNamed(context, '/privacy'), child: const Text('Privacy Policy', style: AppStyles.bodySm)),
+                TextButton(onPressed: () => Navigator.pushNamed(context, '/contact'), child: const Text('Contact Support', style: AppStyles.bodySm)),
               ],
             ),
             const SizedBox(height: 16),
-            Text('© 2024 KodiPay Kenya. All rights reserved.', style: AppStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant, fontSize: 12)),
+            Text('© 2026 KodiPay Kenya. All rights reserved.', style: AppStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant, fontSize: 12)),
             const SizedBox(height: 12),
             const Row(
               mainAxisAlignment: MainAxisAlignment.center,

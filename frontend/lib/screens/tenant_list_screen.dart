@@ -59,13 +59,7 @@ class _TenantListScreenState extends State<TenantListScreen> {
   }
 
   Future<void> _onAdd() async {
-    final changed = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.white,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (_) => const _AddTenantSheet(),
-    );
+    final changed = await showTenantSheet(context);
     if (changed == true) _reload();
   }
 
@@ -237,101 +231,6 @@ class _TenantTile extends StatelessWidget {
 }
 
 // ── Add Tenant Sheet ────────────────────────────────────
-class _AddTenantSheet extends StatefulWidget {
-  const _AddTenantSheet();
-
-  @override
-  State<_AddTenantSheet> createState() => _AddTenantSheetState();
-}
-
-class _AddTenantSheetState extends State<_AddTenantSheet> {
-  final ApiService _api = ApiService();
-  final _firstNameCtrl = TextEditingController();
-  final _lastNameCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController();
-  final _phoneCtrl = TextEditingController();
-  bool _submitting = false;
-  String? _error;
-
-  @override
-  void dispose() {
-    _firstNameCtrl.dispose();
-    _lastNameCtrl.dispose();
-    _emailCtrl.dispose();
-    _phoneCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _submit() async {
-    if (_firstNameCtrl.text.trim().isEmpty || _lastNameCtrl.text.trim().isEmpty) {
-      setState(() => _error = 'First and last name are required');
-      return;
-    }
-    setState(() { _submitting = true; _error = null; });
-    try {
-      final response = await _api.post('/auth/register', {
-        'first_name': _firstNameCtrl.text.trim(),
-        'last_name': _lastNameCtrl.text.trim(),
-        'email': _emailCtrl.text.trim(),
-        'phone': _phoneCtrl.text.trim(),
-        'password': 'TempPass123!',
-        'role': 'tenant',
-      });
-      if (response.statusCode >= 400) {
-        if (!mounted) return;
-        setState(() { _submitting = false; _error = _decodeError(response.body); });
-        return;
-      }
-      if (!mounted) return;
-      Navigator.pop(context, true);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() { _submitting = false; _error = 'Failed: $e'; });
-    }
-  }
-
-  String _decodeError(String body) {
-    try {
-      final data = jsonDecode(body);
-      if (data is Map && data['error'] is String) return data['error'] as String;
-    } catch (_) {}
-    return 'Request failed';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final bottom = MediaQuery.of(context).viewInsets.bottom;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + bottom),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              Container(width: 44, height: 44, decoration: BoxDecoration(color: AppColors.kodiGreen.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.person_add_alt_1_rounded, color: AppColors.kodiGreen)),
-              const SizedBox(width: 12),
-              const Text('Add Tenant', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textDark)),
-            ]),
-            const SizedBox(height: 20),
-            Row(children: [
-              Expanded(child: TextField(controller: _firstNameCtrl, decoration: const InputDecoration(labelText: 'First name'))),
-              const SizedBox(width: 10),
-              Expanded(child: TextField(controller: _lastNameCtrl, decoration: const InputDecoration(labelText: 'Last name'))),
-            ]),
-            const SizedBox(height: 12),
-            TextField(controller: _emailCtrl, decoration: const InputDecoration(labelText: 'Email'), keyboardType: TextInputType.emailAddress),
-            const SizedBox(height: 12),
-            TextField(controller: _phoneCtrl, decoration: const InputDecoration(labelText: 'Phone'), keyboardType: TextInputType.phone),
-            if (_error != null) ...[
-              const SizedBox(height: 10),
-              Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: AppColors.dangerSoft, borderRadius: BorderRadius.circular(8)), child: Row(children: [const Icon(Icons.error_outline, size: 16, color: AppColors.danger), const SizedBox(width: 8), Expanded(child: Text(_error!, style: const TextStyle(fontSize: 12, color: AppColors.danger)))])),
-            ],
-            const SizedBox(height: 20),
-            SizedBox(width: double.infinity, height: 50, child: ElevatedButton(onPressed: _submitting ? null : _submit, child: _submitting ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Text('Add Tenant'))),
-          ],
-        ),
-      ),
-    );
-  }
-}
+// The add-tenant flow lives in shared_screen_components.dart (showTenantSheet),
+// which creates the tenant with a generated password, links them to a vacant
+// unit, and surfaces the password for the landlord to share.
