@@ -12,7 +12,7 @@ exports.getOverview = async (req, res) => {
               u.unit_number, u.id AS unit_id, u.rent_amount,
               t.id AS tenancy_id, t.start_date, t.status AS tenancy_status,
               (SELECT COALESCE(SUM(i.amount), 0) FROM invoices i
-                WHERE i.tenancy_id = t.id AND i.status IN ('pending','overdue')) AS invoiced,
+                WHERE i.tenancy_id = t.id) AS invoiced,
               (SELECT COALESCE(SUM(py.amount), 0) FROM payments py
                 WHERE py.tenancy_id = t.id AND py.status = 'completed') AS rent_paid,
               (SELECT MAX(py.payment_date) FROM payments py

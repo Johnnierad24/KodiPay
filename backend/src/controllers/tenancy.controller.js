@@ -50,7 +50,7 @@ exports.getTenancies = async (req, res) => {
       SELECT t.*, u.unit_number, u.rent_amount, p.id AS property_id, p.name AS property_name,
              us.first_name, us.last_name, us.email AS tenant_email, us.phone AS tenant_phone,
              (SELECT COALESCE(SUM(i.amount), 0) FROM invoices i
-               WHERE i.tenancy_id = t.id AND i.status IN ('pending','overdue')) AS invoiced,
+               WHERE i.tenancy_id = t.id) AS invoiced,
              (SELECT COALESCE(SUM(py.amount), 0) FROM payments py
                WHERE py.tenancy_id = t.id AND py.status = 'completed') AS rent_paid
       FROM tenancies t

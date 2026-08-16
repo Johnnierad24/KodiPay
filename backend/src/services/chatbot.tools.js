@@ -282,8 +282,12 @@ const myAccount = {
               u.deposit_amount,
               t.start_date,
               t.status AS tenancy_status,
-              (SELECT COALESCE(SUM(i.amount), 0) FROM invoices i
-                 WHERE i.tenancy_id = t.id AND i.status IN ('pending','overdue')) AS outstanding_balance,
+              GREATEST(
+                (SELECT COALESCE(SUM(i.amount), 0) FROM invoices i
+                   WHERE i.tenancy_id = t.id)
+                - (SELECT COALESCE(SUM(py.amount), 0) FROM payments py
+                   WHERE py.tenancy_id = t.id AND py.status = 'completed'),
+                0) AS outstanding_balance,
               (SELECT MAX(py.payment_date) FROM payments py
                  WHERE py.tenancy_id = t.id AND py.status = 'completed') AS last_payment_date
          FROM tenancies t

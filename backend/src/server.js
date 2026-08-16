@@ -60,8 +60,10 @@ app.use('/api/upload', authMiddleware, require('./routes/upload.routes'));
 app.use('/api/documents', authMiddleware, require('./routes/document.routes'));
 app.use('/api/caretakers', authMiddleware, require('./routes/caretaker.routes'));
 
-const setupCronJobs = require('./cron');
-setupCronJobs();
+// Cron scheduling via node-cron only works on an always-on process. In
+// serverless (Vercel) the same jobs are triggered by Vercel Cron Jobs through
+// /api/cron/* routes instead - see cron.routes.js and vercel.json.
+app.use('/api/cron', require('./routes/cron.routes'));
 
 app.use((err, req, res, next) => {
   console.error(err.stack);
@@ -73,6 +75,8 @@ const PORT = process.env.PORT || 5000;
 if (require.main === module) {
   // Validate configuration before binding the port — fail fast on misconfig.
   require('./config/validateEnv')();
+  // Always-on process (Docker/Render/VPS): schedule the node-cron jobs.
+  require('./cron')();
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });
