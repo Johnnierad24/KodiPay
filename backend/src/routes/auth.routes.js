@@ -15,6 +15,7 @@ const authLimiter = rateLimit({
 });
 
 router.post('/register',
+  authLimiter,
   body('email').isEmail(),
   body('password').isLength({ min: 6 }),
   body('first_name').notEmpty(),
@@ -24,35 +25,41 @@ router.post('/register',
 );
 
 router.post('/login',
+  authLimiter,
   body('email').isString().notEmpty(),
   body('password').notEmpty(),
   authController.login
 );
 
 router.post('/forgot-password',
+  authLimiter,
   body('email').isString().notEmpty(),
   authController.requestPasswordReset
 );
 
 router.post('/reset-password',
+  authLimiter,
   body('token').isString().isLength({ min: 32 }),
   body('password').isLength({ min: 6 }),
   authController.resetPassword
 );
 
 router.post('/send-otp',
+  authLimiter,
   body('identifier').isString().notEmpty(),
   body('method').isIn(['email', 'phone']),
   authController.sendOtp
 );
 
 router.post('/verify-otp',
+  authLimiter,
   body('identifier').isString().notEmpty(),
   body('otp').isString().notEmpty(),
   authController.verifyOtp
 );
 
 router.post('/reset-password-with-otp',
+  authLimiter,
   body('identifier').isString().notEmpty(),
   body('otp').isString().notEmpty(),
   body('password').isLength({ min: 6 }),

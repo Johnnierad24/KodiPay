@@ -2,9 +2,19 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const Sentry = require('@sentry/node');
 require('dotenv').config();
 
 const app = express();
+
+// Error tracking (Sentry). Optional — no-op when SENTRY_DSN is unset (local dev).
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'development',
+    tracesSampleRate: 0.05,
+  });
+}
 
 // Behind a reverse proxy (Render/Railway/Nginx) the client IP arrives via
 // X-Forwarded-For. Trust one proxy hop so rate limiting and IP checks see
@@ -34,6 +44,9 @@ const corsOptions = corsOrigins.length > 0
   : {};
 
 app.use(helmet());
+if (process.env.SENTRY_DSN) {
+  app.use(Sentry.Handlers.requestHandler());
+}
 app.use(cors(corsOptions));
 app.use(morgan('dev'));
 app.use(express.json());
@@ -64,6 +77,10 @@ app.use('/api/caretakers', authMiddleware, require('./routes/caretaker.routes'))
 // serverless (Vercel) the same jobs are triggered by Vercel Cron Jobs through
 // /api/cron/* routes instead - see cron.routes.js and vercel.json.
 app.use('/api/cron', require('./routes/cron.routes'));
+
+if (process.env.SENTRY_DSN) {
+  app.use(Sentry.Handlers.errorHandler());
+}
 
 app.use((err, req, res, next) => {
   console.error(err.stack);
