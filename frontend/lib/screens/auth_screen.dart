@@ -199,10 +199,12 @@ class _BrandSide extends StatelessWidget {
             constraints: const BoxConstraints(),
           ),
           Spacer(flex: compact ? 1 : 2),
-          Container(
-            width: 52, height: 52,
-            decoration: BoxDecoration(color: AppColors.kodiGreen.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(14)),
-            child: const Center(child: Text('K', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: AppColors.kodiGreen))),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: Image.asset(
+              'assets/images/kodipay_logo.png',
+              width: 66, height: 44, fit: BoxFit.cover,
+            ),
           ),
           const SizedBox(height: 16),
           Text('KodiPay', style: TextStyle(fontSize: compact ? 22 : 28, fontWeight: FontWeight.w800, color: Colors.white, fontFamily: 'Lexend')),

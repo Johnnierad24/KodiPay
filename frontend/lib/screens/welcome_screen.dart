@@ -80,10 +80,12 @@ class _TopNavBar extends StatelessWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      width: 32, height: 32,
-                      decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(8)),
-                      child: const Center(child: Text('K', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white))),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.asset(
+                        'assets/images/kodipay_logo.png',
+                        width: 48, height: 32, fit: BoxFit.cover,
+                      ),
                     ),
                     const SizedBox(width: 8),
                     const Text('KodiPay', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, fontFamily: 'Lexend', color: AppColors.primary)),
