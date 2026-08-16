@@ -190,10 +190,12 @@ class _Sidebar extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Container(
-                      width: 32, height: 32,
-                      decoration: BoxDecoration(color: AppColors.tertiaryFixed, borderRadius: BorderRadius.circular(8)),
-                      child: const Center(child: Text('K', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.onTertiaryFixed))),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.asset(
+                        'assets/images/kodipay_logo.png',
+                        width: 48, height: 32, fit: BoxFit.cover,
+                      ),
                     ),
                     const SizedBox(width: 10),
                     const Text('KodiPay', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, fontFamily: 'Lexend', color: AppColors.onPrimary)),

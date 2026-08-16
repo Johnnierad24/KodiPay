@@ -358,10 +358,12 @@ class _HeroSide extends StatelessWidget {
               ),
             ),
             Spacer(flex: compact ? 1 : 3),
-            Container(
-              width: 42, height: 42,
-              decoration: BoxDecoration(color: AppColors.kodiGreen.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(10)),
-              child: const Center(child: Text('K', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: AppColors.kodiGreen))),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.asset(
+                'assets/images/kodipay_logo.png',
+                width: 57, height: 38, fit: BoxFit.cover,
+              ),
             ),
             const SizedBox(height: 12),
             Text('KodiPay', style: TextStyle(fontSize: compact ? 20 : 24, fontWeight: FontWeight.w800, color: Colors.white, fontFamily: 'Lexend')),

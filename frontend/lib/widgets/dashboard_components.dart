@@ -36,10 +36,12 @@ class DashboardHeader extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Container(
-                    width: 40, height: 40,
-                    decoration: BoxDecoration(color: AppColors.kodiGreen.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(10)),
-                    child: const Center(child: Text('K', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.kodiGreen))),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.asset(
+                      'assets/images/kodipay_logo.png',
+                      width: 60, height: 40, fit: BoxFit.cover,
+                    ),
                   ),
                   const SizedBox(width: 10),
                   const Column(

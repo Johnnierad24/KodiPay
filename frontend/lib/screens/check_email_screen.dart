@@ -56,10 +56,12 @@ class _TopBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 28, height: 28,
-            decoration: BoxDecoration(color: AppColors.kodiGreen.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(7)),
-            child: const Center(child: Text('K', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.kodiGreen))),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(7),
+            child: Image.asset(
+              'assets/images/kodipay_logo.png',
+              width: 42, height: 28, fit: BoxFit.cover,
+            ),
           ),
           const SizedBox(width: 8),
           const Text('KodiPay!', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.primary, fontFamily: 'Lexend')),
@@ -106,10 +108,12 @@ class _HeroSide extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Spacer(flex: compact ? 1 : 3),
-            Container(
-              width: 48, height: 48,
-              decoration: BoxDecoration(color: AppColors.kodiGreen.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)),
-              child: const Center(child: Text('K', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: AppColors.kodiGreen))),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.asset(
+                'assets/images/kodipay_logo.png',
+                width: 60, height: 40, fit: BoxFit.cover,
+              ),
             ),
             const SizedBox(height: 16),
             Text('KodiPay', style: TextStyle(fontSize: compact ? 22 : 28, fontWeight: FontWeight.w800, color: Colors.white, fontFamily: 'Lexend')),

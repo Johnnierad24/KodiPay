@@ -85,10 +85,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 56, height: 56,
-                decoration: BoxDecoration(color: AppColors.kodiGreen.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14)),
-                child: const Center(child: Text('K', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: AppColors.kodiGreen))),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: Image.asset(
+                  'assets/images/kodipay_logo.png',
+                  width: 75, height: 50, fit: BoxFit.cover,
+                ),
               ),
               const SizedBox(height: 20),
               const Text('Create Account', style: AppStyles.heading1),
