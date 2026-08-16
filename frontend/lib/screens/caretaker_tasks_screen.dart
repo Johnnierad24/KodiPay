@@ -183,10 +183,7 @@ class _CaretakerTasksScreenState extends State<CaretakerTasksScreen> {
                   }
                   return Column(
                     children: [
-                      SizedBox(
-                        height: 480,
-                        child: _buildKanbanBoard(todo, inProgress, done),
-                      ),
+                      _buildKanbanBoard(todo, inProgress, done),
                       const SizedBox(height: 16),
                       _buildStatsPanel(allOpen.length, critical, items),
                     ],
@@ -202,11 +199,10 @@ class _CaretakerTasksScreenState extends State<CaretakerTasksScreen> {
   }
 
   Widget _buildToolbar() {
-    return Row(
+    final isNarrow = MediaQuery.of(context).size.width < 600;
+    final actions = Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        const Expanded(
-          child: Text('Task Management', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textDark)),
-        ),
         PopupMenuButton<_TaskFilter>(
           initialValue: _filter,
           onSelected: (f) => setState(() => _filter = f),
@@ -256,17 +252,52 @@ class _CaretakerTasksScreenState extends State<CaretakerTasksScreen> {
         ),
       ],
     );
+
+    if (isNarrow) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Task Management', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textDark)),
+          const SizedBox(height: 12),
+          actions,
+        ],
+      );
+    }
+    return Row(
+      children: [
+        const Expanded(
+          child: Text('Task Management', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textDark)),
+        ),
+        actions,
+      ],
+    );
   }
 
   Widget _buildKanbanBoard(List<MaintenanceItem> todo, List<MaintenanceItem> inProgress, List<MaintenanceItem> done) {
+    final isNarrow = MediaQuery.of(context).size.width < 700;
+    final columns = [
+      _kanbanColumn('To Do', todo, AppColors.kodiOrange, const Color(0xFFFFF7ED)),
+      _kanbanColumn('In Progress', inProgress, AppColors.kodiBlue, const Color(0xFFEFF6FF)),
+      _kanbanColumn('Completed', done, AppColors.kodiGreen, const Color(0xFFE7F8EF)),
+    ];
+    if (isNarrow) {
+      // Stack columns vertically so each one gets full width on mobile.
+      return Column(
+        children: [
+          for (var i = 0; i < columns.length; i++) ...[
+            if (i > 0) const SizedBox(height: 16),
+            SizedBox(height: 320, child: columns[i]),
+          ],
+        ],
+      );
+    }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(child: _kanbanColumn('To Do', todo, AppColors.kodiOrange, const Color(0xFFFFF7ED))),
-        const SizedBox(width: 12),
-        Expanded(child: _kanbanColumn('In Progress', inProgress, AppColors.kodiBlue, const Color(0xFFEFF6FF))),
-        const SizedBox(width: 12),
-        Expanded(child: _kanbanColumn('Completed', done, AppColors.kodiGreen, const Color(0xFFE7F8EF))),
+        for (var i = 0; i < columns.length; i++) ...[
+          if (i > 0) const SizedBox(width: 12),
+          Expanded(child: columns[i]),
+        ],
       ],
     );
   }

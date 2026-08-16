@@ -416,7 +416,7 @@ class _SecurityDepositCard extends StatelessWidget {
             children: [
               Expanded(
                 child: ElevatedButton(
-                  onPressed: () => launchUrl(Uri.parse('tel:0711111111'), mode: LaunchMode.externalApplication),
+                  onPressed: () => showSnack(context, 'Feature coming soon'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,

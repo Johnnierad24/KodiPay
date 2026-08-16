@@ -247,9 +247,9 @@ class _HeroSection extends StatelessWidget {
             runSpacing: 12,
             children: [
               ElevatedButton.icon(
-                onPressed: () => Navigator.pushNamed(context, '/pay-rent'),
-                icon: const Icon(Icons.arrow_forward, size: 18),
-                label: const Text('Pay Rent Now'),
+                onPressed: () => Navigator.pushNamed(context, '/onboarding'),
+                icon: const Icon(Icons.rocket_launch_rounded, size: 18),
+                label: const Text('Get Started Free'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: AppColors.onPrimary,

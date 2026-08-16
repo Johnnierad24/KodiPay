@@ -263,26 +263,6 @@ class _LandlordWalletScreenState extends State<LandlordWalletScreen> {
               if (isNarrow) {
                 return Column(
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                      child: Row(
-                        children: [
-                          OutlinedButton.icon(
-                            onPressed: _showFilterSheet,
-                            icon: const Icon(Icons.filter_alt_rounded, size: 16),
-                            label: const Text('Filter', style: TextStyle(fontSize: 12)),
-                            style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6)),
-                          ),
-                          const SizedBox(width: 8),
-                          OutlinedButton.icon(
-                            onPressed: _exportCsv,
-                            icon: const Icon(Icons.download_rounded, size: 16),
-                            label: const Text('Export CSV', style: TextStyle(fontSize: 12)),
-                            style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6)),
-                          ),
-                        ],
-                      ),
-                    ),
                     ...transactions.map((t) => Container(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                       decoration: BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.5)))),

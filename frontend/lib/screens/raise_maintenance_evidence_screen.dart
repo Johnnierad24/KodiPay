@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import '../utils/constants.dart';
 import 'raise_maintenance_scheduling_screen.dart';
@@ -10,9 +11,20 @@ class RaiseMaintenanceEvidenceScreen extends StatefulWidget {
 }
 
 class _RaiseMaintenanceEvidenceScreenState extends State<RaiseMaintenanceEvidenceScreen> {
-  final List<String> _images = [];
+  final List<PlatformFile> _images = [];
   String _urgency = 'medium';
   bool _showEmergencyTooltip = false;
+
+  Future<void> _pickImages() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      allowMultiple: true,
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) return;
+    if (!mounted) return;
+    setState(() => _images.addAll(result.files));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +46,7 @@ class _RaiseMaintenanceEvidenceScreenState extends State<RaiseMaintenanceEvidenc
                     images: _images,
                     urgency: _urgency,
                     showEmergencyTooltip: _showEmergencyTooltip,
-                    onImageAdd: () => setState(() => _images.add('photo_${_images.length + 1}')),
+                    onImageAdd: _pickImages,
                     onImageRemove: (i) => setState(() => _images.removeAt(i)),
                     onUrgencyChanged: (v) => setState(() {
                       _urgency = v;
@@ -166,7 +178,7 @@ class _StepLine extends StatelessWidget {
 }
 
 class _BentoContent extends StatelessWidget {
-  final List<String> images;
+  final List<PlatformFile> images;
   final String urgency;
   final bool showEmergencyTooltip;
   final VoidCallback onImageAdd;
@@ -235,7 +247,7 @@ class _BentoContent extends StatelessWidget {
 }
 
 class _PhotoUploadSection extends StatelessWidget {
-  final List<String> images;
+  final List<PlatformFile> images;
   final VoidCallback onAdd;
   final ValueChanged<int> onRemove;
 
@@ -303,7 +315,7 @@ class _PhotoUploadSection extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'PNG, JPG or MP4 (max. 50MB)',
+                    'PNG, JPG or JPEG (max. 50MB)',
                     style: AppStyles.bodySm.copyWith(color: AppColors.secondary),
                   ),
                 ],
@@ -322,20 +334,25 @@ class _PhotoUploadSection extends StatelessWidget {
               children: [
                 ...images.asMap().entries.map((entry) {
                   return Container(
+                    clipBehavior: Clip.antiAlias,
                     decoration: BoxDecoration(
                       color: AppColors.surfaceLow,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: AppColors.outlineVariant),
                     ),
                     child: Stack(
+                      fit: StackFit.expand,
                       children: [
-                        Center(
-                          child: Icon(
-                            Icons.image_rounded,
-                            color: AppColors.primary.withValues(alpha: 0.3),
-                            size: 32,
+                        if (entry.value.bytes != null)
+                          Image.memory(entry.value.bytes!, fit: BoxFit.cover)
+                        else
+                          Center(
+                            child: Icon(
+                              Icons.image_rounded,
+                              color: AppColors.primary.withValues(alpha: 0.3),
+                              size: 32,
+                            ),
                           ),
-                        ),
                         Positioned(
                           top: 4,
                           right: 4,

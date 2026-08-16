@@ -39,6 +39,32 @@ class _CaretakerDashboardState extends State<CaretakerDashboard> {
     });
   }
 
+  Future<void> _confirmLogout() async {
+    final navigator = Navigator.of(context);
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sign out?'),
+        content: const Text('You will need to sign in again to use KodiPay.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+            child: const Text('Sign out'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    final api = ApiService();
+    await api.clearToken();
+    navigator.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (_) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenW = MediaQuery.of(context).size.width;
@@ -77,6 +103,7 @@ class _CaretakerDashboardState extends State<CaretakerDashboard> {
                         onMenuTap: _onMenuTap,
                         onNotificationsTap: () => setState(() => _navIndex = 3),
                         onAvatarTap: () => setState(() => _navIndex = 4),
+                        onLogout: _confirmLogout,
                       ),
                       Expanded(child: IndexedStack(index: _navIndex, children: screens)),
                     ],
@@ -244,12 +271,14 @@ class _CaretakerTopBar extends StatelessWidget {
   final VoidCallback onMenuTap;
   final VoidCallback onNotificationsTap;
   final VoidCallback onAvatarTap;
+  final VoidCallback onLogout;
 
   const _CaretakerTopBar({
     required this.sidebarOpen,
     required this.onMenuTap,
     required this.onNotificationsTap,
     required this.onAvatarTap,
+    required this.onLogout,
   });
 
   @override
@@ -315,9 +344,15 @@ class _CaretakerTopBar extends StatelessWidget {
                   color: AppColors.kodiGreen.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: const Center(child: Text('JK', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.kodiGreen))),
+                child: const Center(child: Text('EN', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.kodiGreen))),
               ),
             ),
+          ),
+          const SizedBox(width: 4),
+          IconButton(
+            tooltip: 'Sign out',
+            icon: const Icon(Icons.logout_rounded, size: 20, color: AppColors.secondary),
+            onPressed: onLogout,
           ),
         ],
       ),
@@ -455,7 +490,7 @@ class _CaretakerHomeTabState extends State<_CaretakerHomeTab> {
               child: CircleAvatar(
                 radius: 30,
                 backgroundColor: AppColors.kodiGreen.withValues(alpha: 0.2),
-                child: const Text('JK', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.kodiGreen)),
+                child: const Text('EN', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.kodiGreen)),
               ),
             ),
           ),
@@ -464,7 +499,7 @@ class _CaretakerHomeTabState extends State<_CaretakerHomeTab> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('${_greeting()}, James', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.white)),
+                Text('${_greeting()}, Eunice', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.white)),
                 const SizedBox(height: 4),
                 Text(
                   totalPending > 0

@@ -59,7 +59,7 @@ class InfoScreen extends StatelessWidget {
         icon: Icons.help_outline,
         sections: [
           _h('How to Pay Rent'),
-          _p('1. Tap \u201CPay Rent Now\u201D on the welcome page.\n'
+          _p('1. Sign in to your account, then open the Payments tab and tap \u201CPay Rent\u201D.\n'
               '2. Enter your phone number and the rent amount.\n'
               '3. Confirm the M-Pesa STK prompt on your phone.\n'
               '4. You will receive an instant digital receipt once the payment is confirmed.'),

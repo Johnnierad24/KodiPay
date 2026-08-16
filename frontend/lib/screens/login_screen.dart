@@ -70,37 +70,98 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _narrowLayout(AuthProvider auth) {
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          SizedBox(
-            height: MediaQuery.of(context).size.height * 0.22,
-            child: const _HeroSide(compact: true),
+    return Stack(
+      children: [
+        // Full-screen background hero image
+        const Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/images/welcome_bg.jpg'),
+                fit: BoxFit.cover,
+              ),
+            ),
           ),
-          _FormSide(
-            auth: auth,
-            emailCtl: _emailController,
-            passwordCtl: _passwordController,
-            obscurePassword: _obscurePassword,
-            remember: _remember,
-            onTogglePassword: () => setState(() => _obscurePassword = !_obscurePassword),
-            onToggleRemember: (v) => setState(() => _remember = v),
-            onLogin: _handleLogin,
+        ),
+        // Dark overlay so the content stays readable
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black.withValues(alpha: 0.72),
+                  Colors.black.withValues(alpha: 0.66),
+                  Colors.black.withValues(alpha: 0.55),
+                ],
+              ),
+            ),
           ),
-        ],
-      ),
+        ),
+        // Content on top
+        SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Brand: logo + KodiPay + tagline
+                Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.asset(
+                        'assets/images/kodipay_logo.png',
+                        width: 44, height: 30, fit: BoxFit.cover,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    const Text('KodiPay', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Colors.white, fontFamily: 'Lexend')),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Secure Property Management Starts Here',
+                  style: TextStyle(fontSize: 13, color: Colors.white70, height: 1.4),
+                ),
+                const SizedBox(height: 28),
+                // Form card
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                  ),
+                  child: _FormSide(
+                    auth: auth,
+                    dark: true,
+                    emailCtl: _emailController,
+                    passwordCtl: _passwordController,
+                    obscurePassword: _obscurePassword,
+                    remember: _remember,
+                    onTogglePassword: () => setState(() => _obscurePassword = !_obscurePassword),
+                    onToggleRemember: (v) => setState(() => _remember = v),
+                    onLogin: _handleLogin,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
 
 class _HeroSide extends StatelessWidget {
-  final bool compact;
-  const _HeroSide({this.compact = false});
+  const _HeroSide();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: compact ? null : double.infinity,
+      height: double.infinity,
       decoration: const BoxDecoration(
         image: DecorationImage(
           image: AssetImage('assets/images/welcome_bg.jpg'),
@@ -120,29 +181,28 @@ class _HeroSide extends StatelessWidget {
             stops: [0.0, 0.5, 1.0],
           ),
         ),
-        padding: EdgeInsets.all(compact ? 20 : 32),
+        padding: const EdgeInsets.all(32),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Spacer(flex: compact ? 1 : 3),
+            const Spacer(flex: 3),
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: Image.asset(
                 'assets/images/kodipay_logo.png',
-                width: compact ? 51 : 66, height: compact ? 34 : 44, fit: BoxFit.cover,
+                width: 66, height: 44, fit: BoxFit.cover,
               ),
             ),
-            SizedBox(height: compact ? 12 : 16),
-            Text('KodiPay', style: TextStyle(fontSize: compact ? 20 : 28, fontWeight: FontWeight.w800, color: Colors.white, fontFamily: 'Lexend')),
-            SizedBox(height: compact ? 6 : 8),
-            Text('Secure Property Management\nStarts Here', style: TextStyle(fontSize: compact ? 12 : 15, color: Colors.white.withValues(alpha: 0.7), height: 1.4)),
+            const SizedBox(height: 16),
+            const Text('KodiPay', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Colors.white, fontFamily: 'Lexend')),
+            const SizedBox(height: 8),
+            Text('Secure Property Management\nStarts Here', style: TextStyle(fontSize: 15, color: Colors.white.withValues(alpha: 0.7), height: 1.4)),
             const Spacer(flex: 2),
           ],
         ),
       ),
     );
   }
-
 }
 
 class _FormSide extends StatelessWidget {
@@ -151,6 +211,7 @@ class _FormSide extends StatelessWidget {
   final TextEditingController passwordCtl;
   final bool obscurePassword;
   final bool remember;
+  final bool dark;
   final VoidCallback onTogglePassword;
   final ValueChanged<bool> onToggleRemember;
   final VoidCallback onLogin;
@@ -158,12 +219,14 @@ class _FormSide extends StatelessWidget {
   const _FormSide({
     required this.auth, required this.emailCtl, required this.passwordCtl,
     required this.obscurePassword, required this.remember,
+    this.dark = false,
     required this.onTogglePassword, required this.onToggleRemember, required this.onLogin,
   });
 
   @override
   Widget build(BuildContext context) {
     final isNarrow = MediaQuery.of(context).size.width <= 768;
+    final isDark = dark;
     final horizontalPad = isNarrow ? 24.0 : 40.0;
     final verticalPad = isNarrow ? 32.0 : 48.0;
     return SingleChildScrollView(
@@ -171,9 +234,9 @@ class _FormSide extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Welcome back', style: AppStyles.headlineLg.copyWith(fontSize: 28)),
+          Text('Welcome back', style: AppStyles.headlineLg.copyWith(fontSize: 28, color: isDark ? Colors.white : AppColors.textDark)),
           const SizedBox(height: 4),
-          const Text('Log in to your KodiPay account', style: AppStyles.bodySm),
+          Text('Log in to your KodiPay account', style: AppStyles.bodySm.copyWith(color: isDark ? Colors.white70 : null)),
           const SizedBox(height: 32),
           TextField(
             controller: emailCtl,
@@ -212,12 +275,12 @@ class _FormSide extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  const Text('Remember this device', style: TextStyle(fontSize: 12, color: AppColors.textLight)),
+                  Text('Remember this device', style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : AppColors.textLight)),
                 ],
               ),
               TextButton(
                 onPressed: () => Navigator.pushNamed(context, '/forgot-password'),
-                child: const Text('Forgot Password?', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                child: Text('Forgot Password?', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white : null)),
               ),
             ],
           ),
@@ -233,14 +296,14 @@ class _FormSide extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          const Row(
+          Row(
             children: [
-              Expanded(child: Divider(color: AppColors.border)),
+              Expanded(child: Divider(color: isDark ? Colors.white24 : AppColors.border)),
               Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12),
-                child: Text('or continue with', style: TextStyle(fontSize: 12, color: AppColors.muted)),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text('or continue with', style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : AppColors.muted)),
               ),
-              Expanded(child: Divider(color: AppColors.border)),
+              Expanded(child: Divider(color: isDark ? Colors.white24 : AppColors.border)),
             ],
           ),
           const SizedBox(height: 16),
@@ -256,7 +319,8 @@ class _FormSide extends StatelessWidget {
               label: const Text('Continue with Google', style: TextStyle(fontWeight: FontWeight.w600)),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.textDark,
-                side: const BorderSide(color: AppColors.border),
+                backgroundColor: isDark ? Colors.white : null,
+                side: isDark ? BorderSide.none : const BorderSide(color: AppColors.border),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
@@ -266,17 +330,17 @@ class _FormSide extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text("Don't have an account yet?", style: TextStyle(fontSize: 13, color: AppColors.textLight)),
+                Text("Don't have an account yet?", style: TextStyle(fontSize: 13, color: isDark ? Colors.white70 : AppColors.textLight)),
                 TextButton(
                   onPressed: () => Navigator.pushNamed(context, '/register'),
-                  child: const Text('Register', style: TextStyle(fontWeight: FontWeight.w700)),
+                  child: Text('Register', style: TextStyle(fontWeight: FontWeight.w700, color: isDark ? Colors.white : null)),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 24),
-          const Center(
-            child: Text('SECURE & ENCRYPTED', style: TextStyle(fontSize: 12, color: AppColors.muted, letterSpacing: 1)),
+          Center(
+            child: Text('SECURE & ENCRYPTED', style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : AppColors.muted, letterSpacing: 1)),
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -286,25 +350,25 @@ class _FormSide extends StatelessWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.security_outlined, size: 14, color: AppColors.kodiGreen.withValues(alpha: 0.7)),
+                  Icon(Icons.security_outlined, size: 14, color: AppColors.kodiGreen.withValues(alpha: 0.9)),
                   const SizedBox(width: 4),
-                  const Text('SSL', style: TextStyle(fontSize: 12, color: AppColors.muted)),
+                  Text('SSL', style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : AppColors.muted)),
                 ],
               ),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.verified_user_outlined, size: 14, color: AppColors.kodiGreen.withValues(alpha: 0.7)),
+                  Icon(Icons.verified_user_outlined, size: 14, color: AppColors.kodiGreen.withValues(alpha: 0.9)),
                   const SizedBox(width: 4),
-                  const Text('PCI DSS', style: TextStyle(fontSize: 12, color: AppColors.muted)),
+                  Text('PCI DSS', style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : AppColors.muted)),
                 ],
               ),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.security_outlined, size: 14, color: AppColors.kodiGreen.withValues(alpha: 0.7)),
+                  Icon(Icons.security_outlined, size: 14, color: AppColors.kodiGreen.withValues(alpha: 0.9)),
                   const SizedBox(width: 4),
-                  const Text('256-bit', style: TextStyle(fontSize: 12, color: AppColors.muted)),
+                  Text('256-bit', style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : AppColors.muted)),
                 ],
               ),
             ],

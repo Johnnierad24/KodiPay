@@ -98,7 +98,7 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
                     width: _sidebarOpen ? 280 : 0,
                     clipBehavior: Clip.hardEdge,
                     decoration: const BoxDecoration(),
-                    child: _Sidebar(navIndex: _navIndex, onTap: _onNavTap),
+                    child: _Sidebar(navIndex: _navIndex, onTap: _onNavTap, onLogout: () => _confirmLogout(context)),
                   ),
 
                 // Main content
@@ -113,6 +113,7 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
                         onMenuTap: _onMenuTap,
                         onNotifications: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LandlordNotificationsScreen())),
                         onProfileTap: () => _onNavTap(4),
+                        onLogout: () => _confirmLogout(context),
                       ),
 
                       // Body
@@ -149,7 +150,7 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
               ),
               Positioned(
                 left: 0, top: 0, bottom: 0,
-                child: SizedBox(width: 280, child: _Sidebar(navIndex: _navIndex, onTap: _onNavTap)),
+                child: SizedBox(width: 280, child: _Sidebar(navIndex: _navIndex, onTap: _onNavTap, onLogout: () => _confirmLogout(context))),
               ),
             ],
           ],
@@ -157,14 +158,36 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
       ),
     );
   }
+
+  Future<void> _confirmLogout(BuildContext context) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sign out?'),
+        content: const Text('You will need to sign in again to use KodiPay.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+            child: const Text('Sign out'),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true && context.mounted) {
+      await context.read<AuthProvider>().logout();
+    }
+  }
 }
 
 // ── Sidebar ──────────────────────────────────────────
 class _Sidebar extends StatelessWidget {
   final int navIndex;
   final ValueChanged<int> onTap;
+  final VoidCallback onLogout;
 
-  const _Sidebar({required this.navIndex, required this.onTap});
+  const _Sidebar({required this.navIndex, required this.onTap, required this.onLogout});
 
   @override
   Widget build(BuildContext context) {
@@ -280,7 +303,7 @@ class _Sidebar extends StatelessWidget {
             child: SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: () => _confirmLogout(context),
+                onPressed: onLogout,
                 icon: const Icon(Icons.logout_rounded, size: 16, color: AppColors.danger),
                 label: const Text('Sign Out', style: TextStyle(color: AppColors.danger, fontWeight: FontWeight.w600, fontSize: 12)),
                 style: OutlinedButton.styleFrom(
@@ -296,27 +319,6 @@ class _Sidebar extends StatelessWidget {
       ),
     );
   }
-
-  Future<void> _confirmLogout(BuildContext context) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Sign out?'),
-        content: const Text('You will need to sign in again to use KodiPay.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
-            child: const Text('Sign out'),
-          ),
-        ],
-      ),
-    );
-    if (confirm == true && context.mounted) {
-      await context.read<AuthProvider>().logout();
-    }
-  }
 }
 
 // ── Top Bar ──────────────────────────────────────────
@@ -327,6 +329,7 @@ class _TopBar extends StatelessWidget {
   final VoidCallback onMenuTap;
   final VoidCallback onNotifications;
   final VoidCallback onProfileTap;
+  final VoidCallback onLogout;
 
   const _TopBar({
     required this.unreadCount,
@@ -335,6 +338,7 @@ class _TopBar extends StatelessWidget {
     required this.onMenuTap,
     required this.onNotifications,
     required this.onProfileTap,
+    required this.onLogout,
   });
 
   @override
@@ -415,22 +419,37 @@ class _TopBar extends StatelessWidget {
                 if (!isNarrow) const SizedBox(width: 10),
                 Container(
                   width: 36, height: 36,
+                  alignment: Alignment.center,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.primaryFixed, width: 2),
-                    image: const DecorationImage(
-                      image: NetworkImage('https://lh3.googleusercontent.com/aida-public/AB6AXuDAq6IVGapOt3_8ETyM27CLlpqDlgHfjoa6IUWKOPEJ1TmeGH6HmBzh-vMD1dvxuMBOZwtCbc1P6PNNraap1HfEiE00nqP6STqyYUWvk9iSEFiJgtO6tC8T-Fzo80BtNNqM8k0StUawaT2mC6IptRfgxdDgkvJz2AD-D5nUjIGKMgN-d3Skvr-tetdOHt3lRwNhZ3BaKqa13RWpg2GI0IL_GCLEa4RZMmEYsGrnWwNq51lWDdn9ZE7e'),
-                      fit: BoxFit.cover,
-                    ),
+                    color: AppColors.primaryFixed,
+                    border: Border.all(color: AppColors.primary, width: 2),
+                  ),
+                  child: Text(
+                    _initials(userName),
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Colors.white),
                   ),
                 ),
               ],
             ),
           ),
+          const SizedBox(width: 4),
+          IconButton(
+            tooltip: 'Sign out',
+            icon: const Icon(Icons.logout_rounded, size: 20, color: AppColors.secondary),
+            onPressed: onLogout,
+          ),
         ],
       ),
     );
   }
+}
+
+String _initials(String name) {
+  final parts = name.trim().split(RegExp(r'\s+'));
+  if (parts.isEmpty || name.trim().isEmpty) return '?';
+  if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
+  return (parts.first.substring(0, 1) + parts.last.substring(0, 1)).toUpperCase();
 }
 
 // ── Home Tab ─────────────────────────────────────────

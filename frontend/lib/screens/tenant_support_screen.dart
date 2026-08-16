@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../utils/constants.dart';
+import '../widgets/shared_screen_components.dart';
 import 'raise_maintenance_details_screen.dart';
 import 'tenant_maintenance_screen.dart';
 
@@ -162,12 +162,12 @@ class _CaretakerCard extends StatelessWidget {
           const SizedBox(height: 18),
           const Text('Caretaker', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 18)),
           const SizedBox(height: 4),
-          Text('Samuel Okumu – Block C', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
+          Text('Eunice Njenga – Block C', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
           const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: () => launchUrl(Uri.parse('tel:+254712345678'), mode: LaunchMode.externalApplication),
+              onPressed: () => showSnack(context, 'Feature coming soon'),
               icon: const Icon(Icons.call_rounded, size: 18),
               label: const Text('Quick Call', style: TextStyle(fontWeight: FontWeight.w700)),
               style: ElevatedButton.styleFrom(
