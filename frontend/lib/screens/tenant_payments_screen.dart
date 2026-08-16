@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/pdf_invoice_service.dart';
 import '../utils/constants.dart';
 import '../widgets/shared_screen_components.dart';
 import 'pay_rent_screen.dart';
@@ -172,7 +173,7 @@ class _PaymentsContentState extends State<_PaymentsContent> {
                           onPayNow: _payNow,
                         ),
                         const SizedBox(height: 16),
-                        _TransactionHistoryTable(payments: payments),
+                        _TransactionHistoryTable(payments: payments, tenancy: tenancy),
                       ],
                     )
                   : Row(
@@ -193,7 +194,7 @@ class _PaymentsContentState extends State<_PaymentsContent> {
                           ),
                         ),
                         const SizedBox(width: 16),
-                        Expanded(flex: 8, child: _TransactionHistoryTable(payments: payments)),
+                        Expanded(flex: 8, child: _TransactionHistoryTable(payments: payments, tenancy: tenancy)),
                       ],
                     );
             },
@@ -526,17 +527,87 @@ class _PaymentMethodTile extends StatelessWidget {
 // ── Transaction History Table ────────────────────────────
 class _TransactionHistoryTable extends StatelessWidget {
   final List<_TenantPayment> payments;
-  const _TransactionHistoryTable({required this.payments});
+  final _TenancySummary? tenancy;
+  const _TransactionHistoryTable({required this.payments, this.tenancy});
+
+  static const _months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
+
+  List<({_DemoPayment display, _TenantPayment payment})> _buildRows() {
+    return payments.map((p) {
+      final dt = p.paymentDate;
+      final date = dt == null
+          ? '—'
+          : '${dt.day.toString().padLeft(2, '0')} ${_months[dt.month - 1]} ${dt.year}';
+      final monthLabel = dt == null ? '' : '${_months[dt.month - 1]} ${dt.year}';
+      final methodLabel = _methodLabel(p.method);
+      return (
+        display: _DemoPayment(
+          date,
+          dt == null ? 'Rent Payment' : 'Rent Payment - $monthLabel',
+          methodLabel.isEmpty ? '' : 'Via $methodLabel',
+          _amountLabel(p.amount),
+          _statusLabel(p.status),
+        ),
+        payment: p,
+      );
+    }).toList();
+  }
+
+  Future<void> _downloadReceipt(BuildContext context, _TenantPayment p) async {
+    try {
+      await PdfInvoiceService().generatePaymentReceipt(
+        tenantName: tenancy?.tenantName ?? 'Tenant',
+        propertyName: tenancy?.propertyName ?? 'Property',
+        unitNumber: tenancy?.unitNumber ?? '',
+        paymentId: p.id.toString(),
+        amount: p.amount.toInt(),
+        methodLabel: _methodLabel(p.method),
+        transactionRef: p.transactionRef ?? '',
+        paymentDate: p.paymentDate ?? DateTime.now(),
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not generate receipt: $e')));
+      }
+    }
+  }
+
+  Future<void> _downloadStatement(BuildContext context) async {
+    final rows = _buildRows();
+    final now = DateTime.now();
+    final period = '${_months[now.month - 1]} ${now.year}';
+    final totalPaid = payments
+        .where((p) => p.status == 'completed')
+        .fold<int>(0, (sum, p) => sum + p.amount.toInt());
+    try {
+      await PdfInvoiceService().generateRentStatement(
+        tenantName: tenancy?.tenantName ?? 'Tenant',
+        propertyName: tenancy?.propertyName ?? 'Property',
+        unitNumber: tenancy?.unitNumber ?? '',
+        period: period,
+        rows: rows.map((r) => {
+          'date': r.display.date,
+          'description': r.display.description,
+          'method': _methodLabel(r.payment.method),
+          'amount': r.display.amount,
+          'status': r.display.status,
+        }).toList(),
+        totalPaid: totalPaid,
+        outstanding: tenancy?.rentOutstanding.toInt() ?? 0,
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not generate statement: $e')));
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final displayPayments = [
-      const _DemoPayment('Sep 01, 2023', 'Rent Payment - September', 'Via M-Pesa (0712...890)', '45,000.00', 'PAID'),
-      const _DemoPayment('Aug 03, 2023', 'Water Bill - July', 'Via Bank Transfer', '1,820.00', 'PAID'),
-      const _DemoPayment('Aug 01, 2023', 'Rent Payment - August', 'Via M-Pesa', '45,000.00', 'PAID'),
-      const _DemoPayment('Jul 15, 2023', 'Maintenance Surcharge', 'Window Repair - Unit 4B', '3,500.00', 'PAID'),
-      const _DemoPayment('Jul 01, 2023', 'Rent Payment - July', 'Failed Attempt - Card ****4242', '45,000.00', 'FAILED'),
-    ];
+    final rows = _buildRows();
 
     return Container(
       decoration: BoxDecoration(
@@ -554,7 +625,7 @@ class _TransactionHistoryTable extends StatelessWidget {
                 const Text('Transaction History', style: TextStyle(fontFamily: 'Lexend', fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.primary)),
                 const SizedBox(height: 4),
                 TextButton.icon(
-                  onPressed: () {},
+                  onPressed: rows.isEmpty ? null : () => _downloadStatement(context),
                   icon: const Icon(Icons.download, size: 18),
                   label: const Text('Export Statement', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primary)),
                 ),
@@ -567,44 +638,48 @@ class _TransactionHistoryTable extends StatelessWidget {
               if (isNarrow) {
                 return Column(
                   children: [
-                    ...displayPayments.map((p) {
-                      final isFailed = p.status == 'FAILED';
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                        decoration: BoxDecoration(
-                          border: Border(bottom: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.5))),
-                          color: isFailed ? AppColors.danger.withValues(alpha: 0.03) : null,
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(p.description, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                                  const SizedBox(height: 2),
-                                  Row(
-                                    children: [
-                                      Text(p.date, style: const TextStyle(fontSize: 12, color: AppColors.secondary)),
-                                      const SizedBox(width: 8),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: isFailed ? AppColors.danger.withValues(alpha: 0.08) : AppColors.kodiGreen.withValues(alpha: 0.1),
-                                          borderRadius: BorderRadius.circular(12),
+                    if (rows.isEmpty)
+                      _emptyRow()
+                    else
+                      ...rows.map((r) {
+                        final p = r.display;
+                        final isFailed = p.status == 'FAILED';
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          decoration: BoxDecoration(
+                            border: Border(bottom: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.5))),
+                            color: isFailed ? AppColors.danger.withValues(alpha: 0.03) : null,
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(p.description, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                    const SizedBox(height: 2),
+                                    Row(
+                                      children: [
+                                        Text(p.date, style: const TextStyle(fontSize: 12, color: AppColors.secondary)),
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: isFailed ? AppColors.danger.withValues(alpha: 0.08) : AppColors.kodiGreen.withValues(alpha: 0.1),
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: Text(p.status, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isFailed ? AppColors.danger : AppColors.kodiGreen)),
                                         ),
-                                        child: Text(p.status, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isFailed ? AppColors.danger : AppColors.kodiGreen)),
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                            Text(p.amount, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-                          ],
-                        ),
-                      );
-                    }),
+                              Text(p.amount, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                            ],
+                          ),
+                        );
+                      }),
                   ],
                 );
               }
@@ -623,49 +698,59 @@ class _TransactionHistoryTable extends StatelessWidget {
                       ],
                     ),
                   ),
-                  ...displayPayments.map((p) {
-                    final isFailed = p.status == 'FAILED';
-                    return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                      decoration: BoxDecoration(
-                        border: Border(bottom: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.5))),
-                        color: isFailed ? AppColors.danger.withValues(alpha: 0.03) : null,
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(flex: 2, child: Text(p.date, style: const TextStyle(fontSize: 14, fontFamily: 'Inter'))),
-                          Expanded(
-                            flex: 3,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(p.description, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-                                Text(p.subtitle, style: const TextStyle(fontSize: 12, color: AppColors.secondary)),
-                              ],
-                            ),
-                          ),
-                          Expanded(flex: 2, child: Text(p.amount, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700))),
-                          Expanded(
-                            flex: 2,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: isFailed ? AppColors.danger.withValues(alpha: 0.08) : AppColors.kodiGreen.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(12),
+                  if (rows.isEmpty)
+                    _emptyRow()
+                  else
+                    ...rows.map((r) {
+                      final p = r.display;
+                      final isFailed = p.status == 'FAILED';
+                      final isPaid = r.payment.status == 'completed';
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                        decoration: BoxDecoration(
+                          border: Border(bottom: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.5))),
+                          color: isFailed ? AppColors.danger.withValues(alpha: 0.03) : null,
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(flex: 2, child: Text(p.date, style: const TextStyle(fontSize: 14, fontFamily: 'Inter'))),
+                            Expanded(
+                              flex: 3,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(p.description, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                                  Text(p.subtitle, style: const TextStyle(fontSize: 12, color: AppColors.secondary)),
+                                ],
                               ),
-                              child: Text(p.status, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: isFailed ? AppColors.danger : AppColors.kodiGreen)),
                             ),
-                          ),
-                          SizedBox(
-                            width: 48,
-                            child: isFailed
-                                ? const Text('Insufficient Funds', style: TextStyle(fontSize: 12, color: AppColors.secondary))
-                                : IconButton(icon: const Icon(Icons.receipt_long, size: 20), color: AppColors.outline, onPressed: () {}),
-                          ),
-                        ],
-                      ),
-                    );
-                  }),
+                            Expanded(flex: 2, child: Text(p.amount, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700))),
+                            Expanded(
+                              flex: 2,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: isFailed ? AppColors.danger.withValues(alpha: 0.08) : AppColors.kodiGreen.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(p.status, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: isFailed ? AppColors.danger : AppColors.kodiGreen)),
+                              ),
+                            ),
+                            SizedBox(
+                              width: 48,
+                              child: isFailed
+                                  ? const Text('Insufficient Funds', style: TextStyle(fontSize: 12, color: AppColors.secondary))
+                                  : IconButton(
+                                      icon: const Icon(Icons.receipt_long, size: 20),
+                                      color: isPaid ? AppColors.kodiGreen : AppColors.outline,
+                                      onPressed: isPaid ? () => _downloadReceipt(context, r.payment) : null,
+                                      tooltip: 'Download Receipt',
+                                    ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
                 ],
               );
             },
@@ -676,7 +761,10 @@ class _TransactionHistoryTable extends StatelessWidget {
               spacing: 8, runSpacing: 8,
               alignment: WrapAlignment.spaceBetween,
               children: [
-                const Text('Showing 5 of 24 transactions', style: TextStyle(fontSize: 13, color: AppColors.secondary)),
+                Text(
+                  rows.isEmpty ? 'No transactions yet' : 'Showing ${rows.length} transaction${rows.length == 1 ? '' : 's'}',
+                  style: const TextStyle(fontSize: 13, color: AppColors.secondary),
+                ),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -687,7 +775,7 @@ class _TransactionHistoryTable extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton(
-                      onPressed: () {},
+                      onPressed: null,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
@@ -704,11 +792,53 @@ class _TransactionHistoryTable extends StatelessWidget {
       ),
     );
   }
+
+  Widget _emptyRow() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      child: const Center(
+        child: Text('No transactions yet.', style: TextStyle(fontSize: 13, color: AppColors.secondary)),
+      ),
+    );
+  }
 }
 
 class _DemoPayment {
   final String date, description, subtitle, amount, status;
   const _DemoPayment(this.date, this.description, this.subtitle, this.amount, this.status);
+}
+
+String _statusLabel(String status) {
+  switch (status.toLowerCase()) {
+    case 'completed':
+      return 'PAID';
+    case 'failed':
+      return 'FAILED';
+    default:
+      return 'PENDING';
+  }
+}
+
+String _methodLabel(String method) {
+  switch (method.toLowerCase()) {
+    case 'mpesa':
+      return 'M-Pesa';
+    case 'bank_transfer':
+      return 'Bank Transfer';
+    case 'cash':
+      return 'Cash';
+    case 'card':
+      return 'Card';
+    default:
+      return method.isEmpty ? '' : method;
+  }
+}
+
+String _amountLabel(num value) {
+  final fixed = value.toStringAsFixed(2);
+  final parts = fixed.split('.');
+  final whole = parts[0].replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
+  return '$whole.${parts[1]}';
 }
 
 // ── Data Models ──────────────────────────────────────────
@@ -720,15 +850,19 @@ class _PaymentsBundle {
 
 class _TenancySummary {
   final int id;
+  final String tenantName;
   final String propertyName;
   final String unitNumber;
   final num rentAmount;
   final num rentPaid;
   final num rentOutstanding;
-  const _TenancySummary({required this.id, required this.propertyName, required this.unitNumber, required this.rentAmount, this.rentPaid = 0, this.rentOutstanding = 0});
+  const _TenancySummary({required this.id, this.tenantName = '', required this.propertyName, required this.unitNumber, required this.rentAmount, this.rentPaid = 0, this.rentOutstanding = 0});
 
   factory _TenancySummary.fromJson(Map<String, dynamic> json) => _TenancySummary(
     id: toInt(json['id']),
+    tenantName: [json['first_name'], json['last_name']]
+        .where((n) => n != null && n.toString().trim().isNotEmpty)
+        .join(' '),
     propertyName: (json['property_name'] ?? '').toString(),
     unitNumber: (json['unit_number'] ?? '').toString(),
     rentAmount: toNum(json['rent_amount']),
