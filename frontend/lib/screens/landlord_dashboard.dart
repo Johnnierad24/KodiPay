@@ -629,14 +629,16 @@ class _HomeTab extends StatelessWidget {
             ),
             child: Column(
               children: [
-                const Text('© 2024 KodiPay Kenya. All rights reserved.', style: TextStyle(fontSize: 12, color: AppColors.onSurfaceVariant)),
+                const Text('© 2026 KodiPay Kenya. All rights reserved.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12, color: AppColors.onSurfaceVariant)),
                 const SizedBox(height: 12),
                 Wrap(
-                  spacing: 24, alignment: WrapAlignment.center,
+                  spacing: 24, runSpacing: 8, alignment: WrapAlignment.center,
                   children: [
-                    TextButton(onPressed: () {}, child: const Text('Terms of Service', style: TextStyle(fontSize: 12, color: AppColors.secondary, decoration: TextDecoration.underline))),
-                    TextButton(onPressed: () {}, child: const Text('Privacy Policy', style: TextStyle(fontSize: 12, color: AppColors.secondary, decoration: TextDecoration.underline))),
-                    TextButton(onPressed: () {}, child: const Text('Contact Support', style: TextStyle(fontSize: 12, color: AppColors.secondary, decoration: TextDecoration.underline))),
+                    TextButton(onPressed: () => Navigator.pushNamed(context, '/terms'), child: const Text('Terms of Service', style: TextStyle(fontSize: 12, color: AppColors.secondary, decoration: TextDecoration.underline))),
+                    TextButton(onPressed: () => Navigator.pushNamed(context, '/privacy'), child: const Text('Privacy Policy', style: TextStyle(fontSize: 12, color: AppColors.secondary, decoration: TextDecoration.underline))),
+                    TextButton(onPressed: () => Navigator.pushNamed(context, '/contact'), child: const Text('Contact Support', style: TextStyle(fontSize: 12, color: AppColors.secondary, decoration: TextDecoration.underline))),
                   ],
                 ),
               ],
