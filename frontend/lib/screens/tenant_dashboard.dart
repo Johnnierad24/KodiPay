@@ -495,16 +495,18 @@ class _TenantHomeTab extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(vertical: 20),
               decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.outlineVariant))),
-              child: const Column(
+              child: Column(
                 children: [
-                  Text('© 2024 KodiPay Kenya. All rights reserved.', style: TextStyle(fontSize: 12, color: AppColors.onSurfaceVariant)),
-                  SizedBox(height: 8),
+                  const Text('© 2026 KodiPay Kenya. All rights reserved.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12, color: AppColors.onSurfaceVariant)),
+                  const SizedBox(height: 8),
                   Wrap(
-                    spacing: 16, alignment: WrapAlignment.center,
+                    spacing: 16, runSpacing: 8, alignment: WrapAlignment.center,
                     children: [
-                      Text('Terms', style: TextStyle(fontSize: 12, color: AppColors.secondary, decoration: TextDecoration.underline)),
-                      Text('Privacy', style: TextStyle(fontSize: 12, color: AppColors.secondary, decoration: TextDecoration.underline)),
-                      Text('Contact Support', style: TextStyle(fontSize: 12, color: AppColors.secondary, decoration: TextDecoration.underline)),
+                      TextButton(onPressed: () => Navigator.pushNamed(context, '/terms'), child: const Text('Terms', style: TextStyle(fontSize: 12, color: AppColors.secondary, decoration: TextDecoration.underline))),
+                      TextButton(onPressed: () => Navigator.pushNamed(context, '/privacy'), child: const Text('Privacy', style: TextStyle(fontSize: 12, color: AppColors.secondary, decoration: TextDecoration.underline))),
+                      TextButton(onPressed: () => Navigator.pushNamed(context, '/contact'), child: const Text('Contact Support', style: TextStyle(fontSize: 12, color: AppColors.secondary, decoration: TextDecoration.underline))),
                     ],
                   ),
                 ],

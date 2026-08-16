@@ -213,18 +213,20 @@ class _PaymentContent extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(vertical: 20),
             decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.outlineVariant))),
-            child: const Column(
+            child: Column(
               children: [
-                Text('© 2023 Silicon Savannah Fintech. Regulated by the Central Bank of Kenya.', style: TextStyle(fontSize: 11, color: AppColors.onSurfaceVariant)),
-                SizedBox(height: 8),
+                const Text('© 2026 Silicon Savannah Fintech. Regulated by the Central Bank of Kenya.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 11, color: AppColors.onSurfaceVariant)),
+                const SizedBox(height: 8),
                 Wrap(
                   spacing: 16,
                   runSpacing: 8,
                   alignment: WrapAlignment.center,
                   children: [
-                    Text('Privacy Policy', style: TextStyle(fontSize: 11, color: AppColors.secondary, decoration: TextDecoration.underline)),
-                    Text('Terms of Service', style: TextStyle(fontSize: 11, color: AppColors.secondary, decoration: TextDecoration.underline)),
-                    Text('Secure Hosting by AWS Africa', style: TextStyle(fontSize: 11, color: AppColors.secondary, decoration: TextDecoration.underline)),
+                    TextButton(onPressed: () => Navigator.pushNamed(context, '/privacy'), child: const Text('Privacy Policy', style: TextStyle(fontSize: 11, color: AppColors.secondary, decoration: TextDecoration.underline))),
+                    TextButton(onPressed: () => Navigator.pushNamed(context, '/terms'), child: const Text('Terms of Service', style: TextStyle(fontSize: 11, color: AppColors.secondary, decoration: TextDecoration.underline))),
+                    const Text('Secure Hosting by AWS Africa', style: TextStyle(fontSize: 11, color: AppColors.secondary, decoration: TextDecoration.underline)),
                   ],
                 ),
               ],
