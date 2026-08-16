@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/pdf_invoice_service.dart';
 import '../utils/constants.dart';
 import '../widgets/shared_screen_components.dart';
 import 'tenant_payments_screen.dart';
@@ -348,6 +349,21 @@ class _TenantHomeTab extends StatelessWidget {
   final VoidCallback onRefresh;
   const _TenantHomeTab({this.overview, required this.onRefresh});
 
+  void _downloadInvoice(_TenantOverview o) {
+    try {
+      PdfInvoiceService().generateRentInvoice(
+        tenantName: o.tenantName,
+        propertyName: o.propertyName,
+        unitNumber: o.unitNumber,
+        rentAmount: o.rentAmount.toInt(),
+        paid: o.rentPaid.toInt(),
+        outstanding: o.rentOutstanding.toInt(),
+        dueDay: o.dueDay,
+        status: o.rentStatus,
+      );
+    } catch (_) {}
+  }
+
   @override
   Widget build(BuildContext context) {
     final o = overview;
@@ -396,7 +412,14 @@ class _TenantHomeTab extends StatelessWidget {
                 return isNarrow
                     ? Column(
                         children: [
-                          _BalanceHeroCard(amount: outstanding, paid: paid, propertyName: o?.propertyName ?? 'Your Property', unitNumber: o?.unitNumber ?? '', dueDate: o?.dueDay ?? 5),
+                          _BalanceHeroCard(
+                            amount: outstanding,
+                            paid: paid,
+                            propertyName: o?.propertyName ?? 'Your Property',
+                            unitNumber: o?.unitNumber ?? '',
+                            dueDate: o?.dueDay ?? 5,
+                            onDownloadInvoice: o == null ? null : () => _downloadInvoice(o),
+                          ),
                           const SizedBox(height: 16),
                           _MaintenanceCard(),
                         ],
@@ -404,7 +427,17 @@ class _TenantHomeTab extends StatelessWidget {
                     : Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(flex: 2, child: _BalanceHeroCard(amount: outstanding, paid: paid, propertyName: o?.propertyName ?? 'Your Property', unitNumber: o?.unitNumber ?? '', dueDate: o?.dueDay ?? 5)),
+                          Expanded(
+                            flex: 2,
+                            child: _BalanceHeroCard(
+                              amount: outstanding,
+                              paid: paid,
+                              propertyName: o?.propertyName ?? 'Your Property',
+                              unitNumber: o?.unitNumber ?? '',
+                              dueDate: o?.dueDay ?? 5,
+                              onDownloadInvoice: o == null ? null : () => _downloadInvoice(o),
+                            ),
+                          ),
                           const SizedBox(width: 16),
                           Expanded(flex: 1, child: _MaintenanceCard()),
                         ],
@@ -489,7 +522,8 @@ class _BalanceHeroCard extends StatelessWidget {
   final String propertyName;
   final String unitNumber;
   final int dueDate;
-  const _BalanceHeroCard({required this.amount, required this.paid, required this.propertyName, required this.unitNumber, required this.dueDate});
+  final VoidCallback? onDownloadInvoice;
+  const _BalanceHeroCard({required this.amount, required this.paid, required this.propertyName, required this.unitNumber, required this.dueDate, this.onDownloadInvoice});
 
   @override
   Widget build(BuildContext context) {
@@ -531,7 +565,7 @@ class _BalanceHeroCard extends StatelessWidget {
                 child: Text(cleared ? 'Rent Cleared' : 'Make Payment', style: const TextStyle(fontWeight: FontWeight.w700)),
               ),
               OutlinedButton(
-                onPressed: () {},
+                onPressed: onDownloadInvoice,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.primary,
                   side: const BorderSide(color: AppColors.primary),

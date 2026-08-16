@@ -1,0 +1,17 @@
+{
+  "rewrites": [{ "source": "/(.*)", "destination": "/api" }],
+  "crons": [
+    {
+      "path": "/api/cron/monthly-invoices",
+      "schedule": "0 0 1 * *"
+    },
+    {
+      "path": "/api/cron/rent-reminders",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/overdue-check",
+      "schedule": "30 6 * * *"
+    }
+  ]
+}
