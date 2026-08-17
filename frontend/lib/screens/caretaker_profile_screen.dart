@@ -106,7 +106,7 @@ class _CaretakerProfileScreenState extends State<CaretakerProfileScreen> {
                       border: Border.all(color: Colors.white, width: 4),
                       boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 12)],
                     ),
-                    child: const Center(child: Text('MK', style: TextStyle(fontSize: 36, fontWeight: FontWeight.w800, color: AppColors.kodiGreen))),
+                    child: const Center(child: Text('EN', style: TextStyle(fontSize: 36, fontWeight: FontWeight.w800, color: AppColors.kodiGreen))),
                   ),
                   Positioned(
                     bottom: 0, right: 0,
@@ -128,7 +128,7 @@ class _CaretakerProfileScreenState extends State<CaretakerProfileScreen> {
                       spacing: 10,
                       runSpacing: 6,
                       children: [
-                        const Text('Mr. Kamau', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.textDark, fontFamily: 'Lexend')),
+                        const Text('Eunice Njenga', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.textDark, fontFamily: 'Lexend')),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
@@ -140,16 +140,16 @@ class _CaretakerProfileScreenState extends State<CaretakerProfileScreen> {
                       ],
                     ),
                     const SizedBox(height: 10),
-                    _infoPill(Icons.email_outlined, 'kamau.j@kodipay.com'),
+                    _infoPill(Icons.email_outlined, 'eunice.n@kodipay.com'),
                     const SizedBox(height: 6),
-                    _infoPill(Icons.phone_outlined, '+254 712 345 678'),
+                    _infoPill(Icons.phone_outlined, '+254 723 456 789'),
                     const SizedBox(height: 14),
                     Wrap(
                       spacing: 8,
                       runSpacing: 6,
                       children: [
-                        _badgeChip(Icons.badge_outlined, 'ID: KP-8829'),
-                        _badgeChip(Icons.calendar_today_outlined, 'Joined Oct 2021'),
+                        _badgeChip(Icons.badge_outlined, 'ID: KP-9147'),
+                        _badgeChip(Icons.calendar_today_outlined, 'Joined Mar 2022'),
                       ],
                     ),
                   ],
@@ -327,17 +327,17 @@ class _CaretakerProfileScreenState extends State<CaretakerProfileScreen> {
               children: [
                 Row(
                   children: [
-                    Expanded(child: _detailField('Full Name', 'James Kamau Ngugi')),
+                    Expanded(child: _detailField('Full Name', 'Eunice Njenga')),
                     const SizedBox(width: 20),
-                    Expanded(child: _detailField('Date of Birth', '14th May 1982')),
+                    Expanded(child: _detailField('Date of Birth', '8th Sep 1989')),
                   ],
                 ),
                 const SizedBox(height: 20),
                 Row(
                   children: [
-                    Expanded(child: _detailField('National ID / Passport', '27******9')),
+                    Expanded(child: _detailField('National ID / Passport', '33******2')),
                     const SizedBox(width: 20),
-                    Expanded(child: _detailField('Residential Address', 'Utawala, Nairobi, KE')),
+                    Expanded(child: _detailField('Residential Address', 'Eastlands, Nairobi, KE')),
                   ],
                 ),
               ],
@@ -388,7 +388,7 @@ class _CaretakerProfileScreenState extends State<CaretakerProfileScreen> {
               children: [
                 Row(
                   children: [
-                    Expanded(child: _detailField('Contact Name', 'Sarah W. Kamau')),
+                    Expanded(child: _detailField('Contact Name', 'Peter Njenga')),
                     const SizedBox(width: 20),
                     Expanded(child: _detailField('Relationship', 'Spouse')),
                   ],
@@ -396,9 +396,9 @@ class _CaretakerProfileScreenState extends State<CaretakerProfileScreen> {
                 const SizedBox(height: 20),
                 Row(
                   children: [
-                    Expanded(child: _detailField('Primary Phone', '+254 700 987 654')),
+                    Expanded(child: _detailField('Primary Phone', '+254 712 000 333')),
                     const SizedBox(width: 20),
-                    Expanded(child: _detailField('Alternative Phone', '+254 733 111 222')),
+                    Expanded(child: _detailField('Alternative Phone', '+254 700 444 555')),
                   ],
                 ),
               ],

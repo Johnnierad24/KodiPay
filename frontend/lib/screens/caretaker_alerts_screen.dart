@@ -204,41 +204,10 @@ class _CaretakerAlertsScreenState extends State<CaretakerAlertsScreen> {
               ),
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
-                sliver: SliverToBoxAdapter(child: _buildBentoStats()),
-              ),
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
                 sliver: SliverToBoxAdapter(
                   child: FutureBuilder<_AlertBundle>(
                     future: _future,
                     builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const SizedBox(
-                          height: 300,
-                          child: Center(child: CircularProgressIndicator()),
-                        );
-                      }
-                      if (snapshot.hasError) {
-                        return SizedBox(
-                          height: 300,
-                          child: Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.error_outline_rounded, size: 48, color: AppColors.danger),
-                                const SizedBox(height: 10),
-                                const Text('Could not load alerts', style: AppStyles.bodyMedium),
-                                const SizedBox(height: 12),
-                                OutlinedButton.icon(
-                                  onPressed: _reload,
-                                  icon: const Icon(Icons.refresh_rounded, size: 16),
-                                  label: const Text('Retry'),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      }
                       final bundle = snapshot.data ?? const _AlertBundle(emergency: [], recent: [], completed: []);
                       final filtered = _AlertBundle(
                         emergency: bundle.emergency.where(_matches).toList(),
@@ -247,22 +216,56 @@ class _CaretakerAlertsScreenState extends State<CaretakerAlertsScreen> {
                       );
                       final urgentCount = filtered.emergency.length;
                       final pendingCount = filtered.recent.where((i) => i.priority != 'emergency').length;
+                      final totalAlerts = filtered.emergency.length + filtered.recent.length;
 
-                      if (isWide) {
-                        return Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(flex: 5, child: _buildAlertsFeed(filtered)),
-                            const SizedBox(width: 18),
-                            SizedBox(width: 320, child: _buildSidePanel(filtered, urgentCount, pendingCount)),
-                          ],
-                        );
-                      }
                       return Column(
                         children: [
-                          _buildAlertsFeed(filtered),
-                          const SizedBox(height: 18),
-                          _buildSidePanel(filtered, urgentCount, pendingCount),
+                          if (snapshot.connectionState == ConnectionState.waiting)
+                            const SizedBox(
+                              height: 300,
+                              child: Center(child: CircularProgressIndicator()),
+                            )
+                          else if (snapshot.hasError)
+                            SizedBox(
+                              height: 300,
+                              child: Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.error_outline_rounded, size: 48, color: AppColors.danger),
+                                    const SizedBox(height: 10),
+                                    const Text('Could not load alerts', style: AppStyles.bodyMedium),
+                                    const SizedBox(height: 12),
+                                    OutlinedButton.icon(
+                                      onPressed: _reload,
+                                      icon: const Icon(Icons.refresh_rounded, size: 16),
+                                      label: const Text('Retry'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          else ...[
+                            _buildBentoStats(urgentCount, pendingCount, totalAlerts),
+                            const SizedBox(height: 18),
+                            if (isWide)
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(flex: 5, child: _buildAlertsFeed(filtered)),
+                                  const SizedBox(width: 18),
+                                  SizedBox(width: 320, child: _buildSidePanel(filtered, urgentCount, pendingCount)),
+                                ],
+                              )
+                            else
+                              Column(
+                                children: [
+                                  _buildAlertsFeed(filtered),
+                                  const SizedBox(height: 18),
+                                  _buildSidePanel(filtered, urgentCount, pendingCount),
+                                ],
+                              ),
+                          ],
                         ],
                       );
                     },
@@ -347,14 +350,14 @@ class _CaretakerAlertsScreenState extends State<CaretakerAlertsScreen> {
     );
   }
 
-  Widget _buildBentoStats() {
+  Widget _buildBentoStats(int urgentCount, int pendingCount, int totalAlerts) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isNarrow = constraints.maxWidth < 600;
         final statCards = [
-          _statCard('Urgent Alerts', '04', AppColors.danger, Icons.warning_rounded, AppColors.dangerSoft),
-          _statCard('Pending Notices', '12', AppColors.kodiNavy, Icons.mail_rounded, AppColors.kodiNavy.withValues(alpha: 0.1)),
-          _statCard('Avg. Response Time', '18m', AppColors.kodiGreen, Icons.speed_rounded, AppColors.kodiGreen.withValues(alpha: 0.1)),
+          _statCard('Urgent Alerts', '$urgentCount', AppColors.danger, Icons.warning_rounded, AppColors.dangerSoft),
+          _statCard('Pending Notices', '$pendingCount', AppColors.kodiNavy, Icons.mail_rounded, AppColors.kodiNavy.withValues(alpha: 0.1)),
+          _statCard('Total Alerts', '$totalAlerts', AppColors.kodiGreen, Icons.notifications_active_rounded, AppColors.kodiGreen.withValues(alpha: 0.1)),
         ];
 
         if (isNarrow) {
