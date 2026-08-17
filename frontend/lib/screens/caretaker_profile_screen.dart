@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../services/api_service.dart';
 import '../utils/constants.dart';
 import '../widgets/shared_screen_components.dart';
 
@@ -14,6 +16,69 @@ class _CaretakerProfileScreenState extends State<CaretakerProfileScreen> {
   bool _pushNotifs = true;
   bool _smsNotifs = true;
   bool _emailReports = false;
+
+  final ApiService _api = ApiService();
+  Map<String, dynamic>? _user;
+  List<Map<String, dynamic>> _properties = [];
+  bool _loading = true;
+
+  String get _fullName {
+    final first = (_user?['first_name'] ?? '').toString();
+    final last = (_user?['last_name'] ?? '').toString();
+    return '$first $last'.trim();
+  }
+
+  String get _initials {
+    final first = (_user?['first_name'] ?? '').toString();
+    final last = (_user?['last_name'] ?? '').toString();
+    if (first.isNotEmpty && last.isNotEmpty) return '${first[0]}${last[0]}'.toUpperCase();
+    if (first.isNotEmpty) return first[0].toUpperCase();
+    return '...';
+  }
+
+  String get _propertyName => _properties.isNotEmpty ? (_properties.first['property_name'] ?? 'Unassigned') : 'Unassigned';
+  int get _totalUnits => _properties.fold<int>(0, (s, p) => s + (p['total_units'] as int? ?? 0));
+  int get _occupiedUnits => _properties.fold<int>(0, (s, p) => s + (p['occupied_units'] as int? ?? 0));
+  int get _openMaintenance => _properties.fold<int>(0, (s, p) => s + (p['open_maintenance'] as int? ?? 0));
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    setState(() => _loading = true);
+    try {
+      final results = await Future.wait([
+        _api.get('/auth/me'),
+        _api.get('/caretaker/my-properties'),
+      ]);
+      final userRes = results[0];
+      final propRes = results[1];
+      if (userRes.statusCode == 200) {
+        _user = Map<String, dynamic>.from(jsonDecode(userRes.body));
+      }
+      if (propRes.statusCode == 200) {
+        _properties = (jsonDecode(propRes.body) as List<dynamic>)
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _loading = false);
+  }
+
+  void _openEditSheet() {
+    showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (_) => _EditProfileSheet(user: _user),
+    ).then((saved) {
+      if (saved == true) _loadProfile();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -106,7 +171,7 @@ class _CaretakerProfileScreenState extends State<CaretakerProfileScreen> {
                       border: Border.all(color: Colors.white, width: 4),
                       boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 12)],
                     ),
-                    child: const Center(child: Text('EN', style: TextStyle(fontSize: 36, fontWeight: FontWeight.w800, color: AppColors.kodiGreen))),
+                    child: Center(child: Text(_initials, style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w800, color: AppColors.kodiGreen))),
                   ),
                   Positioned(
                     bottom: 0, right: 0,
@@ -128,7 +193,7 @@ class _CaretakerProfileScreenState extends State<CaretakerProfileScreen> {
                       spacing: 10,
                       runSpacing: 6,
                       children: [
-                        const Text('Eunice Njenga', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.textDark, fontFamily: 'Lexend')),
+                        Text(_loading ? 'Loading...' : (_fullName.isNotEmpty ? _fullName : 'Caretaker'), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.textDark, fontFamily: 'Lexend')),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
@@ -140,16 +205,16 @@ class _CaretakerProfileScreenState extends State<CaretakerProfileScreen> {
                       ],
                     ),
                     const SizedBox(height: 10),
-                    _infoPill(Icons.email_outlined, 'eunice.n@kodipay.com'),
+                    _infoPill(Icons.email_outlined, _user?['email'] ?? '—'),
                     const SizedBox(height: 6),
-                    _infoPill(Icons.phone_outlined, '+254 723 456 789'),
+                    _infoPill(Icons.phone_outlined, _user?['phone'] ?? '—'),
                     const SizedBox(height: 14),
                     Wrap(
                       spacing: 8,
                       runSpacing: 6,
                       children: [
-                        _badgeChip(Icons.badge_outlined, 'ID: KP-9147'),
-                        _badgeChip(Icons.calendar_today_outlined, 'Joined Mar 2022'),
+                        _badgeChip(Icons.badge_outlined, 'ID: KP-${_user?['id'] ?? '—'}'),
+                        _badgeChip(Icons.work_outline_rounded, 'Caretaker'),
                       ],
                     ),
                   ],
@@ -168,7 +233,7 @@ class _CaretakerProfileScreenState extends State<CaretakerProfileScreen> {
       children: [
         Icon(icon, size: 14, color: AppColors.textLight),
         const SizedBox(width: 6),
-        Text(text, style: const TextStyle(fontSize: 13, color: AppColors.textLight)),
+        Flexible(child: Text(text, style: const TextStyle(fontSize: 13, color: AppColors.textLight), overflow: TextOverflow.ellipsis)),
       ],
     );
   }
@@ -205,9 +270,9 @@ class _CaretakerProfileScreenState extends State<CaretakerProfileScreen> {
         children: [
           Text('Current Assignment'.toUpperCase(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white.withValues(alpha: 0.6), letterSpacing: 1)),
           const SizedBox(height: 10),
-          const Text('Blue Heights', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.white, fontFamily: 'Lexend')),
+          Text(_loading ? 'Loading...' : _propertyName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.white, fontFamily: 'Lexend')),
           const SizedBox(height: 4),
-          Text('48 Active Units | 12 Maintenance Pending', style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.7))),
+          Text(_loading ? '' : '$_occupiedUnits of $_totalUnits units occupied | $_openMaintenance maintenance pending', style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.7))),
           const SizedBox(height: 18),
           Container(
             height: 120,
@@ -314,7 +379,7 @@ class _CaretakerProfileScreenState extends State<CaretakerProfileScreen> {
               children: [
                 const Text('Personal Information', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textDark, fontFamily: 'Lexend')),
                 TextButton.icon(
-                  onPressed: () {},
+                  onPressed: _openEditSheet,
                   icon: const Icon(Icons.edit_outlined, size: 14, color: AppColors.kodiGreen),
                   label: const Text('Edit Details', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.kodiGreen)),
                 ),
@@ -323,25 +388,30 @@ class _CaretakerProfileScreenState extends State<CaretakerProfileScreen> {
           ),
           Padding(
             padding: const EdgeInsets.all(20),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Expanded(child: _detailField('Full Name', 'Eunice Njenga')),
-                    const SizedBox(width: 20),
-                    Expanded(child: _detailField('Date of Birth', '8th Sep 1989')),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(child: _detailField('National ID / Passport', '33******2')),
-                    const SizedBox(width: 20),
-                    Expanded(child: _detailField('Residential Address', 'Eastlands, Nairobi, KE')),
-                  ],
-                ),
-              ],
-            ),
+            child: _loading
+                ? const Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                : Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(child: _detailField('Full Name', _fullName.isNotEmpty ? _fullName : '—')),
+                          const SizedBox(width: 20),
+                          Expanded(child: _detailField('Email', _user?['email'] ?? '—')),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          Expanded(child: _detailField('Phone', _user?['phone'] ?? '—')),
+                          const SizedBox(width: 20),
+                          Expanded(child: _detailField('Role', (_user?['role'] ?? 'caretaker').toString().toUpperCase())),
+                        ],
+                      ),
+                    ],
+                  ),
           ),
         ],
       ),
@@ -603,6 +673,165 @@ class _CaretakerProfileScreenState extends State<CaretakerProfileScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _EditProfileSheet extends StatefulWidget {
+  final Map<String, dynamic>? user;
+  const _EditProfileSheet({this.user});
+
+  @override
+  State<_EditProfileSheet> createState() => _EditProfileSheetState();
+}
+
+class _EditProfileSheetState extends State<_EditProfileSheet> {
+  late final TextEditingController _firstNameCtl;
+  late final TextEditingController _lastNameCtl;
+  late final TextEditingController _emailCtl;
+  late final TextEditingController _phoneCtl;
+  bool _saving = false;
+  String? _error;
+  final _formKey = GlobalKey<FormState>();
+
+  @override
+  void initState() {
+    super.initState();
+    _firstNameCtl = TextEditingController(text: widget.user?['first_name'] ?? '');
+    _lastNameCtl = TextEditingController(text: widget.user?['last_name'] ?? '');
+    _emailCtl = TextEditingController(text: widget.user?['email'] ?? '');
+    _phoneCtl = TextEditingController(text: widget.user?['phone'] ?? '');
+  }
+
+  @override
+  void dispose() {
+    _firstNameCtl.dispose();
+    _lastNameCtl.dispose();
+    _emailCtl.dispose();
+    _phoneCtl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() { _saving = true; _error = null; });
+    try {
+      final api = ApiService();
+      final res = await api.put('/auth/profile', {
+        'first_name': _firstNameCtl.text.trim(),
+        'last_name': _lastNameCtl.text.trim(),
+        'email': _emailCtl.text.trim(),
+        'phone': _phoneCtl.text.trim(),
+      });
+      if (res.statusCode == 200 && mounted) {
+        Navigator.pop(context, true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile updated successfully.'), backgroundColor: AppColors.kodiGreen),
+        );
+      } else {
+        final body = jsonDecode(res.body);
+        setState(() { _error = body['error'] ?? 'Update failed'; _saving = false; });
+      }
+    } catch (e) {
+      setState(() { _error = 'Connection error'; _saving = false; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPad = MediaQuery.of(context).viewInsets.bottom;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + bottomPad),
+      child: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Edit Profile', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textDark, fontFamily: 'Lexend')),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close_rounded, color: AppColors.muted),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              _field('First Name', _firstNameCtl, validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null),
+              const SizedBox(height: 14),
+              _field('Last Name', _lastNameCtl, validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null),
+              const SizedBox(height: 14),
+              _field('Email', _emailCtl, keyboardType: TextInputType.emailAddress, validator: (v) {
+                if (v == null || v.trim().isEmpty) return 'Required';
+                if (!v.contains('@') || !v.contains('.')) return 'Invalid email';
+                return null;
+              }),
+              const SizedBox(height: 14),
+              _field('Phone', _phoneCtl, keyboardType: TextInputType.phone),
+              if (_error != null) ...[
+                const SizedBox(height: 12),
+                Text(_error!, style: const TextStyle(fontSize: 12, color: AppColors.danger)),
+              ],
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _saving ? null : _save,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.kodiGreen,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: _saving
+                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Text('Save Changes', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _field(String label, TextEditingController ctl, {TextInputType? keyboardType, String? Function(String?)? validator}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label.toUpperCase(), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.textLight, letterSpacing: 0.5)),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: ctl,
+          keyboardType: keyboardType,
+          validator: validator,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textDark),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: AppColors.surfaceLow,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.5)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.5)),
+            ),
+            focusedBorder: const OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(10)),
+              borderSide: BorderSide(color: AppColors.kodiGreen, width: 1.5),
+            ),
+            errorBorder: const OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(10)),
+              borderSide: BorderSide(color: AppColors.danger),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
