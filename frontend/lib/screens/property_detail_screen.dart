@@ -19,10 +19,39 @@ class PropertyDetailScreen extends StatefulWidget {
 
 class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
   final ApiService _api = ApiService();
+  late PropertyData _property;
+  bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _property = widget.property;
+    _loadProperty();
+  }
+
+  Future<void> _loadProperty() async {
+    final id = _property.id;
+    if (id == null) return;
+    setState(() => _loading = true);
+    try {
+      final res = await _api.get('/properties/$id');
+      if (res.statusCode == 200 && mounted) {
+        final data = jsonDecode(res.body);
+        setState(() {
+          _property = PropertyData.fromJson(data as Map<String, dynamic>);
+          _loading = false;
+        });
+      } else if (mounted) {
+        setState(() => _loading = false);
+      }
+    } catch (e) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   void _editProperty() {
-    final nameCtrl = TextEditingController(text: widget.property.name);
-    final locationCtrl = TextEditingController(text: widget.property.location);
+    final nameCtrl = TextEditingController(text: _property.name);
+    final locationCtrl = TextEditingController(text: _property.location);
     String type = 'Apartment';
     bool saving = false;
     String? error;
@@ -71,7 +100,7 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                 }
                 setDialogState(() { saving = true; error = null; });
                 try {
-                  final response = await _api.put('/properties/${widget.property.id}', {
+                  final response = await _api.put('/properties/${_property.id}', {
                     'name': nameCtrl.text.trim(),
                     'property_type': type,
                     'address': locationCtrl.text.trim(),
@@ -82,7 +111,7 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                     return;
                   }
                   if (ctx.mounted) Navigator.pop(ctx);
-                  if (mounted) setState(() {});
+                  _loadProperty();
                 } catch (e) {
                   setDialogState(() { saving = false; error = e.toString(); });
                 }
@@ -99,60 +128,78 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final property = widget.property;
+    final property = _property;
     final id = property.id;
     final occupancyPct = property.totalUnits > 0 ? (property.occupiedUnits / property.totalUnits * 100).round() : 0;
     final collectionPct = property.expectedMonthlyRent > 0 ? (property.thisMonthIncome / property.expectedMonthlyRent * 100).round() : 0;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(property.name),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit_outlined),
-            tooltip: 'Edit Property',
-            onPressed: _editProperty,
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(colors: [Color(0xFF10A55A), Color(0xFF047857)]),
-              borderRadius: BorderRadius.circular(16),
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) return;
+        Navigator.of(context).pop(true);
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(property.name),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              tooltip: 'Edit Property',
+              onPressed: _editProperty,
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(property.location.isEmpty ? '—' : property.location, style: TextStyle(color: Colors.white.withValues(alpha: 0.86), fontSize: 13)),
-                const SizedBox(height: 16),
-                Row(
+          ],
+        ),
+        body: _loading && property.totalUnits == 0
+            ? const Center(child: CircularProgressIndicator())
+            : RefreshIndicator(
+                onRefresh: _loadProperty,
+                child: ListView(
+                  padding: const EdgeInsets.all(16),
                   children: [
-                    Expanded(child: _StatBox(value: '${property.totalUnits}', label: 'Total Units')),
-                    Expanded(child: _StatBox(value: '${property.occupiedUnits}', label: 'Occupied')),
-                    Expanded(child: _StatBox(value: 'KSh ${_fmt(property.thisMonthIncome)}', label: 'This Month')),
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(colors: [Color(0xFF10A55A), Color(0xFF047857)]),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(property.location.isEmpty ? '—' : property.location, style: TextStyle(color: Colors.white.withValues(alpha: 0.86), fontSize: 13)),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(child: _StatBox(value: '${property.totalUnits}', label: 'Total Units')),
+                              Expanded(child: _StatBox(value: '${property.occupiedUnits}', label: 'Occupied')),
+                              Expanded(child: _StatBox(value: 'KSh ${_fmt(property.thisMonthIncome)}', label: 'This Month')),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        Expanded(child: StatCard(label: 'Occupancy', value: '$occupancyPct%', icon: Icons.space_dashboard_outlined, color: AppColors.success)),
+                        const SizedBox(width: 10),
+                        Expanded(child: StatCard(label: 'Collection', value: '$collectionPct%', icon: Icons.trending_up, color: AppColors.kodiBlue)),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    _settingsTile(Icons.meeting_room_outlined, 'Units', '${property.totalUnits} total • ${property.vacantUnits} vacant', id == null ? null : () async {
+                      final changed = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => UnitsListScreen(propertyId: id, propertyName: property.name)));
+                      if (changed == true) _loadProperty();
+                    }),
+                    _settingsTile(Icons.groups_2_outlined, 'Tenants', '${property.activeTenants} active in this property', id == null ? null : () async {
+                      final changed = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => TenantListScreen(propertyId: id, propertyName: property.name)));
+                      if (changed == true) _loadProperty();
+                    }),
+                    _settingsTile(Icons.receipt_long_outlined, 'Transactions', 'KSh ${_fmt(property.thisMonthIncome)} this month', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LandlordPaymentsScreen()))),
+                    _settingsTile(Icons.folder_copy_outlined, 'Documents', 'Leases, receipts, agreements', id == null ? null : () => Navigator.push(context, MaterialPageRoute(builder: (_) => DocumentsListScreen(propertyId: id, propertyName: property.name)))),
                   ],
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Expanded(child: StatCard(label: 'Occupancy', value: '$occupancyPct%', icon: Icons.space_dashboard_outlined, color: AppColors.success)),
-              const SizedBox(width: 10),
-              Expanded(child: StatCard(label: 'Collection', value: '$collectionPct%', icon: Icons.trending_up, color: AppColors.kodiBlue)),
-            ],
-          ),
-          const SizedBox(height: 18),
-          _settingsTile(Icons.meeting_room_outlined, 'Units', '${property.totalUnits} total • ${property.vacantUnits} vacant', id == null ? null : () => Navigator.push(context, MaterialPageRoute(builder: (_) => UnitsListScreen(propertyId: id, propertyName: property.name)))),
-          _settingsTile(Icons.groups_2_outlined, 'Tenants', '${property.activeTenants} active in this property', id == null ? null : () => Navigator.push(context, MaterialPageRoute(builder: (_) => TenantListScreen(propertyId: id, propertyName: property.name)))),
-          _settingsTile(Icons.receipt_long_outlined, 'Transactions', 'KSh ${_fmt(property.thisMonthIncome)} this month', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LandlordPaymentsScreen()))),
-          _settingsTile(Icons.folder_copy_outlined, 'Documents', 'Leases, receipts, agreements', id == null ? null : () => Navigator.push(context, MaterialPageRoute(builder: (_) => DocumentsListScreen(propertyId: id, propertyName: property.name)))),
-        ],
+              ),
       ),
     );
   }
