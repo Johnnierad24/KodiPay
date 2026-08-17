@@ -21,6 +21,25 @@ class _CaretakerDashboardState extends State<CaretakerDashboard> {
   int _navIndex = 0;
   bool _sidebarOpen = true;
   bool _mobileSidebarOpen = false;
+  String _userName = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUser();
+  }
+
+  Future<void> _loadUser() async {
+    try {
+      final res = await ApiService().get('/auth/me');
+      if (res.statusCode == 200 && mounted) {
+        final data = jsonDecode(res.body);
+        setState(() {
+          _userName = data['first_name'] ?? '';
+        });
+      }
+    } catch (_) {}
+  }
 
   void _onNavTap(int i) {
     setState(() {
@@ -71,7 +90,7 @@ class _CaretakerDashboardState extends State<CaretakerDashboard> {
     final isDesktop = screenW > 768;
 
     final screens = <Widget>[
-      _CaretakerHomeTab(onOpenProfile: () => setState(() => _navIndex = 4)),
+      _CaretakerHomeTab(onOpenProfile: () => setState(() => _navIndex = 4), userName: _userName),
       const CaretakerTasksScreen(),
       const CaretakerPropertiesScreen(),
       const CaretakerAlertsScreen(),
@@ -104,6 +123,7 @@ class _CaretakerDashboardState extends State<CaretakerDashboard> {
                         onNotificationsTap: () => setState(() => _navIndex = 3),
                         onAvatarTap: () => setState(() => _navIndex = 4),
                         onLogout: _confirmLogout,
+                        userName: _userName,
                       ),
                       Expanded(child: IndexedStack(index: _navIndex, children: screens)),
                     ],
@@ -272,6 +292,7 @@ class _CaretakerTopBar extends StatelessWidget {
   final VoidCallback onNotificationsTap;
   final VoidCallback onAvatarTap;
   final VoidCallback onLogout;
+  final String userName;
 
   const _CaretakerTopBar({
     required this.sidebarOpen,
@@ -279,6 +300,7 @@ class _CaretakerTopBar extends StatelessWidget {
     required this.onNotificationsTap,
     required this.onAvatarTap,
     required this.onLogout,
+    this.userName = '',
   });
 
   @override
@@ -344,7 +366,7 @@ class _CaretakerTopBar extends StatelessWidget {
                   color: AppColors.kodiGreen.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: const Center(child: Text('EN', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.kodiGreen))),
+                child: Center(child: Text(userName.isNotEmpty ? userName[0].toUpperCase() : '...', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.kodiGreen))),
               ),
             ),
           ),
@@ -364,7 +386,8 @@ class _CaretakerTopBar extends StatelessWidget {
 
 class _CaretakerHomeTab extends StatefulWidget {
   final VoidCallback onOpenProfile;
-  const _CaretakerHomeTab({required this.onOpenProfile});
+  final String userName;
+  const _CaretakerHomeTab({required this.onOpenProfile, this.userName = ''});
 
   @override
   State<_CaretakerHomeTab> createState() => _CaretakerHomeTabState();
@@ -373,6 +396,8 @@ class _CaretakerHomeTab extends StatefulWidget {
 class _CaretakerHomeTabState extends State<_CaretakerHomeTab> {
   final ApiService _api = ApiService();
   List<MaintenanceItem> _pendingTasks = [];
+  List<MaintenanceItem> _allTasks = [];
+  List<Map<String, dynamic>> _properties = [];
   bool _loading = true;
   String? _error;
 
@@ -385,13 +410,27 @@ class _CaretakerHomeTabState extends State<_CaretakerHomeTab> {
   Future<void> _loadTasks() async {
     setState(() { _loading = true; _error = null; });
     try {
-      final response = await _api.get('/maintenance/mine');
-      if (response.statusCode == 200) {
-        final all = (jsonDecode(response.body) as List<dynamic>)
+      final results = await Future.wait([
+        _api.get('/maintenance/mine'),
+        _api.get('/caretaker/my-properties'),
+      ]);
+      final maintRes = results[0];
+      final propRes = results[1];
+
+      if (maintRes.statusCode == 200) {
+        final all = (jsonDecode(maintRes.body) as List<dynamic>)
             .map((item) => MaintenanceItem.fromJson(item as Map<String, dynamic>))
             .toList();
+        List<Map<String, dynamic>> props = [];
+        if (propRes.statusCode == 200) {
+          props = (jsonDecode(propRes.body) as List<dynamic>)
+              .map((item) => Map<String, dynamic>.from(item))
+              .toList();
+        }
         setState(() {
+          _allTasks = all;
           _pendingTasks = all.where((i) => !i.isResolved).take(4).toList();
+          _properties = props;
           _loading = false;
         });
       } else {
@@ -487,11 +526,11 @@ class _CaretakerHomeTabState extends State<_CaretakerHomeTab> {
             child: InkWell(
               customBorder: const CircleBorder(),
               onTap: widget.onOpenProfile,
-              child: CircleAvatar(
-                radius: 30,
-                backgroundColor: AppColors.kodiGreen.withValues(alpha: 0.2),
-                child: const Text('EN', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.kodiGreen)),
-              ),
+                child: CircleAvatar(
+                  radius: 30,
+                  backgroundColor: AppColors.kodiGreen.withValues(alpha: 0.2),
+                  child: Text(widget.userName.isNotEmpty ? widget.userName[0].toUpperCase() : '...', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.kodiGreen)),
+                ),
             ),
           ),
           const SizedBox(width: 16),
@@ -499,7 +538,7 @@ class _CaretakerHomeTabState extends State<_CaretakerHomeTab> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('${_greeting()}, Eunice', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.white)),
+                Text('${_greeting()}, ${widget.userName.isNotEmpty ? widget.userName : 'Caretaker'}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.white)),
                 const SizedBox(height: 4),
                 Text(
                   totalPending > 0
@@ -548,14 +587,21 @@ class _CaretakerHomeTabState extends State<_CaretakerHomeTab> {
   }
 
   Widget _buildMetricsGrid() {
+    final totalUnits = _properties.fold<int>(0, (sum, p) => sum + (p['total_units'] as int? ?? 0));
+    final occupiedUnits = _properties.fold<int>(0, (sum, p) => sum + (p['occupied_units'] as int? ?? 0));
+    final occupancyRate = totalUnits > 0 ? (occupiedUnits * 100 / totalUnits).round() : 0;
+    final openMaintenance = _properties.fold<int>(0, (sum, p) => sum + (p['open_maintenance'] as int? ?? 0));
+    final completedCount = _allTasks.where((t) => t.isResolved).length;
+    final pendingCount = _allTasks.where((t) => !t.isResolved).length;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final isNarrow = constraints.maxWidth < 500;
         final cards = [
-          _metricBento('Uptime', '94%', Icons.wifi_tethering_rounded, AppColors.success, 'Building uptime score'),
-          _metricBento('Avg Fix Time', '1.2d', Icons.timer_outlined, AppColors.kodiBlue, 'Average resolution'),
-          _metricBento('Occupancy', '48/50', Icons.people_outline, AppColors.kodiGreen, 'Units occupied'),
-          _metricBento('Occupancy Rate', '96%', Icons.trending_up_rounded, AppColors.kodiOrange, 'Overall rate'),
+          _metricBento('Total Units', '$totalUnits', Icons.domain_outlined, AppColors.kodiGreen, '${_properties.length} ${_properties.length == 1 ? "property" : "properties"}'),
+          _metricBento('Occupied', '$occupiedUnits', Icons.people_outline, AppColors.kodiBlue, '$occupancyRate% occupancy rate'),
+          _metricBento('Open Issues', '$openMaintenance', Icons.build_rounded, AppColors.kodiOrange, '${_properties.length} ${_properties.length == 1 ? "property" : "properties"} assigned'),
+          _metricBento('Completed', '$completedCount', Icons.check_circle_outline_rounded, AppColors.success, '$pendingCount pending'),
         ];
         if (isNarrow) {
           return Column(
@@ -711,6 +757,12 @@ class _CaretakerHomeTabState extends State<_CaretakerHomeTab> {
   }
 
   Widget _buildVisualAccentCard() {
+    final totalUnits = _properties.fold<int>(0, (sum, p) => sum + (p['total_units'] as int? ?? 0));
+    final occupiedUnits = _properties.fold<int>(0, (sum, p) => sum + (p['occupied_units'] as int? ?? 0));
+    final completedMaintenance = _allTasks.where((t) => t.isResolved).length;
+    final totalMaintenance = _allTasks.length;
+    final propName = _properties.isNotEmpty ? (_properties.first['property_name'] ?? 'Property') : 'Properties';
+
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
@@ -733,10 +785,12 @@ class _CaretakerHomeTabState extends State<_CaretakerHomeTab> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Quarterly Safety Review', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textDark)),
+                Text('${_properties.length > 1 ? '$propName & more' : propName}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textDark)),
                 const SizedBox(height: 4),
                 Text(
-                  'All 50 units passed the Q2 2026 safety inspection. No critical issues found.',
+                  _properties.isNotEmpty
+                      ? '$occupiedUnits of $totalUnits units occupied. $completedMaintenance of $totalMaintenance tasks completed.'
+                      : 'No assigned properties yet.',
                   style: TextStyle(fontSize: 12, color: AppColors.textDark.withValues(alpha: 0.7)),
                 ),
               ],
@@ -803,6 +857,14 @@ class _CaretakerHomeTabState extends State<_CaretakerHomeTab> {
   }
 
   Widget _buildPropertyHealth() {
+    final totalUnits = _properties.fold<int>(0, (sum, p) => sum + (p['total_units'] as int? ?? 0));
+    final occupiedUnits = _properties.fold<int>(0, (sum, p) => sum + (p['occupied_units'] as int? ?? 0));
+    final occupancyRate = totalUnits > 0 ? occupiedUnits / totalUnits : 0.0;
+    final openMaintenance = _properties.fold<int>(0, (sum, p) => sum + (p['open_maintenance'] as int? ?? 0));
+    final completedCount = _allTasks.where((t) => t.isResolved).length;
+    final totalMaintenance = _allTasks.length;
+    final completionRate = totalMaintenance > 0 ? completedCount / totalMaintenance : 0.0;
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: _cardDecoration(),
@@ -811,11 +873,11 @@ class _CaretakerHomeTabState extends State<_CaretakerHomeTab> {
         children: [
           const Text('Property Health', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textDark)),
           const SizedBox(height: 16),
-          _healthItem('Maintenance Compliance', 0.98, AppColors.kodiGreen),
+          _healthItem('Occupancy Rate', occupancyRate, AppColors.kodiGreen),
           const SizedBox(height: 14),
-          _healthItem('Tenant Retention', 0.92, AppColors.kodiBlue),
+          _healthItem('Task Completion', completionRate, AppColors.kodiBlue),
           const SizedBox(height: 14),
-          _healthItem('Recent Updates', null, AppColors.kodiOrange, count: 6),
+          _healthItem('Open Issues', null, AppColors.kodiOrange, count: openMaintenance),
         ],
       ),
     );
@@ -847,6 +909,8 @@ class _CaretakerHomeTabState extends State<_CaretakerHomeTab> {
   }
 
   Widget _buildRecentUpdates() {
+    final recentCompleted = _allTasks.where((t) => t.isResolved).take(3).toList();
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: _cardDecoration(),
@@ -855,11 +919,24 @@ class _CaretakerHomeTabState extends State<_CaretakerHomeTab> {
         children: [
           const Text('Recent Updates', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textDark)),
           const SizedBox(height: 14),
-          _updateItem(Icons.check_circle_rounded, AppColors.kodiGreen, 'Unit B3 plumbing fixed', '2 hours ago'),
-          const SizedBox(height: 12),
-          _updateItem(Icons.build_rounded, AppColors.kodiOrange, 'Unit A2 electrical inspected', '5 hours ago'),
-          const SizedBox(height: 12),
-          _updateItem(Icons.check_circle_rounded, AppColors.kodiGreen, 'Common area repainted', 'Yesterday'),
+          if (recentCompleted.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Text('No completed tasks yet.', style: TextStyle(fontSize: 13, color: AppColors.textLight)),
+            )
+          else
+            ...List.generate(recentCompleted.length, (i) {
+              final item = recentCompleted[i];
+              return Padding(
+                padding: EdgeInsets.only(bottom: i < recentCompleted.length - 1 ? 12 : 0),
+                child: _updateItem(
+                  Icons.check_circle_rounded,
+                  AppColors.kodiGreen,
+                  item.title.isNotEmpty ? item.title : capitalize(item.category),
+                  relativeTime(item.updatedAt),
+                ),
+              );
+            }),
         ],
       ),
     );
