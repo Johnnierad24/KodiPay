@@ -1,24 +1,109 @@
+import 'dart:convert';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import '../services/api_service.dart';
 import '../utils/constants.dart';
 import 'maintenance_submitted_screen.dart';
 
 class RaiseMaintenanceSchedulingScreen extends StatefulWidget {
-  const RaiseMaintenanceSchedulingScreen({super.key});
+  final String category;
+  final String description;
+  final String urgency;
+  final List<PlatformFile> images;
+
+  const RaiseMaintenanceSchedulingScreen({
+    super.key,
+    required this.category,
+    required this.description,
+    required this.urgency,
+    required this.images,
+  });
 
   @override
   State<RaiseMaintenanceSchedulingScreen> createState() => _RaiseMaintenanceSchedulingScreenState();
 }
 
 class _RaiseMaintenanceSchedulingScreenState extends State<RaiseMaintenanceSchedulingScreen> {
+  final ApiService _api = ApiService();
   DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
   String? _selectedTime;
   bool _allowUnattended = true;
+  bool _submitting = false;
   late DateTime _focusedMonth;
 
   @override
   void initState() {
     super.initState();
     _focusedMonth = DateTime(_selectedDate.year, _selectedDate.month);
+  }
+
+  Future<void> _submit() async {
+    final description = widget.description.trim();
+    if (description.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please describe the issue before submitting.')));
+      return;
+    }
+    setState(() => _submitting = true);
+    try {
+      final tenanciesResponse = await _api.get('/tenancies');
+      if (tenanciesResponse.statusCode != 200) {
+        throw Exception('Could not load your tenancy');
+      }
+      final tenancies = jsonDecode(tenanciesResponse.body) as List<dynamic>;
+      Map<String, dynamic>? activeTenancy;
+      for (final item in tenancies) {
+        final map = (item as Map).cast<String, dynamic>();
+        if (map['status'] == 'active') {
+          activeTenancy = map;
+          break;
+        }
+      }
+      if (activeTenancy == null) {
+        throw Exception('No active tenancy found on your account');
+      }
+      final unitId = activeTenancy['unit_id'];
+      if (unitId == null) {
+        throw Exception('No unit linked to your tenancy');
+      }
+
+      final response = await _api.post('/maintenance', {
+        'unit_id': unitId,
+        'title': _buildTitle(),
+        'description': description,
+        'category': _normalizeCategory(widget.category),
+        'priority': widget.urgency,
+      });
+      if (!mounted) return;
+      if (response.statusCode == 201) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const MaintenanceSubmittedScreen()),
+          (route) => route.isFirst,
+        );
+      } else {
+        String message = 'Failed to submit request (${response.statusCode}).';
+        try {
+          final body = jsonDecode(response.body);
+          if (body is Map && body['error'] != null) {
+            message = body['error'].toString();
+          }
+        } catch (_) {}
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+        setState(() => _submitting = false);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to submit request: $e')));
+      setState(() => _submitting = false);
+    }
+  }
+
+  String _buildTitle() {
+    final label = _categoryLabel(widget.category);
+    final desc = widget.description.trim().replaceAll('\n', ' ');
+    if (desc.isEmpty) return '$label issue';
+    final snippet = desc.length <= 48 ? desc : '${desc.substring(0, 48).trimRight()}...';
+    return '$label - $snippet';
   }
 
   @override
@@ -50,6 +135,11 @@ class _RaiseMaintenanceSchedulingScreenState extends State<RaiseMaintenanceSched
                       allowUnattended: _allowUnattended,
                       selectedDate: _selectedDate,
                       selectedTime: _selectedTime,
+                      category: widget.category,
+                      description: widget.description,
+                      urgency: widget.urgency,
+                      submitting: _submitting,
+                      onSubmit: _submit,
                       onToggleUnattended: (v) => setState(() => _allowUnattended = v),
                     ),
                   ],
@@ -76,6 +166,11 @@ class _RaiseMaintenanceSchedulingScreenState extends State<RaiseMaintenanceSched
                       allowUnattended: _allowUnattended,
                       selectedDate: _selectedDate,
                       selectedTime: _selectedTime,
+                      category: widget.category,
+                      description: widget.description,
+                      urgency: widget.urgency,
+                      submitting: _submitting,
+                      onSubmit: _submit,
                       onToggleUnattended: (v) => setState(() => _allowUnattended = v),
                     ),
                   ),
@@ -417,12 +512,22 @@ class _RightColumn extends StatelessWidget {
   final bool allowUnattended;
   final DateTime selectedDate;
   final String? selectedTime;
+  final String category;
+  final String description;
+  final String urgency;
+  final bool submitting;
+  final VoidCallback onSubmit;
   final ValueChanged<bool> onToggleUnattended;
 
   const _RightColumn({
     required this.allowUnattended,
     required this.selectedDate,
     required this.selectedTime,
+    required this.category,
+    required this.description,
+    required this.urgency,
+    required this.submitting,
+    required this.onSubmit,
     required this.onToggleUnattended,
   });
 
@@ -435,15 +540,18 @@ class _RightColumn extends StatelessWidget {
           onChanged: onToggleUnattended,
         ),
         const SizedBox(height: 24),
-        _RequestSummaryCard(selectedDate: selectedDate, selectedTime: selectedTime),
+        _RequestSummaryCard(
+          selectedDate: selectedDate,
+          selectedTime: selectedTime,
+          category: category,
+          description: description,
+          urgency: urgency,
+        ),
         const SizedBox(height: 24),
         _ActionButtons(
           canSubmit: selectedTime != null,
-          onSubmit: () => Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (_) => const MaintenanceSubmittedScreen()),
-            (route) => route.isFirst,
-          ),
+          submitting: submitting,
+          onSubmit: onSubmit,
         ),
         const SizedBox(height: 24),
         _HelpBento(),
@@ -521,11 +629,22 @@ class _UnattendedToggle extends StatelessWidget {
 class _RequestSummaryCard extends StatelessWidget {
   final DateTime selectedDate;
   final String? selectedTime;
+  final String category;
+  final String description;
+  final String urgency;
 
-  const _RequestSummaryCard({required this.selectedDate, required this.selectedTime});
+  const _RequestSummaryCard({
+    required this.selectedDate,
+    required this.selectedTime,
+    required this.category,
+    required this.description,
+    required this.urgency,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final descSnippet = description.trim().replaceAll('\n', ' ');
+    final issueLine = '$categoryName - ${descSnippet.isEmpty ? 'no details provided' : (descSnippet.length <= 40 ? descSnippet : '${descSnippet.substring(0, 40).trimRight()}...')}';
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -562,7 +681,7 @@ class _RequestSummaryCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Plumbing - Leaking Faucet',
+                            issueLine,
                             style: AppStyles.bodyMd.copyWith(color: AppColors.primary),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -573,12 +692,12 @@ class _RequestSummaryCard extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: AppColors.errorContainer,
+                        color: urgencyBadgeBg,
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: const Text(
-                        'URGENT',
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.onErrorContainer),
+                      child: Text(
+                        urgencyLabel.toUpperCase(),
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: urgencyBadgeColor),
                       ),
                     ),
                   ],
@@ -590,7 +709,17 @@ class _RequestSummaryCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Medium Priority',
+                  '$urgencyLabel Priority',
+                  style: AppStyles.bodyMd.copyWith(color: AppColors.primary),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'PREFERRED SLOT',
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.secondary),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  selectedTime == null ? _formatDate(selectedDate) : '${_formatDate(selectedDate)} - ${_timeLabel(selectedTime!)}',
                   style: AppStyles.bodyMd.copyWith(color: AppColors.primary),
                 ),
                 const SizedBox(height: 16),
@@ -620,13 +749,23 @@ class _RequestSummaryCard extends StatelessWidget {
       ),
     );
   }
+
+  String get categoryName => _categoryLabel(category);
+  String get urgencyLabel => _urgencyLabel(urgency);
+  Color get urgencyBadgeColor => _urgencyBadgeColor(urgency);
+  Color get urgencyBadgeBg => _urgencyBadgeBg(urgency);
 }
 
 class _ActionButtons extends StatelessWidget {
   final bool canSubmit;
+  final bool submitting;
   final VoidCallback onSubmit;
 
-  const _ActionButtons({required this.canSubmit, required this.onSubmit});
+  const _ActionButtons({
+    required this.canSubmit,
+    required this.submitting,
+    required this.onSubmit,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -636,9 +775,18 @@ class _ActionButtons extends StatelessWidget {
           width: double.infinity,
           height: 56,
           child: ElevatedButton.icon(
-            onPressed: canSubmit ? onSubmit : null,
-            icon: const Icon(Icons.send_rounded, size: 20),
-            label: const Text('Submit Request', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18)),
+            onPressed: canSubmit && !submitting ? onSubmit : null,
+            icon: submitting
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : const Icon(Icons.send_rounded, size: 20),
+            label: Text(
+              submitting ? 'Submitting...' : 'Submit Request',
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
+            ),
             style: ElevatedButton.styleFrom(
               elevation: 4,
               shadowColor: AppColors.primary.withValues(alpha: 0.2),
@@ -700,5 +848,95 @@ class _HelpBento extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+String _normalizeCategory(String value) {
+  switch (value.toLowerCase()) {
+    case 'plumbing':
+    case 'electrical':
+    case 'structural':
+      return value.toLowerCase();
+    case 'appliances':
+    case 'general':
+    default:
+      return 'other';
+  }
+}
+
+String _categoryLabel(String value) {
+  switch (value.toLowerCase()) {
+    case 'plumbing':
+      return 'Plumbing';
+    case 'electrical':
+      return 'Electrical';
+    case 'structural':
+      return 'Structural';
+    case 'appliances':
+      return 'Appliances';
+    case 'general':
+      return 'General';
+    default:
+      return 'Maintenance';
+  }
+}
+
+String _urgencyLabel(String value) {
+  switch (value.toLowerCase()) {
+    case 'low':
+      return 'Low';
+    case 'high':
+    case 'urgent':
+      return 'High';
+    case 'emergency':
+      return 'Emergency';
+    default:
+      return 'Medium';
+  }
+}
+
+Color _urgencyBadgeColor(String value) {
+  switch (value.toLowerCase()) {
+    case 'emergency':
+      return AppColors.danger;
+    case 'high':
+    case 'urgent':
+      return AppColors.warning;
+    case 'low':
+      return AppColors.info;
+    default:
+      return AppColors.primary;
+  }
+}
+
+Color _urgencyBadgeBg(String value) {
+  switch (value.toLowerCase()) {
+    case 'emergency':
+      return AppColors.dangerSoft;
+    case 'high':
+    case 'urgent':
+      return AppColors.warningSoft;
+    case 'low':
+      return AppColors.infoSoft;
+    default:
+      return AppColors.primaryFixed;
+  }
+}
+
+String _formatDate(DateTime date) {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return '${months[date.month - 1]} ${date.day}, ${date.year}';
+}
+
+String _timeLabel(String value) {
+  switch (value) {
+    case 'morning':
+      return 'Morning (8:00 - 12:00)';
+    case 'afternoon':
+      return 'Afternoon (12:00 - 16:00)';
+    case 'evening':
+      return 'Evening (16:00 - 19:00)';
+    default:
+      return value;
   }
 }

@@ -1,4 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import '../models/maintenance_item.dart';
+import '../services/api_service.dart';
 import '../utils/constants.dart';
 import '../widgets/shared_screen_components.dart';
 import 'raise_maintenance_details_screen.dart';
@@ -184,7 +188,33 @@ class _CaretakerCard extends StatelessWidget {
   }
 }
 
-class _OpenTicketsCard extends StatelessWidget {
+class _OpenTicketsCard extends StatefulWidget {
+  @override
+  State<_OpenTicketsCard> createState() => _OpenTicketsCardState();
+}
+
+class _OpenTicketsCardState extends State<_OpenTicketsCard> {
+  final ApiService _api = ApiService();
+  late Future<List<MaintenanceItem>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _fetchOpenTickets();
+  }
+
+  Future<List<MaintenanceItem>> _fetchOpenTickets() async {
+    final response = await _api.get('/maintenance/mine');
+    if (response.statusCode != 200) {
+      throw Exception('Could not load tickets');
+    }
+    return (jsonDecode(response.body) as List<dynamic>)
+        .map((item) => MaintenanceItem.fromJson(item as Map<String, dynamic>))
+        .where((item) => !item.isResolved)
+        .take(2)
+        .toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -214,26 +244,42 @@ class _OpenTicketsCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          // Ticket 1
-          const _TicketItem(
-            id: '#TK-8821',
-            status: 'In Progress',
-            statusColor: AppColors.kodiOrange,
-            title: 'Leaking Kitchen Tap',
-            date: 'Oct 12, 2023',
-            badge: '2 New',
-            badgeIcon: Icons.chat_bubble_rounded,
-          ),
-          const SizedBox(height: 10),
-          // Ticket 2
-          const _TicketItem(
-            id: '#TK-8790',
-            status: 'Scheduled',
-            statusColor: AppColors.info,
-            title: 'HVAC Filter Replacement',
-            date: 'Oct 10, 2023',
-            badge: 'Oct 15',
-            badgeIcon: Icons.event_available_rounded,
+          FutureBuilder<List<MaintenanceItem>>(
+            future: _future,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              if (snapshot.hasError) {
+                return _OpenTicketsMessage(
+                  icon: Icons.error_outline_rounded,
+                  text: 'Could not load open tickets.',
+                  action: TextButton.icon(
+                    onPressed: () => setState(() => _future = _fetchOpenTickets()),
+                    icon: const Icon(Icons.refresh_rounded, size: 16),
+                    label: const Text('Retry'),
+                  ),
+                );
+              }
+              final tickets = snapshot.data ?? const <MaintenanceItem>[];
+              if (tickets.isEmpty) {
+                return const _OpenTicketsMessage(
+                  icon: Icons.check_circle_outline_rounded,
+                  text: 'No open maintenance tickets.',
+                );
+              }
+              return Column(
+                children: [
+                  for (var i = 0; i < tickets.length; i++) ...[
+                    if (i > 0) const SizedBox(height: 10),
+                    _TicketItem(item: tickets[i]),
+                  ],
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -242,13 +288,12 @@ class _OpenTicketsCard extends StatelessWidget {
 }
 
 class _TicketItem extends StatelessWidget {
-  final String id, status, title, date, badge;
-  final Color statusColor;
-  final IconData badgeIcon;
-  const _TicketItem({required this.id, required this.status, required this.title, required this.date, required this.badge, required this.statusColor, required this.badgeIcon});
+  final MaintenanceItem item;
+  const _TicketItem({required this.item});
 
   @override
   Widget build(BuildContext context) {
+    final statusColor = maintenanceStatusColor(item.status);
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -261,7 +306,7 @@ class _TicketItem extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(id, style: const TextStyle(fontSize: 12, fontFamily: 'Inter', fontWeight: FontWeight.w500, color: AppColors.secondary)),
+              Text('#TK-${item.id}', style: const TextStyle(fontSize: 12, fontFamily: 'Inter', fontWeight: FontWeight.w500, color: AppColors.secondary)),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
@@ -269,25 +314,63 @@ class _TicketItem extends StatelessWidget {
                   borderRadius: BorderRadius.circular(99),
                   border: Border.all(color: statusColor.withValues(alpha: 0.2)),
                 ),
-                child: Text(status, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: statusColor)),
+                child: Text(maintenanceStatusLabel(item.status), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: statusColor)),
               ),
             ],
           ),
           const SizedBox(height: 8),
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.textDark, fontSize: 14)),
+          Text(item.title, style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.textDark, fontSize: 14), maxLines: 2, overflow: TextOverflow.ellipsis),
           const SizedBox(height: 6),
           Row(
             children: [
               const Icon(Icons.calendar_today_rounded, size: 13, color: AppColors.secondary),
               const SizedBox(width: 4),
-              Text(date, style: const TextStyle(fontSize: 12, color: AppColors.secondary)),
+              Text(relativeTime(item.createdAt), style: const TextStyle(fontSize: 12, color: AppColors.secondary)),
               const SizedBox(width: 12),
-              Icon(badgeIcon, size: 13, color: AppColors.secondary),
+              const Icon(Icons.home_work_outlined, size: 13, color: AppColors.secondary),
               const SizedBox(width: 4),
-              Text(badge, style: const TextStyle(fontSize: 12, color: AppColors.secondary)),
+              Expanded(
+                child: Text(
+                  item.unitNumber.isEmpty ? item.propertyName : 'Unit ${item.unitNumber}',
+                  style: const TextStyle(fontSize: 12, color: AppColors.secondary),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _OpenTicketsMessage extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  final Widget? action;
+
+  const _OpenTicketsMessage({
+    required this.icon,
+    required this.text,
+    this.action,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 18),
+      child: Center(
+        child: Column(
+          children: [
+            Icon(icon, size: 34, color: AppColors.muted),
+            const SizedBox(height: 8),
+            Text(text, textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, color: AppColors.secondary)),
+            if (action != null) ...[
+              const SizedBox(height: 8),
+              action!,
+            ],
+          ],
+        ),
       ),
     );
   }

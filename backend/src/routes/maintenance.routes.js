@@ -8,5 +8,6 @@ router.get('/unit/:unitId', maintenanceController.getRequestsByUnit);
 router.get('/:id', maintenanceController.getRequest);
 router.put('/:id', maintenanceController.updateRequest);
 router.put('/:id/status', maintenanceController.updateStatus);
+router.post('/:id/remind-caretaker', maintenanceController.remindCaretaker);
 
 module.exports = router;

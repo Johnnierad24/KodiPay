@@ -2,8 +2,11 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../models/maintenance_item.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
+import '../widgets/shared_screen_components.dart';
+import 'maintenance_detail_screen.dart';
 import 'property_list_screen.dart';
 import 'add_property_screen.dart';
 import 'landlord_notifications_screen.dart';
@@ -615,6 +618,8 @@ class _HomeTab extends StatelessWidget {
             },
           ),
           const SizedBox(height: 24),
+          const _PendingMaintenancePanel(),
+          const SizedBox(height: 24),
           // Dashboard body grid
           LayoutBuilder(
             builder: (context, constraints) {
@@ -677,6 +682,260 @@ class _HomeTab extends StatelessWidget {
 }
 
 // ── Stat Card ─────────────────────────────────────────
+class _PendingMaintenancePanel extends StatefulWidget {
+  const _PendingMaintenancePanel();
+
+  @override
+  State<_PendingMaintenancePanel> createState() => _PendingMaintenancePanelState();
+}
+
+class _PendingMaintenancePanelState extends State<_PendingMaintenancePanel> {
+  final ApiService _api = ApiService();
+  late Future<List<MaintenanceItem>> _future;
+  final Set<int> _reminding = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _fetchPendingTasks();
+  }
+
+  Future<List<MaintenanceItem>> _fetchPendingTasks() async {
+    final response = await _api.get('/maintenance/mine');
+    if (response.statusCode != 200) {
+      throw Exception('Could not load pending maintenance tasks');
+    }
+    return (jsonDecode(response.body) as List<dynamic>)
+        .map((item) => MaintenanceItem.fromJson(item as Map<String, dynamic>))
+        .where((item) => !item.isResolved)
+        .toList();
+  }
+
+  Future<void> _remindCaretaker(MaintenanceItem item) async {
+    setState(() => _reminding.add(item.id));
+    try {
+      final response = await _api.post('/maintenance/${item.id}/remind-caretaker', const {});
+      if (!mounted) return;
+      if (response.statusCode == 200) {
+        showSnack(context, 'Caretaker notified');
+      } else {
+        String message = 'Could not notify caretaker';
+        try {
+          final body = jsonDecode(response.body);
+          if (body is Map && body['error'] != null) message = body['error'].toString();
+        } catch (_) {}
+        showSnack(context, message);
+      }
+    } catch (_) {
+      if (mounted) showSnack(context, 'Connection error while notifying caretaker');
+    } finally {
+      if (mounted) setState(() => _reminding.remove(item.id));
+    }
+  }
+
+  void _reload() {
+    setState(() => _future = _fetchPendingTasks());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLowest,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Text('Pending Maintenance Tasks', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.primary)),
+                ),
+                IconButton(
+                  tooltip: 'Refresh',
+                  onPressed: _reload,
+                  icon: const Icon(Icons.refresh_rounded, size: 20),
+                ),
+              ],
+            ),
+          ),
+          FutureBuilder<List<MaintenanceItem>>(
+            future: _future,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const SizedBox(height: 120, child: Center(child: CircularProgressIndicator()));
+              }
+              if (snapshot.hasError) {
+                return Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 32),
+                        const SizedBox(height: 8),
+                        Text(snapshot.error.toString(), textAlign: TextAlign.center, style: AppStyles.bodySmall),
+                        const SizedBox(height: 10),
+                        OutlinedButton.icon(onPressed: _reload, icon: const Icon(Icons.refresh_rounded, size: 16), label: const Text('Retry')),
+                      ],
+                    ),
+                  ),
+                );
+              }
+              final tasks = snapshot.data ?? const <MaintenanceItem>[];
+              if (tasks.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.fromLTRB(20, 8, 20, 24),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        Icon(Icons.check_circle_outline_rounded, color: AppColors.kodiGreen, size: 34),
+                        SizedBox(height: 8),
+                        Text('No pending tenant-raised maintenance tasks.', style: TextStyle(fontSize: 13, color: AppColors.secondary)),
+                      ],
+                    ),
+                  ),
+                );
+              }
+              return Column(
+                children: [
+                  for (var i = 0; i < tasks.length; i++)
+                    _LandlordMaintenanceTaskRow(
+                      item: tasks[i],
+                      isLast: i == tasks.length - 1,
+                      reminding: _reminding.contains(tasks[i].id),
+                      onOpen: () => Navigator.push(context, MaterialPageRoute(builder: (_) => MaintenanceDetailScreen(item: tasks[i]))),
+                      onRemind: () => _remindCaretaker(tasks[i]),
+                    ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LandlordMaintenanceTaskRow extends StatelessWidget {
+  final MaintenanceItem item;
+  final bool isLast;
+  final bool reminding;
+  final VoidCallback onOpen;
+  final VoidCallback onRemind;
+
+  const _LandlordMaintenanceTaskRow({
+    required this.item,
+    required this.isLast,
+    required this.reminding,
+    required this.onOpen,
+    required this.onRemind,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final priorityColor = maintenancePriorityColor(item.priority);
+    final statusColor = maintenanceStatusColor(item.status);
+    return InkWell(
+      onTap: onOpen,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
+        decoration: BoxDecoration(
+          border: isLast ? null : Border(bottom: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.6))),
+        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isNarrow = constraints.maxWidth < 680;
+            final titleBlock = Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(color: priorityColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+                  child: Icon(Icons.build_circle_outlined, color: priorityColor, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(item.title.isEmpty ? capitalizeWord(item.category) : item.title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textDark), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${item.propertyName}${item.unitNumber.isEmpty ? '' : ' - Unit ${item.unitNumber}'}${item.tenantName.isEmpty ? '' : ' - ${item.tenantName}'}',
+                        style: AppStyles.caption,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+            final actions = Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                _MiniPill(label: maintenanceStatusLabel(item.status), color: statusColor),
+                _MiniPill(label: capitalizeWord(item.priority), color: priorityColor),
+                Text(relativeTime(item.createdAt), style: AppStyles.caption),
+                SizedBox(
+                  height: 34,
+                  child: OutlinedButton.icon(
+                    onPressed: reminding ? null : onRemind,
+                    icon: reminding
+                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.notifications_active_outlined, size: 15),
+                    label: Text(reminding ? 'Notifying' : 'Notify Caretaker', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ],
+            );
+
+            if (isNarrow) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  titleBlock,
+                  const SizedBox(height: 12),
+                  actions,
+                ],
+              );
+            }
+            return Row(
+              children: [
+                Expanded(child: titleBlock),
+                const SizedBox(width: 16),
+                actions,
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _MiniPill extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _MiniPill({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(999)),
+      child: Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: color)),
+    );
+  }
+}
+
 class _StatCard extends StatelessWidget {
   final String label;
   final IconData icon;
@@ -944,4 +1203,3 @@ class _DashboardOverview {
     );
   }
 }
-

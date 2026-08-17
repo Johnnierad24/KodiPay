@@ -4,7 +4,16 @@ import '../utils/constants.dart';
 import 'raise_maintenance_scheduling_screen.dart';
 
 class RaiseMaintenanceEvidenceScreen extends StatefulWidget {
-  const RaiseMaintenanceEvidenceScreen({super.key});
+  final String category;
+  final String description;
+  final String urgency;
+
+  const RaiseMaintenanceEvidenceScreen({
+    super.key,
+    required this.category,
+    required this.description,
+    this.urgency = 'medium',
+  });
 
   @override
   State<RaiseMaintenanceEvidenceScreen> createState() => _RaiseMaintenanceEvidenceScreenState();
@@ -12,8 +21,14 @@ class RaiseMaintenanceEvidenceScreen extends StatefulWidget {
 
 class _RaiseMaintenanceEvidenceScreenState extends State<RaiseMaintenanceEvidenceScreen> {
   final List<PlatformFile> _images = [];
-  String _urgency = 'medium';
+  late String _urgency;
   bool _showEmergencyTooltip = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _urgency = widget.urgency;
+  }
 
   Future<void> _pickImages() async {
     final result = await FilePicker.platform.pickFiles(
@@ -64,7 +79,14 @@ class _RaiseMaintenanceEvidenceScreenState extends State<RaiseMaintenanceEvidenc
             canProceed: _images.isNotEmpty,
             onContinue: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const RaiseMaintenanceSchedulingScreen()),
+              MaterialPageRoute(
+                builder: (_) => RaiseMaintenanceSchedulingScreen(
+                  category: widget.category,
+                  description: widget.description,
+                  urgency: _urgency,
+                  images: _images,
+                ),
+              ),
             ),
           ),
         ],

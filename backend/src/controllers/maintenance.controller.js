@@ -3,6 +3,7 @@ const { getUnitAccess, ownsProperty } = require('../utils/access-control');
 
 const ALLOWED_CATEGORIES = ['electrical', 'structural', 'plumbing', 'other'];
 const ALLOWED_PRIORITIES = ['low', 'medium', 'high', 'urgent', 'emergency'];
+const ALLOWED_STATUSES = ['pending', 'in_progress', 'completed', 'cancelled'];
 
 async function getMaintenanceAccess(requestId) {
   const result = await pool.query(
@@ -56,6 +57,36 @@ function normalizePriority(value) {
   if (!value) return 'medium';
   const v = String(value).toLowerCase();
   return ALLOWED_PRIORITIES.includes(v) ? v : 'medium';
+}
+
+function parseFilters(req) {
+  const filters = {};
+  if (req.query.priority) {
+    filters.priority = String(req.query.priority).toLowerCase();
+    if (!ALLOWED_PRIORITIES.includes(filters.priority)) {
+      return { error: 'Invalid priority filter' };
+    }
+  }
+  if (req.query.status) {
+    filters.status = String(req.query.status).toLowerCase();
+    if (!ALLOWED_STATUSES.includes(filters.status)) {
+      return { error: 'Invalid status filter' };
+    }
+  }
+  return { filters };
+}
+
+function appendMaintenanceFilters(params, filters) {
+  const clauses = [];
+  if (filters.priority) {
+    params.push(filters.priority);
+    clauses.push(`mr.priority = $${params.length}`);
+  }
+  if (filters.status) {
+    params.push(filters.status);
+    clauses.push(`mr.status = $${params.length}`);
+  }
+  return clauses.length ? ` AND ${clauses.join(' AND ')}` : '';
 }
 
 exports.createRequest = async (req, res) => {
@@ -116,6 +147,28 @@ exports.createRequest = async (req, res) => {
            VALUES ($1, $2, $3, $4, $5, 'maintenance_request')`,
           [unitAccess.landlord_id, notifType, notifTitle, message, result.rows[0].id]
         );
+
+        const caretakers = await pool.query(
+          `SELECT caretaker_id
+             FROM caretaker_assignments
+            WHERE property_id = $1`,
+          [unitAccess.property_id]
+        );
+        if (caretakers.rows.length > 0) {
+          const requestId = result.rows[0].id;
+          const insertText = `
+            INSERT INTO notifications (user_id, type, title, message, related_id, related_type)
+            VALUES ${caretakers.rows.map((_, i) => `($${i * 5 + 1}, $${i * 5 + 2}, $${i * 5 + 3}, $${i * 5 + 4}, $${i * 5 + 5}, 'maintenance_request')`).join(', ')}
+          `;
+          const insertValues = caretakers.rows.flatMap((row) => [
+            row.caretaker_id,
+            notifType,
+            notifTitle,
+            message,
+            requestId,
+          ]);
+          await pool.query(insertText, insertValues);
+        }
       } catch (notifyErr) {
         console.error('Maintenance create notification failed:', notifyErr.message);
       }
@@ -158,26 +211,19 @@ exports.createRequest = async (req, res) => {
 
 exports.getMyRequests = async (req, res) => {
   try {
-    const priorityFilter = req.query.priority
-      ? String(req.query.priority).toLowerCase()
-      : null;
-    if (priorityFilter && !ALLOWED_PRIORITIES.includes(priorityFilter)) {
-      return res.status(400).json({ error: 'Invalid priority filter' });
-    }
+    const parsed = parseFilters(req);
+    if (parsed.error) return res.status(400).json({ error: parsed.error });
+    const filters = parsed.filters;
 
     if (req.user.role === 'tenant') {
       const params = [req.user.id];
-      let priorityClause = '';
-      if (priorityFilter) {
-        params.push(priorityFilter);
-        priorityClause = ` AND mr.priority = $${params.length}`;
-      }
+      const filterClause = appendMaintenanceFilters(params, filters);
       const result = await pool.query(
         `SELECT mr.*, u.unit_number, p.name AS property_name
          FROM maintenance_requests mr
          JOIN units u ON mr.unit_id = u.id
          JOIN properties p ON u.property_id = p.id
-         WHERE mr.tenant_id = $1${priorityClause}
+         WHERE mr.tenant_id = $1${filterClause}
          ORDER BY mr.created_at DESC`,
         params
       );
@@ -186,11 +232,7 @@ exports.getMyRequests = async (req, res) => {
 
     if (['landlord', 'agent'].includes(req.user.role)) {
       const params = [req.user.id];
-      let priorityClause = '';
-      if (priorityFilter) {
-        params.push(priorityFilter);
-        priorityClause = ` AND mr.priority = $${params.length}`;
-      }
+      const filterClause = appendMaintenanceFilters(params, filters);
       const result = await pool.query(
         `SELECT mr.*, u.unit_number, p.name AS property_name,
                 us.first_name AS tenant_first_name, us.last_name AS tenant_last_name,
@@ -198,8 +240,8 @@ exports.getMyRequests = async (req, res) => {
          FROM maintenance_requests mr
          JOIN units u ON mr.unit_id = u.id
          JOIN properties p ON u.property_id = p.id
-         JOIN users us ON mr.tenant_id = us.id
-         WHERE p.landlord_id = $1${priorityClause}
+         LEFT JOIN users us ON mr.tenant_id = us.id
+         WHERE p.landlord_id = $1${filterClause}
          ORDER BY mr.created_at DESC`,
         params
       );
@@ -208,11 +250,7 @@ exports.getMyRequests = async (req, res) => {
 
     if (req.user.role === 'caretaker') {
       const params = [req.user.id];
-      let priorityClause = '';
-      if (priorityFilter) {
-        params.push(priorityFilter);
-        priorityClause = ` AND mr.priority = $${params.length}`;
-      }
+      const filterClause = appendMaintenanceFilters(params, filters);
       const result = await pool.query(
         `SELECT mr.*, u.unit_number, p.name AS property_name,
                 us.first_name AS tenant_first_name, us.last_name AS tenant_last_name,
@@ -220,9 +258,9 @@ exports.getMyRequests = async (req, res) => {
          FROM maintenance_requests mr
          JOIN units u ON mr.unit_id = u.id
          JOIN properties p ON u.property_id = p.id
-         JOIN users us ON mr.tenant_id = us.id
+         LEFT JOIN users us ON mr.tenant_id = us.id
          JOIN caretaker_assignments ca ON ca.property_id = p.id
-         WHERE ca.caretaker_id = $1${priorityClause}
+         WHERE ca.caretaker_id = $1${filterClause}
          ORDER BY mr.created_at DESC`,
         params
       );
@@ -307,6 +345,52 @@ exports.updateRequest = async (req, res) => {
     res.json(result.rows[0]);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update request' });
+  }
+};
+
+exports.remindCaretaker = async (req, res) => {
+  try {
+    const access = await getMaintenanceAccess(req.params.id);
+    if (!access) return res.status(404).json({ error: 'Maintenance request not found' });
+    if (!['landlord', 'agent'].includes(req.user.role) || access.landlord_id !== req.user.id) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const caretakers = await pool.query(
+      `SELECT ca.caretaker_id
+         FROM caretaker_assignments ca
+        WHERE ca.property_id = $1`,
+      [access.property_id]
+    );
+    if (caretakers.rows.length === 0) {
+      return res.status(400).json({ error: 'No caretaker assigned to this property yet' });
+    }
+
+    const request = await pool.query(
+      'SELECT title FROM maintenance_requests WHERE id = $1',
+      [req.params.id]
+    );
+    const title = (request.rows[0] || {}).title || 'maintenance request';
+    const message = `Landlord reminder: "${title}" (ticket #${req.params.id}) is still pending. Please start work on it.`;
+    const requestId = parseInt(req.params.id, 10);
+
+    const insertText = `
+      INSERT INTO notifications (user_id, type, title, message, related_id, related_type)
+      VALUES ${caretakers.rows.map((_, i) => `($${i * 4 + 1}, 'maintenance', $${i * 4 + 2}, $${i * 4 + 3}, $${i * 4 + 4}, 'maintenance_request')`).join(', ')}
+    `;
+    const insertValues = caretakers.rows.flatMap((row) => [
+      row.caretaker_id,
+      'New Task Reminder',
+      message,
+      requestId,
+    ]);
+
+    await pool.query(insertText, insertValues);
+
+    res.json({ success: true, notified: caretakers.rows.length });
+  } catch (error) {
+    console.error('remindCaretaker failed:', error.message);
+    res.status(500).json({ error: 'Failed to notify caretaker' });
   }
 };
 

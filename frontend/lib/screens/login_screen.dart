@@ -102,49 +102,47 @@ class _LoginScreenState extends State<LoginScreen> {
         // Content on top
         SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+            padding: const EdgeInsets.symmetric(vertical: 32),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Brand: logo + KodiPay + tagline
-                Row(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.asset(
-                        'assets/images/kodipay_logo.png',
-                        width: 44, height: 30, fit: BoxFit.cover,
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Row(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.asset(
+                          'assets/images/kodipay_logo.png',
+                          width: 44, height: 30, fit: BoxFit.cover,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    const Text('KodiPay', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Colors.white, fontFamily: 'Lexend')),
-                  ],
+                      const SizedBox(width: 10),
+                      const Text('KodiPay', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Colors.white, fontFamily: 'Lexend')),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 6),
-                const Text(
-                  'Secure Property Management Starts Here',
-                  style: TextStyle(fontSize: 13, color: Colors.white70, height: 1.4),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24),
+                  child: Text(
+                    'Secure Property Management Starts Here',
+                    style: TextStyle(fontSize: 13, color: Colors.white70, height: 1.4),
+                  ),
                 ),
                 const SizedBox(height: 28),
-                // Form card
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-                  ),
-                  child: _FormSide(
-                    auth: auth,
-                    dark: true,
-                    emailCtl: _emailController,
-                    passwordCtl: _passwordController,
-                    obscurePassword: _obscurePassword,
-                    remember: _remember,
-                    onTogglePassword: () => setState(() => _obscurePassword = !_obscurePassword),
-                    onToggleRemember: (v) => setState(() => _remember = v),
-                    onLogin: _handleLogin,
-                  ),
+                // Form (no card on narrow screens so it uses the full width)
+                _FormSide(
+                  auth: auth,
+                  dark: true,
+                  emailCtl: _emailController,
+                  passwordCtl: _passwordController,
+                  obscurePassword: _obscurePassword,
+                  remember: _remember,
+                  onTogglePassword: () => setState(() => _obscurePassword = !_obscurePassword),
+                  onToggleRemember: (v) => setState(() => _remember = v),
+                  onLogin: _handleLogin,
                 ),
               ],
             ),
@@ -227,8 +225,8 @@ class _FormSide extends StatelessWidget {
   Widget build(BuildContext context) {
     final isNarrow = MediaQuery.of(context).size.width <= 768;
     final isDark = dark;
-    final horizontalPad = isNarrow ? 24.0 : 40.0;
-    final verticalPad = isNarrow ? 32.0 : 48.0;
+    final horizontalPad = isNarrow ? 18.0 : 40.0;
+    final verticalPad = isNarrow ? 16.0 : 48.0;
     return SingleChildScrollView(
       padding: EdgeInsets.symmetric(horizontal: horizontalPad, vertical: verticalPad),
       child: Column(
@@ -260,10 +258,14 @@ class _FormSide extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 4,
             children: [
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   SizedBox(
                     height: 20, width: 20,
@@ -279,6 +281,11 @@ class _FormSide extends StatelessWidget {
                 ],
               ),
               TextButton(
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
                 onPressed: () => Navigator.pushNamed(context, '/forgot-password'),
                 child: Text('Forgot Password?', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white : null)),
               ),
@@ -316,7 +323,12 @@ class _FormSide extends StatelessWidget {
                 decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(4)),
                 child: const Text('G', style: TextStyle(color: Color(0xFF4285F4), fontWeight: FontWeight.w800, fontSize: 13)),
               ),
-              label: const Text('Continue with Google', style: TextStyle(fontWeight: FontWeight.w600)),
+              label: Text(
+                'Continue with Google',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: isNarrow ? 12 : 13),
+              ),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.textDark,
                 backgroundColor: isDark ? Colors.white : null,

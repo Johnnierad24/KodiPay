@@ -45,7 +45,13 @@ class _RaiseMaintenanceDetailsScreenState extends State<RaiseMaintenanceDetailsS
             onUrgencyChanged: (v) => setState(() => _urgency = v),
             onContinue: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const RaiseMaintenanceEvidenceScreen()),
+              MaterialPageRoute(
+                builder: (_) => RaiseMaintenanceEvidenceScreen(
+                  category: _selectedCategory,
+                  description: _descriptionController.text.trim(),
+                  urgency: _urgency,
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 24),
