@@ -44,9 +44,6 @@ const corsOptions = corsOrigins.length > 0
   : {};
 
 app.use(helmet());
-if (process.env.SENTRY_DSN) {
-  app.use(Sentry.Handlers.requestHandler());
-}
 app.use(cors(corsOptions));
 app.use(morgan('dev'));
 app.use(express.json());
@@ -79,7 +76,7 @@ app.use('/api/caretakers', authMiddleware, require('./routes/caretaker.routes'))
 app.use('/api/cron', require('./routes/cron.routes'));
 
 if (process.env.SENTRY_DSN) {
-  app.use(Sentry.Handlers.errorHandler());
+  Sentry.setupExpressErrorHandler(app);
 }
 
 app.use((err, req, res, next) => {
