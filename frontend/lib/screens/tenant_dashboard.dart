@@ -373,7 +373,7 @@ class _TenantHomeTab extends StatelessWidget {
     final outstanding = hasData ? o.rentOutstanding : 45000;
     final paid = o?.rentPaid ?? 0;
 
-    return RefreshIndicator(
+    return AppRefreshIndicator(
       onRefresh: () async => onRefresh(),
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -421,9 +421,10 @@ class _TenantHomeTab extends StatelessWidget {
                             unitNumber: o?.unitNumber ?? '',
                             dueDate: o?.dueDay ?? 5,
                             onDownloadInvoice: o == null ? null : () => _downloadInvoice(o),
+                            onPaymentMade: onRefresh,
                           ),
                           const SizedBox(height: 16),
-                          _MaintenanceCard(),
+                          _MaintenanceCard(onMaintenanceRaised: onRefresh),
                         ],
                       )
                     : Row(
@@ -438,10 +439,11 @@ class _TenantHomeTab extends StatelessWidget {
                               unitNumber: o?.unitNumber ?? '',
                               dueDate: o?.dueDay ?? 5,
                               onDownloadInvoice: o == null ? null : () => _downloadInvoice(o),
+                              onPaymentMade: onRefresh,
                             ),
                           ),
                           const SizedBox(width: 16),
-                          Expanded(flex: 1, child: _MaintenanceCard()),
+                          Expanded(flex: 1, child: _MaintenanceCard(onMaintenanceRaised: onRefresh)),
                         ],
                       );
               },
@@ -527,7 +529,8 @@ class _BalanceHeroCard extends StatelessWidget {
   final String unitNumber;
   final int dueDate;
   final VoidCallback? onDownloadInvoice;
-  const _BalanceHeroCard({required this.amount, required this.paid, required this.propertyName, required this.unitNumber, required this.dueDate, this.onDownloadInvoice});
+  final VoidCallback? onPaymentMade;
+  const _BalanceHeroCard({required this.amount, required this.paid, required this.propertyName, required this.unitNumber, required this.dueDate, this.onDownloadInvoice, this.onPaymentMade});
 
   @override
   Widget build(BuildContext context) {
@@ -559,7 +562,10 @@ class _BalanceHeroCard extends StatelessWidget {
               ElevatedButton(
                 onPressed: cleared
                     ? null
-                    : () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PayRentScreen())),
+                    : () async {
+                        final changed = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => const PayRentScreen()));
+                        if (changed == true && context.mounted) onPaymentMade?.call();
+                      },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.kodiGreen,
                   foregroundColor: Colors.white,
@@ -588,6 +594,9 @@ class _BalanceHeroCard extends StatelessWidget {
 
 // ── Maintenance Card ─────────────────────────────────────
 class _MaintenanceCard extends StatelessWidget {
+  final VoidCallback? onMaintenanceRaised;
+  const _MaintenanceCard({this.onMaintenanceRaised});
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -613,7 +622,10 @@ class _MaintenanceCard extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RaiseMaintenanceDetailsScreen())),
+              onPressed: () async {
+                final raised = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => const RaiseMaintenanceDetailsScreen()));
+                if (raised == true && context.mounted) onMaintenanceRaised?.call();
+              },
               icon: const Icon(Icons.add_circle, size: 18),
               label: const Text('Raise Maintenance Issue', style: TextStyle(fontWeight: FontWeight.w700)),
               style: OutlinedButton.styleFrom(

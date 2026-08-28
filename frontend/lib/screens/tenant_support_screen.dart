@@ -8,8 +8,15 @@ import '../widgets/shared_screen_components.dart';
 import 'raise_maintenance_details_screen.dart';
 import 'tenant_maintenance_screen.dart';
 
-class TenantSupportScreen extends StatelessWidget {
+class TenantSupportScreen extends StatefulWidget {
   const TenantSupportScreen({super.key});
+
+  @override
+  State<TenantSupportScreen> createState() => _TenantSupportScreenState();
+}
+
+class _TenantSupportScreenState extends State<TenantSupportScreen> {
+  final _ticketsKey = GlobalKey<_OpenTicketsCardState>();
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +41,7 @@ class TenantSupportScreen extends StatelessWidget {
               if (constraints.maxWidth < 500) {
                 return Column(
                   children: [
-                    _MaintenanceCard(),
+                    _MaintenanceCard(onMaintenanceRaised: () => _ticketsKey.currentState?.refresh()),
                     const SizedBox(height: 16),
                     _CaretakerCard(),
                   ],
@@ -43,7 +50,7 @@ class TenantSupportScreen extends StatelessWidget {
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(flex: 8, child: _MaintenanceCard()),
+                  Expanded(flex: 8, child: _MaintenanceCard(onMaintenanceRaised: () => _ticketsKey.currentState?.refresh())),
                   const SizedBox(width: 16),
                   Expanded(flex: 4, child: _CaretakerCard()),
                 ],
@@ -57,7 +64,7 @@ class TenantSupportScreen extends StatelessWidget {
               if (constraints.maxWidth < 500) {
                 return Column(
                   children: [
-                    _OpenTicketsCard(),
+                    _OpenTicketsCard(key: _ticketsKey),
                     const SizedBox(height: 16),
                     _FaqCard(),
                   ],
@@ -66,7 +73,7 @@ class TenantSupportScreen extends StatelessWidget {
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(flex: 5, child: _OpenTicketsCard()),
+                  Expanded(flex: 5, child: _OpenTicketsCard(key: _ticketsKey)),
                   const SizedBox(width: 16),
                   Expanded(flex: 7, child: _FaqCard()),
                 ],
@@ -84,6 +91,9 @@ class TenantSupportScreen extends StatelessWidget {
 }
 
 class _MaintenanceCard extends StatelessWidget {
+  final VoidCallback? onMaintenanceRaised;
+  const _MaintenanceCard({this.onMaintenanceRaised});
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -106,7 +116,10 @@ class _MaintenanceCard extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               ElevatedButton.icon(
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RaiseMaintenanceDetailsScreen())),
+                onPressed: () async {
+                  final raised = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => const RaiseMaintenanceDetailsScreen()));
+                  if (raised == true && context.mounted) onMaintenanceRaised?.call();
+                },
                 icon: const Icon(Icons.build_rounded, size: 20),
                 label: const Text('Raise Maintenance Issue', style: TextStyle(fontWeight: FontWeight.w700)),
                 style: ElevatedButton.styleFrom(
@@ -189,6 +202,7 @@ class _CaretakerCard extends StatelessWidget {
 }
 
 class _OpenTicketsCard extends StatefulWidget {
+  const _OpenTicketsCard({super.key});
   @override
   State<_OpenTicketsCard> createState() => _OpenTicketsCardState();
 }
@@ -202,6 +216,8 @@ class _OpenTicketsCardState extends State<_OpenTicketsCard> {
     super.initState();
     _future = _fetchOpenTickets();
   }
+
+  void refresh() => setState(() => _future = _fetchOpenTickets());
 
   Future<List<MaintenanceItem>> _fetchOpenTickets() async {
     final response = await _api.get('/maintenance/mine');

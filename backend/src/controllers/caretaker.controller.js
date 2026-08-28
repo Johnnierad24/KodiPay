@@ -155,6 +155,56 @@ exports.assignCaretaker = async (req, res) => {
   }
 };
 
+exports.updateCaretaker = async (req, res) => {
+  if (!['landlord', 'agent'].includes(req.user.role)) {
+    return res.status(403).json({ error: 'Only landlords or agents can update caretakers' });
+  }
+  const { caretakerId } = req.params;
+  const { first_name, last_name, phone } = req.body || {};
+
+  if (!first_name && !last_name && phone === undefined) {
+    return res.status(400).json({ error: 'Provide at least one field to update' });
+  }
+
+  try {
+    const ownership = await pool.query(
+      `SELECT ca.id FROM caretaker_assignments ca
+        JOIN properties p ON ca.property_id = p.id
+       WHERE ca.caretaker_id = $1 AND p.landlord_id = $2 LIMIT 1`,
+      [caretakerId, req.user.id]
+    );
+    if (ownership.rows.length === 0) {
+      return res.status(404).json({ error: 'Caretaker not found under your properties' });
+    }
+
+    const sets = [];
+    const params = [];
+    if (first_name) { params.push(first_name.trim()); sets.push(`first_name = $${params.length}`); }
+    if (last_name)  { params.push(last_name.trim());  sets.push(`last_name = $${params.length}`); }
+    if (phone !== undefined) { params.push(phone?.trim() || null); sets.push(`phone = $${params.length}`); }
+
+    if (sets.length === 0) {
+      return res.status(400).json({ error: 'Nothing to update' });
+    }
+
+    params.push(caretakerId);
+    const result = await pool.query(
+      `UPDATE users SET ${sets.join(', ')} WHERE id = $${params.length}
+       RETURNING id, email, first_name, last_name, phone, role`,
+      params
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Caretaker user not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('updateCaretaker failed:', error.message);
+    res.status(500).json({ error: 'Failed to update caretaker' });
+  }
+};
+
 exports.removeCaretaker = async (req, res) => {
   if (!['landlord', 'agent'].includes(req.user.role)) {
     return res.status(403).json({ error: 'Only landlords or agents can remove caretakers' });

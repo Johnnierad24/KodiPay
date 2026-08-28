@@ -8,6 +8,7 @@ import 'tenant_list_screen.dart';
 import 'landlord_payments_screen.dart';
 import 'units_screen.dart';
 import 'documents_screen.dart';
+import '../widgets/shared_screen_components.dart';
 
 class PropertyDetailScreen extends StatefulWidget {
   final PropertyData property;
@@ -152,7 +153,7 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
         ),
         body: _loading && property.totalUnits == 0
             ? const Center(child: CircularProgressIndicator())
-            : RefreshIndicator(
+            : AppRefreshIndicator(
                 onRefresh: _loadProperty,
                 child: ListView(
                   padding: const EdgeInsets.all(16),

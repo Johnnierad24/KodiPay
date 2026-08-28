@@ -412,7 +412,7 @@ class _CaretakerHomeTabState extends State<_CaretakerHomeTab> {
     try {
       final results = await Future.wait([
         _api.get('/maintenance/mine'),
-        _api.get('/caretaker/my-properties'),
+        _api.get('/caretakers/my-properties'),
       ]);
       final maintRes = results[0];
       final propRes = results[1];
@@ -508,6 +508,10 @@ class _CaretakerHomeTabState extends State<_CaretakerHomeTab> {
   }
 
   Widget _buildWelcomeHeader(int totalPending) {
+    final propName = _properties.isNotEmpty ? (_properties.first['property_name'] ?? '') : '';
+    final totalUnits = _properties.fold<int>(0, (sum, p) => sum + (p['total_units'] as int? ?? 0));
+    final occupiedUnits = _properties.fold<int>(0, (sum, p) => sum + (p['occupied_units'] as int? ?? 0));
+    final vacantUnits = totalUnits - occupiedUnits;
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -541,9 +545,9 @@ class _CaretakerHomeTabState extends State<_CaretakerHomeTab> {
                 Text('${_greeting()}, ${widget.userName.isNotEmpty ? widget.userName : 'Caretaker'}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.white)),
                 const SizedBox(height: 4),
                 Text(
-                  totalPending > 0
-                      ? 'You have $totalPending pending tasks today.'
-                      : 'All caught up! No pending tasks.',
+                  propName.isNotEmpty
+                      ? 'Assigned to $propName · $occupiedUnits/$totalUnits units occupied, $vacantUnits vacant'
+                      : (totalPending > 0 ? 'You have $totalPending pending tasks today.' : 'All caught up! No pending tasks.'),
                   style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.7)),
                 ),
               ],

@@ -17,6 +17,8 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
+  final _loginFormKey = GlobalKey<FormState>();
+  final _signUpFormKey = GlobalKey<FormState>();
   String? _role;
   bool _loadedRouteRole = false;
 
@@ -54,6 +56,7 @@ class _AuthScreenState extends State<AuthScreen> {
   Color get _accent => _role != null ? roleMeta[_role]!.color : AppColors.kodiBlue;
 
   Future<void> _handleLogin() async {
+    if (!_loginFormKey.currentState!.validate()) return;
     final success = await context.read<AuthProvider>().login(_emailController.text.trim(), _passwordController.text);
     if (!mounted) return;
     if (success) {
@@ -68,11 +71,7 @@ class _AuthScreenState extends State<AuthScreen> {
       _showSnack('Please choose your role to continue.');
       return;
     }
-    if (_firstNameController.text.trim().isEmpty || _lastNameController.text.trim().isEmpty ||
-        _emailController.text.trim().isEmpty || _passwordController.text.length < 6) {
-      _showSnack('Enter your details and a 6+ character password.');
-      return;
-    }
+    if (!_signUpFormKey.currentState!.validate()) return;
     final success = await context.read<AuthProvider>().register(
       firstName: _firstNameController.text, lastName: _lastNameController.text,
       email: _emailController.text, phone: _phoneController.text,
@@ -116,6 +115,7 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
         Expanded(
           child: _FormSide(
+            formKey: _isSignUp ? _signUpFormKey : _loginFormKey,
             isSignUp: _isSignUp,
             onToggle: () => setState(() => _isSignUp = !_isSignUp),
             role: _role,
@@ -146,6 +146,7 @@ class _AuthScreenState extends State<AuthScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: _FormSide(
+              formKey: _isSignUp ? _signUpFormKey : _loginFormKey,
               isSignUp: _isSignUp,
               onToggle: () => setState(() => _isSignUp = !_isSignUp),
               role: _role,
@@ -260,6 +261,7 @@ class _BrandSide extends StatelessWidget {
 }
 
 class _FormSide extends StatelessWidget {
+  final GlobalKey<FormState> formKey;
   final bool isSignUp;
   final VoidCallback onToggle;
   final String? role;
@@ -278,6 +280,7 @@ class _FormSide extends StatelessWidget {
   final ValueChanged<String> onRoleChanged;
 
   const _FormSide({
+    required this.formKey,
     required this.isSignUp, required this.onToggle, required this.role, required this.accent,
     required this.auth, required this.emailCtl, required this.passwordCtl,
     required this.firstNameCtl, required this.lastNameCtl, required this.phoneCtl,
@@ -289,33 +292,52 @@ class _FormSide extends StatelessWidget {
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(isSignUp ? 'Create Account' : 'Welcome Back', style: AppStyles.headlineLg),
-          const SizedBox(height: 6),
-          Text(isSignUp ? 'Set up your KodiPay profile to get started.' : 'Log in to manage rent, tasks, and payments.',
-              style: AppStyles.bodyMedium),
-          const SizedBox(height: 24),
-          _ToggleTab(isSignUp: isSignUp, onToggle: onToggle, accent: accent),
-          const SizedBox(height: 24),
-          if (isSignUp && role == null) _buildRolePicker(),
-          if (isSignUp) ...[
-            _TextField(controller: firstNameCtl, label: 'First Name', icon: Icons.person_outline_rounded),
+      child: Form(
+        key: formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(isSignUp ? 'Create Account' : 'Welcome Back', style: AppStyles.headlineLg),
+            const SizedBox(height: 6),
+            Text(isSignUp ? 'Set up your KodiPay profile to get started.' : 'Log in to manage rent, tasks, and payments.',
+                style: AppStyles.bodyMedium),
+            const SizedBox(height: 24),
+            _ToggleTab(isSignUp: isSignUp, onToggle: onToggle, accent: accent),
+            const SizedBox(height: 24),
+            if (isSignUp && role == null) _buildRolePicker(),
+            if (isSignUp) ...[
+              _TextField(controller: firstNameCtl, label: 'First Name', icon: Icons.person_outline_rounded,
+                validator: (value) => (value == null || value.trim().isEmpty) ? 'First name is required' : null),
+              const SizedBox(height: 14),
+              _TextField(controller: lastNameCtl, label: 'Last Name', icon: Icons.person_outline_rounded,
+                validator: (value) => (value == null || value.trim().isEmpty) ? 'Last name is required' : null),
+              const SizedBox(height: 14),
+              _TextField(controller: emailCtl, label: 'Email', icon: Icons.email_outlined, keyboardType: TextInputType.emailAddress,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) return 'Email is required';
+                  if (!value.contains('@')) return 'Enter a valid email';
+                  return null;
+                }),
+              const SizedBox(height: 14),
+              _TextField(controller: phoneCtl, label: 'Phone Number', icon: Icons.phone_outlined, keyboardType: TextInputType.phone),
+            ] else ...[
+              _TextField(controller: emailCtl, label: 'Email or Phone', icon: Icons.email_outlined,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) return 'Email is required';
+                  if (!value.contains('@')) return 'Enter a valid email';
+                  return null;
+                }),
+            ],
             const SizedBox(height: 14),
-            _TextField(controller: lastNameCtl, label: 'Last Name', icon: Icons.person_outline_rounded),
-            const SizedBox(height: 14),
-            _TextField(controller: emailCtl, label: 'Email', icon: Icons.email_outlined, keyboardType: TextInputType.emailAddress),
-            const SizedBox(height: 14),
-            _TextField(controller: phoneCtl, label: 'Phone Number', icon: Icons.phone_outlined, keyboardType: TextInputType.phone),
-          ] else ...[
-            _TextField(controller: emailCtl, label: 'Email or Phone', icon: Icons.email_outlined),
-          ],
-          const SizedBox(height: 14),
-          _TextField(
-            controller: passwordCtl, label: 'Password', icon: Icons.lock_outline_rounded,
-            obscureText: obscurePassword, suffix: _PasswordToggle(obscure: obscurePassword, onTap: onTogglePassword),
-          ),
+            _TextField(
+              controller: passwordCtl, label: 'Password', icon: Icons.lock_outline_rounded,
+              obscureText: obscurePassword, suffix: _PasswordToggle(obscure: obscurePassword, onTap: onTogglePassword),
+              validator: (value) {
+                if (value == null || value.isEmpty) return 'Password is required';
+                if (value.length < 6) return 'Password must be at least 6 characters';
+                return null;
+              },
+            ),
           if (!isSignUp) ...[
             Align(
               alignment: Alignment.centerRight,
@@ -388,6 +410,7 @@ class _FormSide extends StatelessWidget {
           ),
           const SizedBox(height: 8),
         ],
+      ),
       ),
     );
   }
@@ -485,11 +508,12 @@ class _TextField extends StatelessWidget {
   final bool obscureText;
   final TextInputType? keyboardType;
   final Widget? suffix;
-  const _TextField({required this.controller, required this.label, required this.icon, this.obscureText = false, this.keyboardType, this.suffix});
+  final String? Function(String?)? validator;
+  const _TextField({required this.controller, required this.label, required this.icon, this.obscureText = false, this.keyboardType, this.suffix, this.validator});
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
+    return TextFormField(
       controller: controller,
       obscureText: obscureText,
       keyboardType: keyboardType,
@@ -498,6 +522,7 @@ class _TextField extends StatelessWidget {
         prefixIcon: Icon(icon, size: 20),
         suffixIcon: suffix,
       ),
+      validator: validator,
     );
   }
 }

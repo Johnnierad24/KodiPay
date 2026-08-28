@@ -6,6 +6,8 @@ const { processCallback } = require('../services/mpesa.service');
 const checkRole = require('../middleware/role.middleware');
 const authMiddleware = require('../middleware/auth.middleware');
 const verifyCallbackSource = require('../middleware/mpesa-callback.middleware');
+const validate = require('../middleware/validate');
+const { writeLimiter } = require('../middleware/rateLimiters');
 
 // M-Pesa callback/webhook endpoint. No JWT — Safaricom calls it machine-to-machine.
 // verifyCallbackSource gates it via secret path + optional IP allowlist instead.
@@ -27,13 +29,22 @@ router.post('/mpesa/callback/:token', verifyCallbackSource, handleCallback);
 router.use(authMiddleware);
 
 router.post('/',
-  body('tenancy_id').isInt(),
+  writeLimiter,
+  body('tenancy_id').isInt({ min: 1 }),
   body('amount').isFloat({ min: 1 }),
   body('payment_method').isIn(['mpesa', 'cash', 'bank_transfer']),
+  body('phone_number').optional({ values: 'falsy' }).isString().isLength({ max: 20 }),
+  body('transaction_ref').optional().trim().isLength({ max: 100 }),
+  validate,
   paymentController.recordPayment
 );
 router.get('/tenancy/:tenancyId', paymentController.getPaymentsByTenancy);
 router.get('/:id', paymentController.getPayment);
-router.put('/:id/status', checkRole(['landlord', 'agent']), paymentController.updatePaymentStatus);
+router.put('/:id/status',
+  checkRole(['landlord', 'agent']),
+  body('status').isIn(['pending', 'verified', 'completed', 'failed', 'refunded']),
+  validate,
+  paymentController.updatePaymentStatus
+);
 
 module.exports = router;

@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 import '../models/document.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
+import '../widgets/shared_screen_components.dart';
 
 const _kCategoryAll = 'All';
 const _kCategoryLease = 'lease';
@@ -192,7 +193,7 @@ class _DocumentsListScreenState extends State<DocumentsListScreen> {
               ),
             ),
             Expanded(
-              child: RefreshIndicator(
+              child: AppRefreshIndicator(
                 onRefresh: () async => _reload(),
                 child: FutureBuilder<List<DocumentItem>>(
                   future: _future,

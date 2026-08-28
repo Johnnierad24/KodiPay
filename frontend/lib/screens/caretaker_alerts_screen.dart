@@ -659,10 +659,13 @@ class _CaretakerAlertsScreenState extends State<CaretakerAlertsScreen> {
                     borderRadius: BorderRadius.circular(8),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(8),
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => CaretakerTaskDetailScreen(item: item)),
-                      ),
+                      onTap: () async {
+                        final changed = await Navigator.push<bool>(
+                          context,
+                          MaterialPageRoute(builder: (_) => CaretakerTaskDetailScreen(item: item)),
+                        );
+                        if (changed == true && context.mounted) _reload();
+                      },
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         decoration: BoxDecoration(

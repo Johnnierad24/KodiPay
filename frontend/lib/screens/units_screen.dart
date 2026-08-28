@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../services/api_service.dart';
 import '../utils/constants.dart';
+import '../widgets/shared_screen_components.dart';
 
 class UnitsListScreen extends StatefulWidget {
   final int propertyId;
@@ -82,7 +83,7 @@ class _UnitsListScreenState extends State<UnitsListScreen> {
         label: const Text('Add Unit'),
       ),
       body: SafeArea(
-        child: RefreshIndicator(
+        child: AppRefreshIndicator(
           onRefresh: () async => _reload(),
           child: FutureBuilder<List<UnitRecord>>(
             future: _future,
@@ -528,6 +529,7 @@ class _AddUnitSheet extends StatefulWidget {
 
 class _AddUnitSheetState extends State<_AddUnitSheet> {
   final ApiService _api = ApiService();
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _unitNumber = TextEditingController();
   final TextEditingController _rentAmount = TextEditingController();
   final TextEditingController _depositAmount = TextEditingController();
@@ -543,15 +545,8 @@ class _AddUnitSheetState extends State<_AddUnitSheet> {
   }
 
   Future<void> _submit() async {
-    final rent = num.tryParse(_rentAmount.text.trim());
-    if (_unitNumber.text.trim().isEmpty) {
-      setState(() => _error = 'Unit number is required');
-      return;
-    }
-    if (rent == null || rent <= 0) {
-      setState(() => _error = 'Enter a valid monthly rent');
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
+    final rent = num.parse(_rentAmount.text.trim());
     final deposit = _depositAmount.text.trim().isEmpty
         ? null
         : num.tryParse(_depositAmount.text.trim());
@@ -591,68 +586,103 @@ class _AddUnitSheetState extends State<_AddUnitSheet> {
     return Padding(
       padding: EdgeInsets.fromLTRB(18, 18, 18, 18 + bottomInset),
       child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Add Unit',
-                style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 18,
-                    color: AppColors.textDark)),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _unitNumber,
-              decoration: const InputDecoration(
-                labelText: 'Unit number',
-                hintText: 'e.g. A1, B2',
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Add Unit',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                      color: AppColors.textDark)),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _unitNumber,
+                maxLength: 50,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Unit number is required';
+                  }
+                  if (value.trim().length > 50) {
+                    return 'Unit number must be 50 characters or less';
+                  }
+                  return null;
+                },
+                decoration: const InputDecoration(
+                  labelText: 'Unit number',
+                  hintText: 'e.g. A1, B2',
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _rentAmount,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _rentAmount,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                ],
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Rent amount is required';
+                  }
+                  final rent = num.tryParse(value.trim());
+                  if (rent == null || rent <= 0) {
+                    return 'Enter a valid positive rent amount';
+                  }
+                  return null;
+                },
+                decoration: const InputDecoration(
+                  labelText: 'Monthly rent',
+                  prefixText: 'KSh ',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _depositAmount,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                ],
+                validator: (value) {
+                  if (value != null && value.trim().isNotEmpty) {
+                    final deposit = num.tryParse(value.trim());
+                    if (deposit == null || deposit < 0) {
+                      return 'Deposit must be a non-negative number';
+                    }
+                  }
+                  return null;
+                },
+                decoration: const InputDecoration(
+                  labelText: 'Deposit amount (optional)',
+                  prefixText: 'KSh ',
+                ),
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 10),
+                Text(_error!,
+                    style: const TextStyle(color: AppColors.danger)),
               ],
-              decoration: const InputDecoration(
-                labelText: 'Monthly rent',
-                prefixText: 'KSh ',
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: _submitting ? null : _submit,
+                  child: _submitting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: AppColors.white),
+                        )
+                      : const Text('Save Unit'),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _depositAmount,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-              ],
-              decoration: const InputDecoration(
-                labelText: 'Deposit amount (optional)',
-                prefixText: 'KSh ',
-              ),
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: 10),
-              Text(_error!, style: const TextStyle(color: AppColors.danger)),
             ],
-            const SizedBox(height: 18),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton(
-                onPressed: _submitting ? null : _submit,
-                child: _submitting
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: AppColors.white),
-                      )
-                    : const Text('Save Unit'),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

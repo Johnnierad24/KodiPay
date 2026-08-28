@@ -111,7 +111,7 @@ class _CaretakersScreenState extends State<CaretakersScreen> {
         label: const Text('Add Caretaker',
             style: TextStyle(color: AppColors.white)),
       ),
-      child: RefreshIndicator(
+      child: AppRefreshIndicator(
         onRefresh: () async => _reload(),
         child: FutureBuilder<List<CaretakerEntry>>(
           future: _future,

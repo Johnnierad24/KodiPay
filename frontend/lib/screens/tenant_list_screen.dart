@@ -76,7 +76,7 @@ class _TenantListScreenState extends State<TenantListScreen> {
           onPressed: _onAdd,
         )],
       ),
-      body: RefreshIndicator(
+      body: AppRefreshIndicator(
         onRefresh: () async => _reload(),
         child: FutureBuilder<List<TenancyRecord>>(
           future: _future,

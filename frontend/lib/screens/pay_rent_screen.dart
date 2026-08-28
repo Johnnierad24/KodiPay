@@ -436,13 +436,27 @@ class _PaymentContent extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: AppColors.kodiGreen.withValues(alpha: 0.2)),
                     ),
-                    child: const Column(
+                    child: Column(
                       children: [
-                        Icon(Icons.check_circle, size: 48, color: AppColors.kodiGreen),
-                        SizedBox(height: 12),
-                        Text('Prompt Sent', style: TextStyle(fontFamily: 'Lexend', fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.primary)),
-                        SizedBox(height: 8),
-                        Text('Check your phone to enter M-Pesa PIN.', style: TextStyle(fontSize: 14, color: AppColors.secondary)),
+                        const Icon(Icons.check_circle, size: 48, color: AppColors.kodiGreen),
+                        const SizedBox(height: 12),
+                        const Text('Prompt Sent', style: TextStyle(fontFamily: 'Lexend', fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.primary)),
+                        const SizedBox(height: 8),
+                        const Text('Check your phone to enter M-Pesa PIN.', style: TextStyle(fontSize: 14, color: AppColors.secondary)),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.kodiGreen,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            child: const Text('Done', style: TextStyle(fontWeight: FontWeight.w700)),
+                          ),
+                        ),
                       ],
                     ),
                   ),

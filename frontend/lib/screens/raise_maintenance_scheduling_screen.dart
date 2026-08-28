@@ -3,7 +3,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
-import 'maintenance_submitted_screen.dart';
 
 class RaiseMaintenanceSchedulingScreen extends StatefulWidget {
   final String category;
@@ -75,11 +74,8 @@ class _RaiseMaintenanceSchedulingScreenState extends State<RaiseMaintenanceSched
       });
       if (!mounted) return;
       if (response.statusCode == 201) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const MaintenanceSubmittedScreen()),
-          (route) => route.isFirst,
-        );
+        if (!context.mounted) return;
+        Navigator.of(context).pop(true);
       } else {
         String message = 'Failed to submit request (${response.statusCode}).';
         try {

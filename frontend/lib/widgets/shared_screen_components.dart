@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'dart:convert';
+import 'package:easy_refresh/easy_refresh.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../providers/auth_provider.dart';
 import '../models/payment_record.dart';
@@ -19,6 +20,7 @@ class FeatureScaffold extends StatelessWidget {
   final Color accentColor;
   final Widget child;
   final Widget? floatingActionButton;
+  final List<Widget>? actions;
 
   const FeatureScaffold({
     super.key,
@@ -26,6 +28,7 @@ class FeatureScaffold extends StatelessWidget {
     required this.accentColor,
     required this.child,
     this.floatingActionButton,
+    this.actions,
   });
 
   @override
@@ -39,9 +42,25 @@ class FeatureScaffold extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(title, style: const TextStyle(color: AppColors.textDark, fontWeight: FontWeight.w800)),
+        actions: actions,
       ),
       floatingActionButton: floatingActionButton,
       body: SafeArea(child: child),
+    );
+  }
+}
+
+// ── Pull-to-Refresh (works on mobile web) ─────────────
+class AppRefreshIndicator extends StatelessWidget {
+  final Future<void> Function() onRefresh;
+  final Widget child;
+  const AppRefreshIndicator({super.key, required this.onRefresh, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return EasyRefresh(
+      onRefresh: onRefresh,
+      child: child,
     );
   }
 }

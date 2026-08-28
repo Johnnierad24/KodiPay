@@ -13,6 +13,7 @@ import 'landlord_notifications_screen.dart';
 import 'landlord_reports_screen.dart';
 import 'landlord_settings_screen.dart';
 import 'landlord_wallet_screen.dart';
+import 'caretakers_screen.dart';
 import 'tenant_rights_screen.dart';
 import 'landlord_tenant_act_screen.dart';
 
@@ -114,8 +115,11 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
                         userName: '${user?.firstName ?? 'Jabari'} ${user?.lastName ?? 'Kamau'}',
                         sidebarOpen: isWide ? _sidebarOpen : _mobileSidebarOpen,
                         onMenuTap: _onMenuTap,
-                        onNotifications: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LandlordNotificationsScreen())),
-                        onProfileTap: () => _onNavTap(4),
+                        onNotifications: () async {
+                          await Navigator.push(context, MaterialPageRoute(builder: (_) => const LandlordNotificationsScreen()));
+                          if (context.mounted) _loadOverview();
+                        },
+                        onProfileTap: () => _onNavTap(5),
                         onLogout: () => _confirmLogout(context),
                       ),
 
@@ -135,6 +139,7 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
                             const PropertyListScreen(),
                             const LandlordReportsScreen(),
                             const LandlordWalletScreen(),
+                            const CaretakersScreen(),
                             const LandlordSettingsScreen(),
                           ],
                         ),
@@ -199,6 +204,7 @@ class _Sidebar extends StatelessWidget {
       ('Properties', Icons.domain_outlined, Icons.domain),
       ('Reports', Icons.assessment_outlined, Icons.assessment),
       ('Wallet', Icons.account_balance_wallet_outlined, Icons.account_balance_wallet),
+      ('Caretakers', Icons.supervisor_account_outlined, Icons.supervisor_account),
       ('Profile', Icons.person_outline, Icons.person),
     ];
 
@@ -346,7 +352,7 @@ class _TopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isNarrow = MediaQuery.of(context).size.width < 600;
+    final isNarrow = MediaQuery.sizeOf(context).width < 600;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       height: 56,
@@ -474,9 +480,12 @@ class _HomeTab extends StatelessWidget {
     final outstanding = o?.outstanding ?? 96500;
     final pendingIssues = o?.pendingIssues ?? 3;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final horizontalPad = constraints.maxWidth < 600 ? 16.0 : 24.0;
+        return SingleChildScrollView(
+          padding: EdgeInsets.symmetric(horizontal: horizontalPad, vertical: 24),
+          child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Welcome
@@ -490,11 +499,12 @@ class _HomeTab extends StatelessWidget {
             spacing: 12, runSpacing: 12,
             children: [
               ElevatedButton.icon(
-                onPressed: () {
+                onPressed: () async {
                   if (onNavigateToProperties != null) {
                     onNavigateToProperties!();
                   } else {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const AddPropertyScreen()));
+                    final added = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => const AddPropertyScreen()));
+                    if (added == true && context.mounted) onRefresh();
                   }
                 },
                 icon: const Icon(Icons.add_circle_outlined, size: 18),
@@ -671,6 +681,8 @@ class _HomeTab extends StatelessWidget {
         ],
       ),
     );
+      },
+    );
   }
 
   String _fmt(num? v) {
@@ -739,6 +751,7 @@ class _PendingMaintenancePanelState extends State<_PendingMaintenancePanel> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.sizeOf(context).width < 600;
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surfaceLowest,
@@ -749,7 +762,7 @@ class _PendingMaintenancePanelState extends State<_PendingMaintenancePanel> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+            padding: EdgeInsets.fromLTRB(isMobile ? 14 : 20, 16, isMobile ? 14 : 20, 12),
             child: Row(
               children: [
                 const Expanded(
@@ -841,80 +854,100 @@ class _LandlordMaintenanceTaskRow extends StatelessWidget {
     final statusColor = maintenanceStatusColor(item.status);
     return InkWell(
       onTap: onOpen,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
-        decoration: BoxDecoration(
-          border: isLast ? null : Border(bottom: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.6))),
-        ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isNarrow = constraints.maxWidth < 680;
-            final titleBlock = Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(color: priorityColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-                  child: Icon(Icons.build_circle_outlined, color: priorityColor, size: 22),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 680;
+          final titleBlock = Row(
+            children: [
+              Container(
+                width: isNarrow ? 36 : 40,
+                height: isNarrow ? 36 : 40,
+                decoration: BoxDecoration(color: priorityColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+                child: Icon(Icons.build_circle_outlined, color: priorityColor, size: isNarrow ? 20 : 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(item.title.isEmpty ? capitalizeWord(item.category) : item.title, style: TextStyle(fontSize: isNarrow ? 13 : 14, fontWeight: FontWeight.w700, color: AppColors.textDark), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${item.propertyName}${item.unitNumber.isEmpty ? '' : ' - Unit ${item.unitNumber}'}${item.tenantName.isEmpty ? '' : ' - ${item.tenantName}'}',
+                      style: AppStyles.caption,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
+              ),
+            ],
+          );
+          final actions = Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              _MiniPill(label: maintenanceStatusLabel(item.status), color: statusColor),
+              _MiniPill(label: capitalizeWord(item.priority), color: priorityColor),
+              Text(relativeTime(item.createdAt), style: AppStyles.caption),
+              SizedBox(
+                height: 34,
+                child: OutlinedButton.icon(
+                  onPressed: reminding ? null : onRemind,
+                  icon: reminding
+                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.notifications_active_outlined, size: 15),
+                  label: Text(reminding ? 'Notifying' : 'Notify Caretaker', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                ),
+              ),
+            ],
+          );
+
+          return Container(
+            padding: EdgeInsets.fromLTRB(isNarrow ? 14 : 20, isNarrow ? 12 : 14, isNarrow ? 14 : 20, isNarrow ? 12 : 14),
+            decoration: BoxDecoration(
+              border: isLast ? null : Border(bottom: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.6))),
+            ),
+            child: isNarrow
+                ? Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(item.title.isEmpty ? capitalizeWord(item.category) : item.title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textDark), maxLines: 1, overflow: TextOverflow.ellipsis),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${item.propertyName}${item.unitNumber.isEmpty ? '' : ' - Unit ${item.unitNumber}'}${item.tenantName.isEmpty ? '' : ' - ${item.tenantName}'}',
-                        style: AppStyles.caption,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      titleBlock,
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          _MiniPill(label: maintenanceStatusLabel(item.status), color: statusColor),
+                          _MiniPill(label: capitalizeWord(item.priority), color: priorityColor),
+                          Text(relativeTime(item.createdAt), style: AppStyles.caption),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 36,
+                        child: OutlinedButton.icon(
+                          onPressed: reminding ? null : onRemind,
+                          icon: reminding
+                              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                              : const Icon(Icons.notifications_active_outlined, size: 15),
+                          label: Text(reminding ? 'Notifying...' : 'Notify Caretaker', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                        ),
                       ),
                     ],
+                  )
+                : Row(
+                    children: [
+                      Expanded(child: titleBlock),
+                      const SizedBox(width: 16),
+                      actions,
+                    ],
                   ),
-                ),
-              ],
-            );
-            final actions = Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                _MiniPill(label: maintenanceStatusLabel(item.status), color: statusColor),
-                _MiniPill(label: capitalizeWord(item.priority), color: priorityColor),
-                Text(relativeTime(item.createdAt), style: AppStyles.caption),
-                SizedBox(
-                  height: 34,
-                  child: OutlinedButton.icon(
-                    onPressed: reminding ? null : onRemind,
-                    icon: reminding
-                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.notifications_active_outlined, size: 15),
-                    label: Text(reminding ? 'Notifying' : 'Notify Caretaker', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                  ),
-                ),
-              ],
-            );
-
-            if (isNarrow) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  titleBlock,
-                  const SizedBox(height: 12),
-                  actions,
-                ],
-              );
-            }
-            return Row(
-              children: [
-                Expanded(child: titleBlock),
-                const SizedBox(width: 16),
-                actions,
-              ],
-            );
-          },
-        ),
+          );
+        },
       ),
     );
   }

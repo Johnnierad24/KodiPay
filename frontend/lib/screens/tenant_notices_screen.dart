@@ -61,7 +61,7 @@ class _TenantNoticesScreenState extends State<TenantNoticesScreen> {
     return FeatureScaffold(
       title: 'Notices',
       accentColor: AppColors.kodiBlue,
-      child: RefreshIndicator(
+      child: AppRefreshIndicator(
         onRefresh: () async => _reload(),
         child: FutureBuilder<List<NotificationItem>>(
           future: _future,

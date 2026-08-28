@@ -70,10 +70,10 @@ router.get('/me', authMiddleware, authController.getCurrentUser);
 
 router.put('/profile',
   authMiddleware,
-  body('first_name').optional().isString(),
-  body('last_name').optional().isString(),
-  body('email').optional().isEmail(),
-  body('phone').optional().isString(),
+  body('first_name').optional().trim().isLength({ min: 1, max: 100 }),
+  body('last_name').optional().trim().isLength({ min: 1, max: 100 }),
+  body('email').optional().isEmail().normalizeEmail(),
+  body('phone').optional().trim().isLength({ max: 20 }),
   authController.updateProfile
 );
 

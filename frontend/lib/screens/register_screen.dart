@@ -11,6 +11,7 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -42,15 +43,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _handleRegister() async {
-    if (_firstNameController.text.trim().isEmpty ||
-        _lastNameController.text.trim().isEmpty ||
-        _emailController.text.trim().isEmpty ||
-        _passwordController.text.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill all required fields. Password must be at least 6 characters.')),
-      );
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
     final success = await context.read<AuthProvider>().register(
       firstName: _firstNameController.text.trim(),
@@ -82,7 +75,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 28),
-          child: Column(
+          child: Form(
+            key: _formKey,
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ClipRRect(
@@ -127,17 +122,38 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const SizedBox(height: 24),
               Row(
                 children: [
-                  Expanded(child: TextField(controller: _firstNameController, decoration: const InputDecoration(labelText: 'First name'))),
+                  Expanded(child: TextFormField(
+                    controller: _firstNameController,
+                    decoration: const InputDecoration(labelText: 'First name'),
+                    validator: (value) => (value == null || value.trim().isEmpty) ? 'First name is required' : null,
+                  )),
                   const SizedBox(width: 12),
-                  Expanded(child: TextField(controller: _lastNameController, decoration: const InputDecoration(labelText: 'Last name'))),
+                  Expanded(child: TextFormField(
+                    controller: _lastNameController,
+                    decoration: const InputDecoration(labelText: 'Last name'),
+                    validator: (value) => (value == null || value.trim().isEmpty) ? 'Last name is required' : null,
+                  )),
                 ],
               ),
               const SizedBox(height: 14),
-              TextField(controller: _emailController, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Email address')),
+              TextFormField(
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(labelText: 'Email address'),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) return 'Email is required';
+                  if (!value.contains('@')) return 'Enter a valid email';
+                  return null;
+                },
+              ),
               const SizedBox(height: 14),
-              TextField(controller: _phoneController, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Phone (optional)')),
+              TextFormField(
+                controller: _phoneController,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(labelText: 'Phone (optional)'),
+              ),
               const SizedBox(height: 14),
-              TextField(
+              TextFormField(
                 controller: _passwordController,
                 obscureText: _obscurePassword,
                 decoration: InputDecoration(
@@ -147,6 +163,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                   ),
                 ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) return 'Password is required';
+                  if (value.length < 6) return 'Password must be at least 6 characters';
+                  return null;
+                },
               ),
               const SizedBox(height: 28),
               SizedBox(
@@ -171,6 +192,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const SizedBox(height: 28),
             ],
           ),
+        ),
         ),
       ),
     );

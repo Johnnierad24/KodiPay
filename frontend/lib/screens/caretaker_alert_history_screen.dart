@@ -95,7 +95,7 @@ class _CaretakerAlertHistoryScreenState extends State<CaretakerAlertHistoryScree
             final completed = items.where((i) => i.status.toLowerCase() == 'completed').toList();
             final cancelled = items.where((i) => i.status.toLowerCase() == 'cancelled').toList();
 
-            return RefreshIndicator(
+            return AppRefreshIndicator(
               onRefresh: () async { _reload(); await _future; },
               child: ListView(
                 padding: const EdgeInsets.all(18),

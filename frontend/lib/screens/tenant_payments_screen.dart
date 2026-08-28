@@ -54,7 +54,7 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> {
         title: const Text('Payments', style: TextStyle(fontFamily: 'Lexend', fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.primary)),
         centerTitle: false,
       ),
-      body: RefreshIndicator(
+      body: AppRefreshIndicator(
         onRefresh: () async => _reload(),
         child: FutureBuilder<_PaymentsBundle>(
           future: _future,
@@ -106,22 +106,24 @@ class _PaymentsContentState extends State<_PaymentsContent> {
     dueDate: DateTime.now(),
   );
 
-  void _payNow() {
+  void _payNow() async {
     final due = _toRentDue();
+    bool? changed;
     switch (_selectedMethod) {
       case 'M-Pesa':
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const PayRentScreen()));
+        changed = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => const PayRentScreen()));
         break;
       case 'Bank Transfer':
-        Navigator.push(context, MaterialPageRoute(builder: (_) => PaymentBankScreen(due: due)));
+        changed = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => PaymentBankScreen(due: due)));
         break;
       case 'Cash':
-        Navigator.push(context, MaterialPageRoute(builder: (_) => PaymentCashScreen(due: due)));
+        changed = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => PaymentCashScreen(due: due)));
         break;
       case 'Credit/Debit Card':
-        Navigator.push(context, MaterialPageRoute(builder: (_) => PaymentCardScreen(due: due)));
+        changed = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => PaymentCardScreen(due: due)));
         break;
     }
+    if (changed == true && context.mounted) widget.onRefresh();
   }
 
   @override

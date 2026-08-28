@@ -137,6 +137,7 @@ class _PersonalInfoTabState extends State<_PersonalInfoTab> {
   late final TextEditingController _phoneCtl;
   String? _selectedPhotoPath;
   bool _uploading = false;
+  final _formKey = GlobalKey<FormState>();
 
   @override
   void initState() {
@@ -181,114 +182,137 @@ class _PersonalInfoTabState extends State<_PersonalInfoTab> {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        _sectionHeader('Personal Information'),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Stack(
-              children: [
-                CircleAvatar(
-                  radius: 40,
-                  backgroundColor: AppColors.kodiGreen.withValues(alpha: 0.12),
-                  backgroundImage: _selectedPhotoPath != null ? FileImage(File(_selectedPhotoPath!)) : null,
-                  child: _selectedPhotoPath == null
-                      ? Text(
-                          _initials(widget.firstName, widget.lastName),
-                          style: const TextStyle(color: AppColors.kodiGreen, fontWeight: FontWeight.w800, fontSize: 24),
-                        )
-                      : null,
-                ),
-                Positioned(
-                  bottom: 0, right: 0,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(color: AppColors.kodiGreen, shape: BoxShape.circle),
-                    child: const Icon(Icons.camera_alt_rounded, size: 14, color: Colors.white),
+    return Form(
+      key: _formKey,
+      child: ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          _sectionHeader('Personal Information'),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Stack(
+                children: [
+                  CircleAvatar(
+                    radius: 40,
+                    backgroundColor: AppColors.kodiGreen.withValues(alpha: 0.12),
+                    backgroundImage: _selectedPhotoPath != null ? FileImage(File(_selectedPhotoPath!)) : null,
+                    child: _selectedPhotoPath == null
+                        ? Text(
+                            _initials(widget.firstName, widget.lastName),
+                            style: const TextStyle(color: AppColors.kodiGreen, fontWeight: FontWeight.w800, fontSize: 24),
+                          )
+                        : null,
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(width: 20),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Profile Photo', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.onSurface)),
-                const SizedBox(height: 4),
-                const Text('JPG, GIF, or PNG. Max 2MB.', style: TextStyle(fontSize: 12, color: AppColors.secondary)),
-                const SizedBox(height: 8),
-                TextButton.icon(
-                  onPressed: _uploading ? null : _pickAndUploadPhoto,
-                  icon: _uploading
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.upload_rounded, size: 16),
-                  label: Text(_uploading ? 'Uploading...' : 'Upload New Photo', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                ),
-              ],
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
-        _buildField('First Name', _firstNameCtl, Icons.person_outline_rounded),
-        const SizedBox(height: 16),
-        _buildField('Last Name', _lastNameCtl, Icons.person_outline_rounded),
-        const SizedBox(height: 16),
-        _buildField('Email Address', _emailCtl, Icons.email_outlined),
-        const SizedBox(height: 16),
-        _buildField('Phone Number', _phoneCtl, Icons.phone_outlined),
-        const SizedBox(height: 24),
-        SizedBox(
-          height: 48,
-          child: ElevatedButton(
-            onPressed: () => _showSnack('Profile updated successfully'),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.kodiGreen),
-            child: const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.w700)),
+                  Positioned(
+                    bottom: 0, right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(color: AppColors.kodiGreen, shape: BoxShape.circle),
+                      child: const Icon(Icons.camera_alt_rounded, size: 14, color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 20),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Profile Photo', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.onSurface)),
+                  const SizedBox(height: 4),
+                  const Text('JPG, GIF, or PNG. Max 2MB.', style: TextStyle(fontSize: 12, color: AppColors.secondary)),
+                  const SizedBox(height: 8),
+                  TextButton.icon(
+                    onPressed: _uploading ? null : _pickAndUploadPhoto,
+                    icon: _uploading
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.upload_rounded, size: 16),
+                    label: Text(_uploading ? 'Uploading...' : 'Upload New Photo', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ),
-        const SizedBox(height: 16),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: () async {
-              final confirm = await showDialog<bool>(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: const Text('Sign out?'),
-                  content: const Text('You will need to sign in again to use KodiPay.'),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                    TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Sign Out', style: TextStyle(color: AppColors.danger))),
-                  ],
-                ),
-              );
-              if (confirm == true && context.mounted) {
-                await context.read<AuthProvider>().logout();
-              }
-            },
-            icon: const Icon(Icons.logout_rounded, size: 18, color: AppColors.danger),
-            label: const Text('Sign Out', style: TextStyle(color: AppColors.danger)),
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: AppColors.dangerSoft),
-              padding: const EdgeInsets.symmetric(vertical: 14),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: () => _showSnack('Account deletion coming soon'),
-            icon: const Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.danger),
-            label: const Text('Delete Account', style: TextStyle(color: AppColors.danger)),
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: AppColors.dangerSoft),
-              padding: const EdgeInsets.symmetric(vertical: 14),
+          const SizedBox(height: 24),
+          _buildField('First Name', _firstNameCtl, Icons.person_outline_rounded, validator: (v) {
+            if (v == null || v.trim().isEmpty) return 'Required';
+            if (v.trim().length > 100) return 'Max 100 characters';
+            return null;
+          }),
+          const SizedBox(height: 16),
+          _buildField('Last Name', _lastNameCtl, Icons.person_outline_rounded, validator: (v) {
+            if (v == null || v.trim().isEmpty) return 'Required';
+            if (v.trim().length > 100) return 'Max 100 characters';
+            return null;
+          }),
+          const SizedBox(height: 16),
+          _buildField('Email Address', _emailCtl, Icons.email_outlined, validator: (v) {
+            if (v == null || v.trim().isEmpty) return 'Required';
+            if (!v.contains('@')) return 'Must contain @';
+            return null;
+          }),
+          const SizedBox(height: 16),
+          _buildField('Phone Number', _phoneCtl, Icons.phone_outlined, validator: (v) {
+            if (v == null || v.trim().isEmpty) return null;
+            if (v.trim().length > 20) return 'Max 20 characters';
+            return null;
+          }),
+          const SizedBox(height: 24),
+          SizedBox(
+            height: 48,
+            child: ElevatedButton(
+              onPressed: () {
+                if (_formKey.currentState!.validate()) {
+                  _showSnack('Profile updated successfully');
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.kodiGreen),
+              child: const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.w700)),
             ),
           ),
-        ),
-      ],
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Sign out?'),
+                    content: const Text('You will need to sign in again to use KodiPay.'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                      TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Sign Out', style: TextStyle(color: AppColors.danger))),
+                    ],
+                  ),
+                );
+                if (confirm == true && context.mounted) {
+                  await context.read<AuthProvider>().logout();
+                }
+              },
+              icon: const Icon(Icons.logout_rounded, size: 18, color: AppColors.danger),
+              label: const Text('Sign Out', style: TextStyle(color: AppColors.danger)),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AppColors.dangerSoft),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => _showSnack('Account deletion coming soon'),
+              icon: const Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.danger),
+              label: const Text('Delete Account', style: TextStyle(color: AppColors.danger)),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AppColors.dangerSoft),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -303,9 +327,10 @@ class _PersonalInfoTabState extends State<_PersonalInfoTab> {
     return Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: AppColors.onSurface, fontFamily: 'Lexend'));
   }
 
-  Widget _buildField(String label, TextEditingController ctl, IconData icon) {
-    return TextField(
+  Widget _buildField(String label, TextEditingController ctl, IconData icon, {String? Function(String?)? validator}) {
+    return TextFormField(
       controller: ctl,
+      validator: validator,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon, size: 20),
@@ -402,6 +427,7 @@ class _SecurityTabState extends State<_SecurityTab> {
   bool _obscureConfirm = true;
   bool _twoFactorEnabled = false;
   bool _submitting = false;
+  final _formKey = GlobalKey<FormState>();
 
   @override
   void dispose() {
@@ -416,21 +442,9 @@ class _SecurityTabState extends State<_SecurityTab> {
   }
 
   Future<void> _changePassword() async {
+    if (!_formKey.currentState!.validate()) return;
     final current = _currentCtrl.text;
     final next = _newCtrl.text;
-    final confirm = _confirmCtrl.text;
-    if (current.isEmpty || next.isEmpty || confirm.isEmpty) {
-      _showSnack('Fill in all three password fields.');
-      return;
-    }
-    if (next.length < 6) {
-      _showSnack('New password must be at least 6 characters.');
-      return;
-    }
-    if (next != confirm) {
-      _showSnack('New password and confirmation do not match.');
-      return;
-    }
     setState(() => _submitting = true);
     try {
       final response = await _api.post('/auth/change-password', {
@@ -459,101 +473,115 @@ class _SecurityTabState extends State<_SecurityTab> {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        _sectionHeader('Change Password'),
-        const SizedBox(height: 16),
-        _buildPasswordField(_currentCtrl, 'Current Password', _obscureCurrent, (v) => setState(() => _obscureCurrent = v)),
-        const SizedBox(height: 16),
-        _buildPasswordField(_newCtrl, 'New Password', _obscureNew, (v) => setState(() => _obscureNew = v)),
-        const SizedBox(height: 16),
-        _buildPasswordField(_confirmCtrl, 'Confirm New Password', _obscureConfirm, (v) => setState(() => _obscureConfirm = v)),
-        const SizedBox(height: 20),
-        SizedBox(
-          height: 48,
-          child: ElevatedButton(
-            onPressed: _submitting ? null : _changePassword,
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.kodiGreen),
-            child: _submitting
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Text('Update Password', style: TextStyle(fontWeight: FontWeight.w700)),
-          ),
-        ),
-        const SizedBox(height: 28),
-        _sectionHeader('Two-Factor Authentication'),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceLowest,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.outlineVariant),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: AppColors.infoSoft, borderRadius: BorderRadius.circular(10)),
-                child: const Icon(Icons.security_rounded, color: AppColors.info, size: 22),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Two-Factor Authentication', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: AppColors.onSurface)),
-                    const SizedBox(height: 2),
-                    Text(
-                      _twoFactorEnabled ? 'Your account is secure with 2FA' : 'Add an extra layer of security',
-                      style: const TextStyle(fontSize: 12, color: AppColors.secondary),
-                    ),
-                  ],
-                ),
-              ),
-              Switch(
-                value: _twoFactorEnabled,
-                onChanged: (v) => setState(() => _twoFactorEnabled = v),
-                activeThumbColor: AppColors.kodiGreen,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 28),
-        _sectionHeader('Active Sessions'),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceLowest,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.outlineVariant),
-          ),
-          child: Column(
-            children: [
-              _sessionRow('Chrome • Windows', 'Active now', Icons.laptop_windows_rounded, true),
-              const Divider(height: 16),
-              _sessionRow('Safari • iPhone', 'Last active 2h ago', Icons.phone_iphone_rounded, false),
-              const Divider(height: 16),
-              _sessionRow('Firefox • macOS', 'Last active 1d ago', Icons.laptop_mac_rounded, false),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: () => _showSnack('All other sessions logged out'),
-            icon: const Icon(Icons.logout_rounded, size: 18),
-            label: const Text('Log Out All Sessions', style: TextStyle(fontWeight: FontWeight.w600)),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.danger,
-              side: const BorderSide(color: AppColors.dangerSoft),
-              padding: const EdgeInsets.symmetric(vertical: 14),
+    return Form(
+      key: _formKey,
+      child: ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          _sectionHeader('Change Password'),
+          const SizedBox(height: 16),
+          _buildPasswordField(_currentCtrl, 'Current Password', _obscureCurrent, (v) => setState(() => _obscureCurrent = v), validator: (v) {
+            if (v == null || v.isEmpty) return 'Required';
+            return null;
+          }),
+          const SizedBox(height: 16),
+          _buildPasswordField(_newCtrl, 'New Password', _obscureNew, (v) => setState(() => _obscureNew = v), validator: (v) {
+            if (v == null || v.isEmpty) return 'Required';
+            if (v.length < 6) return 'Min 6 characters';
+            return null;
+          }),
+          const SizedBox(height: 16),
+          _buildPasswordField(_confirmCtrl, 'Confirm New Password', _obscureConfirm, (v) => setState(() => _obscureConfirm = v), validator: (v) {
+            if (v == null || v.isEmpty) return 'Required';
+            if (v != _newCtrl.text) return 'Passwords do not match';
+            return null;
+          }),
+          const SizedBox(height: 20),
+          SizedBox(
+            height: 48,
+            child: ElevatedButton(
+              onPressed: _submitting ? null : _changePassword,
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.kodiGreen),
+              child: _submitting
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Text('Update Password', style: TextStyle(fontWeight: FontWeight.w700)),
             ),
           ),
-        ),
-      ],
+          const SizedBox(height: 28),
+          _sectionHeader('Two-Factor Authentication'),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceLowest,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.outlineVariant),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: AppColors.infoSoft, borderRadius: BorderRadius.circular(10)),
+                  child: const Icon(Icons.security_rounded, color: AppColors.info, size: 22),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Two-Factor Authentication', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: AppColors.onSurface)),
+                      const SizedBox(height: 2),
+                      Text(
+                        _twoFactorEnabled ? 'Your account is secure with 2FA' : 'Add an extra layer of security',
+                        style: const TextStyle(fontSize: 12, color: AppColors.secondary),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: _twoFactorEnabled,
+                  onChanged: (v) => setState(() => _twoFactorEnabled = v),
+                  activeThumbColor: AppColors.kodiGreen,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 28),
+          _sectionHeader('Active Sessions'),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceLowest,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.outlineVariant),
+            ),
+            child: Column(
+              children: [
+                _sessionRow('Chrome • Windows', 'Active now', Icons.laptop_windows_rounded, true),
+                const Divider(height: 16),
+                _sessionRow('Safari • iPhone', 'Last active 2h ago', Icons.phone_iphone_rounded, false),
+                const Divider(height: 16),
+                _sessionRow('Firefox • macOS', 'Last active 1d ago', Icons.laptop_mac_rounded, false),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => _showSnack('All other sessions logged out'),
+              icon: const Icon(Icons.logout_rounded, size: 18),
+              label: const Text('Log Out All Sessions', style: TextStyle(fontWeight: FontWeight.w600)),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.danger,
+                side: const BorderSide(color: AppColors.dangerSoft),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -561,10 +589,11 @@ class _SecurityTabState extends State<_SecurityTab> {
     return Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: AppColors.onSurface, fontFamily: 'Lexend'));
   }
 
-  Widget _buildPasswordField(TextEditingController controller, String label, bool obscure, ValueChanged<bool> onToggle) {
-    return TextField(
+  Widget _buildPasswordField(TextEditingController controller, String label, bool obscure, ValueChanged<bool> onToggle, {String? Function(String?)? validator}) {
+    return TextFormField(
       controller: controller,
       obscureText: obscure,
+      validator: validator,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),

@@ -15,6 +15,7 @@ class _AddPropertyScreenState extends State<AddPropertyScreen> {
   int _step = 0;
   bool _submitting = false;
   String? _error;
+  final _formKey = GlobalKey<FormState>();
 
   // Step 1: Property Info
   final _nameCtrl = TextEditingController();
@@ -53,23 +54,13 @@ class _AddPropertyScreenState extends State<AddPropertyScreen> {
 
   bool _validateStep() {
     setState(() => _error = null);
+    final formValid = _formKey.currentState?.validate() ?? true;
     switch (_step) {
-      case 0:
-        if (_nameCtrl.text.trim().isEmpty) { setState(() => _error = 'Property name is required'); return false; }
-        if (_locationCtrl.text.trim().isEmpty) { setState(() => _error = 'Location is required'); return false; }
-        return true;
       case 1:
         if (_units.isEmpty) { setState(() => _error = 'Add at least one unit'); return false; }
-        for (final u in _units) {
-          if (u.numberCtrl.text.trim().isEmpty) { setState(() => _error = 'All units must have a unit number'); return false; }
-          if (u.rentCtrl.text.trim().isEmpty) { setState(() => _error = 'All units must have a rent amount'); return false; }
-        }
-        return true;
-      case 2:
-        if (_rentDayCtrl.text.trim().isEmpty) { setState(() => _error = 'Rent collection day is required'); return false; }
-        return true;
+        return formValid;
       default:
-        return true;
+        return formValid;
     }
   }
 
@@ -135,23 +126,26 @@ class _AddPropertyScreenState extends State<AddPropertyScreen> {
         title: const Text('Add Property', style: TextStyle(fontWeight: FontWeight.w700)),
         centerTitle: true,
       ),
-      body: Column(
-        children: [
-          _buildProgressBar(),
-          if (_error != null)
-            Container(
-              margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: AppColors.dangerSoft, borderRadius: BorderRadius.circular(10)),
-              child: Row(children: [
-                const Icon(Icons.error_outline, size: 18, color: AppColors.danger),
-                const SizedBox(width: 8),
-                Expanded(child: Text(_error!, style: const TextStyle(fontSize: 13, color: AppColors.danger))),
-              ]),
-            ),
-          Expanded(child: _buildStepContent()),
-          _buildBottomBar(),
-        ],
+      body: Form(
+        key: _formKey,
+        child: Column(
+          children: [
+            _buildProgressBar(),
+            if (_error != null)
+              Container(
+                margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: AppColors.dangerSoft, borderRadius: BorderRadius.circular(10)),
+                child: Row(children: [
+                  const Icon(Icons.error_outline, size: 18, color: AppColors.danger),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(_error!, style: const TextStyle(fontSize: 13, color: AppColors.danger))),
+                ]),
+              ),
+            Expanded(child: _buildStepContent()),
+            _buildBottomBar(),
+          ],
+        ),
       ),
     );
   }
@@ -219,7 +213,16 @@ class _AddPropertyScreenState extends State<AddPropertyScreen> {
         const SizedBox(height: 4),
         const Text('Tell us about your property', style: TextStyle(color: AppColors.textLight, fontSize: 13)),
         const SizedBox(height: 20),
-        TextField(controller: _nameCtrl, decoration: const InputDecoration(labelText: 'Property Name', hintText: 'e.g. Sunset Apartments')),
+        TextFormField(
+          controller: _nameCtrl,
+          maxLength: 255,
+          decoration: const InputDecoration(labelText: 'Property Name', hintText: 'e.g. Sunset Apartments', errorStyle: TextStyle(color: AppColors.danger)),
+          validator: (v) {
+            if (v == null || v.trim().isEmpty) return 'Property name is required';
+            if (v.trim().length > 255) return 'Must be 255 characters or less';
+            return null;
+          },
+        ),
         const SizedBox(height: 14),
         DropdownButtonFormField<String>(
           initialValue: _propertyType,
@@ -228,11 +231,33 @@ class _AddPropertyScreenState extends State<AddPropertyScreen> {
           onChanged: (v) { if (v != null) setState(() => _propertyType = v); },
         ),
         const SizedBox(height: 14),
-        TextField(controller: _locationCtrl, decoration: const InputDecoration(labelText: 'Location', hintText: 'e.g. Kilimani, Nairobi')),
+        TextFormField(
+          controller: _locationCtrl,
+          maxLength: 500,
+          decoration: const InputDecoration(labelText: 'Location', hintText: 'e.g. Kilimani, Nairobi', errorStyle: TextStyle(color: AppColors.danger)),
+          validator: (v) {
+            if (v == null || v.trim().isEmpty) return 'Address is required';
+            if (v.trim().length > 500) return 'Must be 500 characters or less';
+            return null;
+          },
+        ),
         const SizedBox(height: 14),
-        TextField(controller: _descCtrl, maxLines: 3, decoration: const InputDecoration(labelText: 'Description (optional)', hintText: 'Describe your property...')),
+        TextFormField(
+          controller: _descCtrl,
+          maxLines: 3,
+          maxLength: 2000,
+          decoration: const InputDecoration(labelText: 'Description (optional)', hintText: 'Describe your property...', errorStyle: TextStyle(color: AppColors.danger)),
+          validator: (v) {
+            if (v != null && v.length > 2000) return 'Must be 2000 characters or less';
+            return null;
+          },
+        ),
         const SizedBox(height: 14),
-        TextField(controller: _sizeCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Land Size (optional)', hintText: 'e.g. 0.5 acres')),
+        TextFormField(
+          controller: _sizeCtrl,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'Land Size (optional)', hintText: 'e.g. 0.5 acres', errorStyle: TextStyle(color: AppColors.danger)),
+        ),
       ],
     );
   }
@@ -339,9 +364,26 @@ class _AddPropertyScreenState extends State<AddPropertyScreen> {
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: TextField(controller: u.numberCtrl, decoration: const InputDecoration(labelText: 'Unit Number', hintText: 'e.g. A1'))),
+              Expanded(child: TextFormField(
+                controller: u.numberCtrl,
+                decoration: const InputDecoration(labelText: 'Unit Number', hintText: 'e.g. A1', errorStyle: TextStyle(color: AppColors.danger)),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Unit number is required';
+                  return null;
+                },
+              )),
               const SizedBox(width: 10),
-              Expanded(child: TextField(controller: u.rentCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Rent (KSh)', hintText: 'e.g. 25000'))),
+              Expanded(child: TextFormField(
+                controller: u.rentCtrl,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Rent (KSh)', hintText: 'e.g. 25000', errorStyle: TextStyle(color: AppColors.danger)),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Rent is required';
+                  final n = num.tryParse(v.trim());
+                  if (n == null || n <= 0) return 'Must be a positive number';
+                  return null;
+                },
+              )),
             ],
           ),
           const SizedBox(height: 10),
@@ -380,13 +422,53 @@ class _AddPropertyScreenState extends State<AddPropertyScreen> {
         const SizedBox(height: 4),
         const Text('Configure rent collection and fees', style: TextStyle(color: AppColors.textLight, fontSize: 13)),
         const SizedBox(height: 20),
-        TextField(controller: _rentDayCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Rent Collection Day', hintText: 'Day of month (e.g. 25)')),
+        TextFormField(
+          controller: _rentDayCtrl,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'Rent Collection Day', hintText: 'Day of month (e.g. 25)', errorStyle: TextStyle(color: AppColors.danger)),
+          validator: (v) {
+            if (v == null || v.trim().isEmpty) return 'Rent collection day is required';
+            final n = int.tryParse(v.trim());
+            if (n == null || n <= 0) return 'Must be a positive number';
+            return null;
+          },
+        ),
         const SizedBox(height: 14),
-        TextField(controller: _depositCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Security Deposit (optional)', hintText: 'e.g. 25000')),
+        TextFormField(
+          controller: _depositCtrl,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'Security Deposit (optional)', hintText: 'e.g. 25000', errorStyle: TextStyle(color: AppColors.danger)),
+          validator: (v) {
+            if (v == null || v.trim().isEmpty) return null;
+            final n = num.tryParse(v.trim());
+            if (n == null || n <= 0) return 'Must be a positive number';
+            return null;
+          },
+        ),
         const SizedBox(height: 14),
-        TextField(controller: _lateFeeCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Late Fee (optional)', hintText: 'e.g. 500')),
+        TextFormField(
+          controller: _lateFeeCtrl,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'Late Fee (optional)', hintText: 'e.g. 500', errorStyle: TextStyle(color: AppColors.danger)),
+          validator: (v) {
+            if (v == null || v.trim().isEmpty) return null;
+            final n = num.tryParse(v.trim());
+            if (n == null || n <= 0) return 'Must be a positive number';
+            return null;
+          },
+        ),
         const SizedBox(height: 14),
-        TextField(controller: _noticePeriodCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Notice Period (days)', hintText: 'e.g. 30')),
+        TextFormField(
+          controller: _noticePeriodCtrl,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'Notice Period (days)', hintText: 'e.g. 30', errorStyle: TextStyle(color: AppColors.danger)),
+          validator: (v) {
+            if (v == null || v.trim().isEmpty) return null;
+            final n = int.tryParse(v.trim());
+            if (n == null || n <= 0) return 'Must be a positive number';
+            return null;
+          },
+        ),
       ],
     );
   }

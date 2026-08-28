@@ -99,7 +99,7 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
           );
         },
       ),
-      child: RefreshIndicator(
+      child: AppRefreshIndicator(
         onRefresh: () async => _reload(),
         child: FutureBuilder<_TenantMaintenanceBundle>(
           future: _future,

@@ -10,6 +10,7 @@ class RaiseMaintenanceDetailsScreen extends StatefulWidget {
 }
 
 class _RaiseMaintenanceDetailsScreenState extends State<RaiseMaintenanceDetailsScreen> {
+  final _formKey = GlobalKey<FormState>();
   String _selectedCategory = 'plumbing';
   final _descriptionController = TextEditingController();
   String _urgency = 'medium';
@@ -37,21 +38,28 @@ class _RaiseMaintenanceDetailsScreenState extends State<RaiseMaintenanceDetailsS
           const SizedBox(height: 40),
           _Stepper(),
           const SizedBox(height: 40),
-          _WizardCard(
-            selectedCategory: _selectedCategory,
-            descriptionController: _descriptionController,
-            urgency: _urgency,
-            onCategoryChanged: (v) => setState(() => _selectedCategory = v),
-            onUrgencyChanged: (v) => setState(() => _urgency = v),
-            onContinue: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => RaiseMaintenanceEvidenceScreen(
-                  category: _selectedCategory,
-                  description: _descriptionController.text.trim(),
-                  urgency: _urgency,
-                ),
-              ),
+          Form(
+            key: _formKey,
+            child: _WizardCard(
+              selectedCategory: _selectedCategory,
+              descriptionController: _descriptionController,
+              urgency: _urgency,
+              onCategoryChanged: (v) => setState(() => _selectedCategory = v),
+              onUrgencyChanged: (v) => setState(() => _urgency = v),
+              onContinue: () async {
+                if (!_formKey.currentState!.validate()) return;
+                final submitted = await Navigator.push<bool>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => RaiseMaintenanceEvidenceScreen(
+                      category: _selectedCategory,
+                      description: _descriptionController.text.trim(),
+                      urgency: _urgency,
+                    ),
+                  ),
+                );
+                if (submitted == true && context.mounted) Navigator.pop(context, true);
+              },
             ),
           ),
           const SizedBox(height: 24),
@@ -247,10 +255,16 @@ class _WizardCard extends StatelessWidget {
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: AppColors.onSurface),
           ),
           const SizedBox(height: 16),
-          TextField(
+          TextFormField(
             controller: descriptionController,
             maxLines: 6,
-            maxLength: 1000,
+            maxLength: 2000,
+            validator: (value) {
+              if (value != null && value.length > 2000) {
+                return 'Description must not exceed 2000 characters';
+              }
+              return null;
+            },
             decoration: InputDecoration(
               hintText: 'Please provide as much detail as possible. For example: \'The kitchen faucet is leaking from the base and causing water to pool on the counter...\'',
               hintStyle: TextStyle(color: AppColors.secondary.withValues(alpha: 0.5), fontSize: 16),
@@ -285,7 +299,7 @@ class _WizardCard extends StatelessWidget {
                 listenable: descriptionController,
                 builder: (context, _) {
                   return Text(
-                    '${descriptionController.text.length} / 1000',
+                    '${descriptionController.text.length} / 2000',
                     style: AppStyles.bodySm.copyWith(color: AppColors.secondary),
                   );
                 },

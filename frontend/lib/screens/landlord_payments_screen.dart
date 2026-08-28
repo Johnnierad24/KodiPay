@@ -124,7 +124,7 @@ class _LandlordPaymentsScreenState extends State<LandlordPaymentsScreen> {
     return FeatureScaffold(
       title: 'Payments',
       accentColor: AppColors.kodiGreen,
-      child: RefreshIndicator(
+      child: AppRefreshIndicator(
         onRefresh: () async => _reload(),
         child: FutureBuilder<_PaymentsData>(
           future: _future,
@@ -227,13 +227,16 @@ class _LandlordPaymentsScreenState extends State<LandlordPaymentsScreen> {
                   ...visiblePayments.map(
                     (payment) => PaymentItem(
                       payment: payment,
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              PaymentDetailScreen(payment: payment),
-                        ),
-                      ),
+                      onTap: () async {
+                        final changed = await Navigator.push<bool>(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                PaymentDetailScreen(payment: payment),
+                          ),
+                        );
+                        if (changed == true && context.mounted) _reload();
+                      },
                       onReminder: payment.isPending && payment.tenancyId != null
                           ? () => _sendPaymentReminder(payment)
                           : null,

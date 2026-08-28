@@ -1,10 +1,12 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/caretaker_entry.dart';
+import '../services/api_service.dart';
 import '../utils/constants.dart';
 import '../widgets/shared_screen_components.dart';
 
-class CaretakerDetailScreen extends StatelessWidget {
+class CaretakerDetailScreen extends StatefulWidget {
   final CaretakerEntry entry;
   final VoidCallback onRemove;
   const CaretakerDetailScreen({
@@ -13,28 +15,62 @@ class CaretakerDetailScreen extends StatelessWidget {
     required this.onRemove,
   });
 
+  @override
+  State<CaretakerDetailScreen> createState() => _CaretakerDetailScreenState();
+}
+
+class _CaretakerDetailScreenState extends State<CaretakerDetailScreen> {
+  late CaretakerEntry _entry;
+
+  @override
+  void initState() {
+    super.initState();
+    _entry = widget.entry;
+  }
+
   Future<void> _copy(BuildContext context, String label, String value) async {
     await Clipboard.setData(ClipboardData(text: value));
     if (!context.mounted) return;
     showSnack(context, '$label copied');
   }
 
+  Future<void> _edit() async {
+    final updated = await showModalBottomSheet<CaretakerEntry>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (_) => _EditCaretakerSheet(entry: _entry),
+    );
+    if (updated != null && mounted) {
+      setState(() => _entry = updated);
+      showSnack(context, 'Caretaker updated');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final name = entry.fullName.isEmpty ? entry.email : entry.fullName;
-    final initials = entry.fullName.isEmpty
-        ? entry.email.characters.first.toUpperCase()
-        : entry.fullName
+    final name = _entry.fullName.isEmpty ? _entry.email : _entry.fullName;
+    final initials = _entry.fullName.isEmpty
+        ? _entry.email.characters.first.toUpperCase()
+        : _entry.fullName
             .split(' ')
             .where((p) => p.isNotEmpty)
             .take(2)
             .map((p) => p[0])
             .join()
             .toUpperCase();
-    final phone = entry.phone?.trim();
+    final phone = _entry.phone?.trim();
     return FeatureScaffold(
       title: 'Caretaker',
       accentColor: AppColors.kodiOrange,
+      actions: [
+        IconButton(
+          onPressed: _edit,
+          icon: const Icon(Icons.edit_outlined, color: AppColors.kodiOrange),
+          tooltip: 'Edit caretaker',
+        ),
+      ],
       child: ListView(
         padding: const EdgeInsets.all(18),
         children: [
@@ -81,7 +117,7 @@ class CaretakerDetailScreen extends StatelessWidget {
             title: 'Contact',
             rows: [
               DetailRowData('Full name', name),
-              DetailRowData('Email', entry.email),
+              DetailRowData('Email', _entry.email),
               DetailRowData(
                   'Phone',
                   (phone?.isNotEmpty ?? false) ? phone! : 'Not added'),
@@ -93,20 +129,26 @@ class CaretakerDetailScreen extends StatelessWidget {
             rows: [
               DetailRowData(
                   'Property',
-                  entry.propertyName.isEmpty ? '—' : entry.propertyName),
+                  _entry.propertyName.isEmpty ? '—' : _entry.propertyName),
               DetailRowData(
                   'Address',
-                  entry.propertyAddress.isEmpty
+                  _entry.propertyAddress.isEmpty
                       ? '—'
-                      : entry.propertyAddress),
+                      : _entry.propertyAddress),
             ],
           ),
           const SizedBox(height: 14),
           SettingsTile(
+            icon: Icons.edit_outlined,
+            title: 'Edit caretaker details',
+            subtitle: 'Update name, phone, etc.',
+            onTap: _edit,
+          ),
+          SettingsTile(
             icon: Icons.copy_all_outlined,
             title: 'Copy email',
-            subtitle: entry.email,
-            onTap: () => _copy(context, 'Email', entry.email),
+            subtitle: _entry.email,
+            onTap: () => _copy(context, 'Email', _entry.email),
           ),
           if (phone != null && phone.isNotEmpty)
             SettingsTile(
@@ -121,11 +163,11 @@ class CaretakerDetailScreen extends StatelessWidget {
             child: OutlinedButton.icon(
               onPressed: () {
                 Navigator.pop(context);
-                onRemove();
+                widget.onRemove();
               },
               icon: const Icon(Icons.person_remove_outlined),
               label: Text(
-                  'Remove from ${entry.propertyName.isEmpty ? "this property" : entry.propertyName}'),
+                  'Remove from ${_entry.propertyName.isEmpty ? "this property" : _entry.propertyName}'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.danger,
                 side: const BorderSide(color: AppColors.danger),
@@ -143,3 +185,158 @@ class CaretakerDetailScreen extends StatelessWidget {
   }
 }
 
+class _EditCaretakerSheet extends StatefulWidget {
+  final CaretakerEntry entry;
+  const _EditCaretakerSheet({required this.entry});
+
+  @override
+  State<_EditCaretakerSheet> createState() => _EditCaretakerSheetState();
+}
+
+class _EditCaretakerSheetState extends State<_EditCaretakerSheet> {
+  late final TextEditingController _firstNameCtl;
+  late final TextEditingController _lastNameCtl;
+  late final TextEditingController _phoneCtl;
+  bool _saving = false;
+  String? _error;
+  final _formKey = GlobalKey<FormState>();
+
+  @override
+  void initState() {
+    super.initState();
+    _firstNameCtl = TextEditingController(text: widget.entry.firstName);
+    _lastNameCtl = TextEditingController(text: widget.entry.lastName);
+    _phoneCtl = TextEditingController(text: widget.entry.phone ?? '');
+  }
+
+  @override
+  void dispose() {
+    _firstNameCtl.dispose();
+    _lastNameCtl.dispose();
+    _phoneCtl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() { _saving = true; _error = null; });
+    try {
+      final api = ApiService();
+      final res = await api.put('/caretakers/${widget.entry.caretakerId}', {
+        'first_name': _firstNameCtl.text.trim(),
+        'last_name': _lastNameCtl.text.trim(),
+        'phone': _phoneCtl.text.trim(),
+      });
+      if (res.statusCode == 200 && mounted) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        Navigator.pop(context, CaretakerEntry(
+          assignmentId: widget.entry.assignmentId,
+          caretakerId: widget.entry.caretakerId,
+          email: data['email'] ?? widget.entry.email,
+          firstName: data['first_name'] ?? _firstNameCtl.text.trim(),
+          lastName: data['last_name'] ?? _lastNameCtl.text.trim(),
+          phone: data['phone'] ?? _phoneCtl.text.trim(),
+          propertyId: widget.entry.propertyId,
+          propertyName: widget.entry.propertyName,
+          propertyAddress: widget.entry.propertyAddress,
+        ));
+      } else {
+        final body = jsonDecode(res.body);
+        setState(() { _error = body['error'] ?? 'Update failed'; _saving = false; });
+      }
+    } catch (_) {
+      if (mounted) setState(() { _error = 'Connection error'; _saving = false; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPad = MediaQuery.of(context).viewInsets.bottom;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + bottomPad),
+      child: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Edit Caretaker', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textDark, fontFamily: 'Lexend')),
+                  IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close_rounded, color: AppColors.muted)),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(widget.entry.email, style: const TextStyle(fontSize: 13, color: AppColors.textLight)),
+              const SizedBox(height: 20),
+              _field('First Name', _firstNameCtl, validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null),
+              const SizedBox(height: 14),
+              _field('Last Name', _lastNameCtl, validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null),
+              const SizedBox(height: 14),
+              _field('Phone', _phoneCtl, keyboardType: TextInputType.phone),
+              if (_error != null) ...[
+                const SizedBox(height: 12),
+                Text(_error!, style: const TextStyle(fontSize: 12, color: AppColors.danger)),
+              ],
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _saving ? null : _save,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.kodiOrange,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: _saving
+                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Text('Save Changes', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _field(String label, TextEditingController ctl, {TextInputType? keyboardType, String? Function(String?)? validator}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label.toUpperCase(), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.textLight, letterSpacing: 0.5)),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: ctl,
+          keyboardType: keyboardType,
+          validator: validator,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textDark),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: AppColors.surfaceLow,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.5)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.5)),
+            ),
+            focusedBorder: const OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(10)),
+              borderSide: BorderSide(color: AppColors.kodiOrange, width: 1.5),
+            ),
+            errorBorder: const OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(10)),
+              borderSide: BorderSide(color: AppColors.danger),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}

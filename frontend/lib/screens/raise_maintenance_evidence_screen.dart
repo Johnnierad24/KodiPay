@@ -77,17 +77,20 @@ class _RaiseMaintenanceEvidenceScreenState extends State<RaiseMaintenanceEvidenc
           ),
           _NavigationFooter(
             canProceed: _images.isNotEmpty,
-            onContinue: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => RaiseMaintenanceSchedulingScreen(
-                  category: widget.category,
-                  description: widget.description,
-                  urgency: _urgency,
-                  images: _images,
+            onContinue: () async {
+              final submitted = await Navigator.push<bool>(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => RaiseMaintenanceSchedulingScreen(
+                    category: widget.category,
+                    description: widget.description,
+                    urgency: _urgency,
+                    images: _images,
+                  ),
                 ),
-              ),
-            ),
+              );
+              if (submitted == true && context.mounted) Navigator.pop(context, true);
+            },
           ),
         ],
       ),

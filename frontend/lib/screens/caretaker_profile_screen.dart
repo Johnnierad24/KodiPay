@@ -52,7 +52,7 @@ class _CaretakerProfileScreenState extends State<CaretakerProfileScreen> {
     try {
       final results = await Future.wait([
         _api.get('/auth/me'),
-        _api.get('/caretaker/my-properties'),
+        _api.get('/caretakers/my-properties'),
       ]);
       final userRes = results[0];
       final propRes = results[1];
@@ -760,17 +760,29 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                 ],
               ),
               const SizedBox(height: 20),
-              _field('First Name', _firstNameCtl, validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null),
-              const SizedBox(height: 14),
-              _field('Last Name', _lastNameCtl, validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null),
-              const SizedBox(height: 14),
-              _field('Email', _emailCtl, keyboardType: TextInputType.emailAddress, validator: (v) {
+              _field('First Name', _firstNameCtl, validator: (v) {
                 if (v == null || v.trim().isEmpty) return 'Required';
-                if (!v.contains('@') || !v.contains('.')) return 'Invalid email';
+                if (v.trim().length > 100) return 'Max 100 characters';
                 return null;
               }),
               const SizedBox(height: 14),
-              _field('Phone', _phoneCtl, keyboardType: TextInputType.phone),
+              _field('Last Name', _lastNameCtl, validator: (v) {
+                if (v == null || v.trim().isEmpty) return 'Required';
+                if (v.trim().length > 100) return 'Max 100 characters';
+                return null;
+              }),
+              const SizedBox(height: 14),
+              _field('Email', _emailCtl, keyboardType: TextInputType.emailAddress, validator: (v) {
+                if (v == null || v.trim().isEmpty) return 'Required';
+                if (!v.contains('@')) return 'Must contain @';
+                return null;
+              }),
+              const SizedBox(height: 14),
+              _field('Phone', _phoneCtl, keyboardType: TextInputType.phone, validator: (v) {
+                if (v == null || v.trim().isEmpty) return null;
+                if (v.trim().length > 20) return 'Max 20 characters';
+                return null;
+              }),
               if (_error != null) ...[
                 const SizedBox(height: 12),
                 Text(_error!, style: const TextStyle(fontSize: 12, color: AppColors.danger)),

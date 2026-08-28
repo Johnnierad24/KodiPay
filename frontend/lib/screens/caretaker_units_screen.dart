@@ -46,16 +46,20 @@ class _CaretakerUnitsScreenState extends State<CaretakerUnitsScreen> {
 
   Future<void> _reportVacancy(Map<String, dynamic> unit) async {
     final unitNumber = (unit['unit_number'] ?? '').toString();
+    final status = (unit['status'] ?? 'vacant').toString();
+    final isVacant = status == 'vacant';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Report Vacancy?'),
-        content: Text('Mark Unit $unitNumber as vacant? This will notify the landlord.'),
+        title: Text(isVacant ? 'Confirm Vacancy?' : 'Report Vacancy?'),
+        content: Text(isVacant
+            ? 'Confirm that Unit $unitNumber is vacant? This will notify the landlord.'
+            : 'Mark Unit $unitNumber as vacant? This will notify the landlord.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Report Vacancy', style: TextStyle(color: AppColors.kodiOrange)),
+            child: Text(isVacant ? 'Confirm Vacancy' : 'Report Vacancy', style: const TextStyle(color: AppColors.kodiOrange)),
           ),
         ],
       ),
@@ -67,6 +71,7 @@ class _CaretakerUnitsScreenState extends State<CaretakerUnitsScreen> {
       if (response.statusCode == 200) {
         showSnack(context, 'Unit $unitNumber marked as vacant');
         _reload();
+        if (context.mounted) Navigator.pop(context, true);
       } else {
         String message = 'Could not report vacancy (${response.statusCode})';
         try {
@@ -128,7 +133,7 @@ class _CaretakerUnitsScreenState extends State<CaretakerUnitsScreen> {
             final occupied = units.where((u) => (u['status'] ?? '').toString() == 'occupied').length;
             final vacant = units.where((u) => (u['status'] ?? '').toString() == 'vacant').length;
 
-            return RefreshIndicator(
+            return AppRefreshIndicator(
               onRefresh: () async { _reload(); await _future; },
               child: ListView(
                 padding: const EdgeInsets.all(18),
@@ -280,33 +285,34 @@ class _CaretakerUnitsScreenState extends State<CaretakerUnitsScreen> {
                 ),
             ],
           ),
-          if (status != 'vacant') ...[
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Material(
-                  color: AppColors.kodiOrange.withValues(alpha: 0.12),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Material(
+                color: AppColors.kodiOrange.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+                child: InkWell(
                   borderRadius: BorderRadius.circular(8),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(8),
-                    onTap: () => _reportVacancy(unit),
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.meeting_room_outlined, size: 14, color: AppColors.kodiOrange),
-                          SizedBox(width: 6),
-                          Text('Report Vacancy', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.kodiOrange)),
-                        ],
-                      ),
+                  onTap: () => _reportVacancy(unit),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.meeting_room_outlined, size: 14, color: AppColors.kodiOrange),
+                        const SizedBox(width: 6),
+                        Text(
+                          status == 'vacant' ? 'Confirm Vacancy' : 'Report Vacancy',
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.kodiOrange),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ],
       ),
     );
