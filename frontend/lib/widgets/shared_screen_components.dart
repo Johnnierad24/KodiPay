@@ -11,6 +11,7 @@ import '../models/maintenance_item.dart';
 import '../models/notification_item.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
+import '../utils/validators.dart';
 import 'kodi_pay_logo.dart';
 import 'dashboard_components.dart';
 
@@ -2227,6 +2228,7 @@ class AddCaretakerSheet extends StatefulWidget {
 
 class AddCaretakerSheetState extends State<AddCaretakerSheet> {
   final ApiService _api = ApiService();
+  final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
@@ -2268,7 +2270,7 @@ class AddCaretakerSheetState extends State<AddCaretakerSheet> {
     final lastName = _lastNameController.text.trim();
     final phone = _phoneController.text.trim();
     if (_propertyId == null) { showSnack(context, 'Pick a property first.'); return; }
-    if (email.isEmpty) { showSnack(context, 'Email is required.'); return; }
+    if (!_formKey.currentState!.validate()) return;
     setState(() => _submitting = true);
     try {
       final response = await _api.post('/caretakers', {
@@ -2343,8 +2345,13 @@ class AddCaretakerSheetState extends State<AddCaretakerSheet> {
                   ),
                 ],
               ),
-            ] else ...[
-              const Text('Add Caretaker', style: AppStyles.heading2),
+            ] else Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Add Caretaker', style: AppStyles.heading2),
               const SizedBox(height: 6),
               Text(
                 _selectedPropertyName == null
@@ -2370,17 +2377,17 @@ class AddCaretakerSheetState extends State<AddCaretakerSheet> {
                   decoration: const InputDecoration(border: OutlineInputBorder()),
                 ),
               const SizedBox(height: 12),
-              TextField(controller: _emailController, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Email', border: OutlineInputBorder())),
+              TextFormField(controller: _emailController, keyboardType: TextInputType.emailAddress, validator: validateEmail, decoration: const InputDecoration(labelText: 'Email', border: OutlineInputBorder())),
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Expanded(child: TextField(controller: _firstNameController, decoration: const InputDecoration(labelText: 'First name', border: OutlineInputBorder()))),
+                  Expanded(child: TextFormField(controller: _firstNameController, validator: (v) => (v == null || v.trim().isEmpty) ? null : validateHumanName(v, 'First name'), decoration: const InputDecoration(labelText: 'First name', border: OutlineInputBorder()))),
                   const SizedBox(width: 10),
-                  Expanded(child: TextField(controller: _lastNameController, decoration: const InputDecoration(labelText: 'Last name', border: OutlineInputBorder()))),
+                  Expanded(child: TextFormField(controller: _lastNameController, validator: (v) => (v == null || v.trim().isEmpty) ? null : validateHumanName(v, 'Last name'), decoration: const InputDecoration(labelText: 'Last name', border: OutlineInputBorder()))),
                 ],
               ),
               const SizedBox(height: 12),
-              TextField(controller: _phoneController, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Phone (optional)', border: OutlineInputBorder())),
+              TextFormField(controller: _phoneController, keyboardType: TextInputType.phone, validator: validatePhone, decoration: const InputDecoration(labelText: 'Phone (optional)', border: OutlineInputBorder())),
               const SizedBox(height: 6),
               const Text('Name fields are required only if no account exists for this email yet.', style: AppStyles.caption),
               const SizedBox(height: 18),
@@ -2395,7 +2402,9 @@ class AddCaretakerSheetState extends State<AddCaretakerSheet> {
                   style: ElevatedButton.styleFrom(backgroundColor: AppColors.kodiGreen, foregroundColor: AppColors.white),
                 ),
               ),
-            ],
+                ],
+              ),
+            ),
           ],
         ),
       ),

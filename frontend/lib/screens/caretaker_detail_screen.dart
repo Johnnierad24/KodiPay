@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../models/caretaker_entry.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
+import '../utils/validators.dart';
 import '../widgets/shared_screen_components.dart';
 
 class CaretakerDetailScreen extends StatefulWidget {
@@ -271,11 +272,11 @@ class _EditCaretakerSheetState extends State<_EditCaretakerSheet> {
               const SizedBox(height: 4),
               Text(widget.entry.email, style: const TextStyle(fontSize: 13, color: AppColors.textLight)),
               const SizedBox(height: 20),
-              _field('First Name', _firstNameCtl, validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null),
+              _field('First Name', _firstNameCtl, validator: (v) => validateHumanName(v, 'First name')),
               const SizedBox(height: 14),
-              _field('Last Name', _lastNameCtl, validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null),
+              _field('Last Name', _lastNameCtl, validator: (v) => validateHumanName(v, 'Last name')),
               const SizedBox(height: 14),
-              _field('Phone', _phoneCtl, keyboardType: TextInputType.phone),
+              _field('Phone', _phoneCtl, keyboardType: TextInputType.phone, validator: validatePhone),
               if (_error != null) ...[
                 const SizedBox(height: 12),
                 Text(_error!, style: const TextStyle(fontSize: 12, color: AppColors.danger)),

@@ -5,24 +5,25 @@ const caretakerController = require('../controllers/caretaker.controller');
 const checkRole = require('../middleware/role.middleware');
 const validate = require('../middleware/validate');
 const { createLimiter } = require('../middleware/rateLimiters');
+const { validateName, validateEmail, validatePhone } = require('../utils/validators');
 
 router.get('/', checkRole(['landlord', 'agent']), caretakerController.listMyCaretakers);
 router.post('/',
   checkRole(['landlord', 'agent']),
   createLimiter,
-  body('email').isEmail().normalizeEmail(),
-  body('property_id').isInt({ min: 1 }),
-  body('first_name').optional().trim().isLength({ max: 100 }),
-  body('last_name').optional().trim().isLength({ max: 100 }),
-  body('phone').optional().trim().isLength({ max: 20 }),
+  validateEmail('email'),
+  body('property_id').isInt({ min: 1 }).toInt(),
+  validateName('first_name', { optional: true }),
+  validateName('last_name', { optional: true }),
+  validatePhone('phone'),
   validate,
   caretakerController.assignCaretaker
 );
 router.put('/:caretakerId',
   checkRole(['landlord', 'agent']),
-  body('first_name').optional().trim().notEmpty().isLength({ max: 100 }),
-  body('last_name').optional().trim().notEmpty().isLength({ max: 100 }),
-  body('phone').optional().trim().isLength({ max: 20 }),
+  validateName('first_name', { optional: true }),
+  validateName('last_name', { optional: true }),
+  validatePhone('phone'),
   validate,
   caretakerController.updateCaretaker
 );

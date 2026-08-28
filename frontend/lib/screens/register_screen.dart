@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../utils/constants.dart';
+import '../utils/validators.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -125,13 +126,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   Expanded(child: TextFormField(
                     controller: _firstNameController,
                     decoration: const InputDecoration(labelText: 'First name'),
-                    validator: (value) => (value == null || value.trim().isEmpty) ? 'First name is required' : null,
+                    validator: (value) => validateHumanName(value, 'First name'),
                   )),
                   const SizedBox(width: 12),
                   Expanded(child: TextFormField(
                     controller: _lastNameController,
                     decoration: const InputDecoration(labelText: 'Last name'),
-                    validator: (value) => (value == null || value.trim().isEmpty) ? 'Last name is required' : null,
+                    validator: (value) => validateHumanName(value, 'Last name'),
                   )),
                 ],
               ),
@@ -140,17 +141,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 decoration: const InputDecoration(labelText: 'Email address'),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) return 'Email is required';
-                  if (!value.contains('@')) return 'Enter a valid email';
-                  return null;
-                },
+                validator: validateEmail,
               ),
               const SizedBox(height: 14),
               TextFormField(
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
                 decoration: const InputDecoration(labelText: 'Phone (optional)'),
+                validator: validatePhone,
               ),
               const SizedBox(height: 14),
               TextFormField(

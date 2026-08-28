@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
+import '../utils/validators.dart';
 import '../widgets/shared_screen_components.dart';
 
 class CaretakerProfileScreen extends StatefulWidget {
@@ -760,29 +761,13 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                 ],
               ),
               const SizedBox(height: 20),
-              _field('First Name', _firstNameCtl, validator: (v) {
-                if (v == null || v.trim().isEmpty) return 'Required';
-                if (v.trim().length > 100) return 'Max 100 characters';
-                return null;
-              }),
+              _field('First Name', _firstNameCtl, validator: (v) => validateHumanName(v, 'First name')),
               const SizedBox(height: 14),
-              _field('Last Name', _lastNameCtl, validator: (v) {
-                if (v == null || v.trim().isEmpty) return 'Required';
-                if (v.trim().length > 100) return 'Max 100 characters';
-                return null;
-              }),
+              _field('Last Name', _lastNameCtl, validator: (v) => validateHumanName(v, 'Last name')),
               const SizedBox(height: 14),
-              _field('Email', _emailCtl, keyboardType: TextInputType.emailAddress, validator: (v) {
-                if (v == null || v.trim().isEmpty) return 'Required';
-                if (!v.contains('@')) return 'Must contain @';
-                return null;
-              }),
+              _field('Email', _emailCtl, keyboardType: TextInputType.emailAddress, validator: validateEmail),
               const SizedBox(height: 14),
-              _field('Phone', _phoneCtl, keyboardType: TextInputType.phone, validator: (v) {
-                if (v == null || v.trim().isEmpty) return null;
-                if (v.trim().length > 20) return 'Max 20 characters';
-                return null;
-              }),
+              _field('Phone', _phoneCtl, keyboardType: TextInputType.phone, validator: validatePhone),
               if (_error != null) ...[
                 const SizedBox(height: 12),
                 Text(_error!, style: const TextStyle(fontSize: 12, color: AppColors.danger)),

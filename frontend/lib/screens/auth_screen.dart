@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../utils/constants.dart';
+import '../utils/validators.dart';
 
 const Map<String, ({String label, IconData icon, Color color})> roleMeta = {
   'landlord': (label: 'Landlord', icon: Icons.business_rounded, color: AppColors.kodiGreen),
@@ -307,25 +308,21 @@ class _FormSide extends StatelessWidget {
             if (isSignUp && role == null) _buildRolePicker(),
             if (isSignUp) ...[
               _TextField(controller: firstNameCtl, label: 'First Name', icon: Icons.person_outline_rounded,
-                validator: (value) => (value == null || value.trim().isEmpty) ? 'First name is required' : null),
+                validator: (value) => validateHumanName(value, 'First name')),
               const SizedBox(height: 14),
               _TextField(controller: lastNameCtl, label: 'Last Name', icon: Icons.person_outline_rounded,
-                validator: (value) => (value == null || value.trim().isEmpty) ? 'Last name is required' : null),
+                validator: (value) => validateHumanName(value, 'Last name')),
               const SizedBox(height: 14),
               _TextField(controller: emailCtl, label: 'Email', icon: Icons.email_outlined, keyboardType: TextInputType.emailAddress,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) return 'Email is required';
-                  if (!value.contains('@')) return 'Enter a valid email';
-                  return null;
-                }),
+                validator: validateEmail),
               const SizedBox(height: 14),
-              _TextField(controller: phoneCtl, label: 'Phone Number', icon: Icons.phone_outlined, keyboardType: TextInputType.phone),
+              _TextField(controller: phoneCtl, label: 'Phone Number', icon: Icons.phone_outlined, keyboardType: TextInputType.phone,
+                validator: validatePhone),
             ] else ...[
               _TextField(controller: emailCtl, label: 'Email or Phone', icon: Icons.email_outlined,
                 validator: (value) {
-                  if (value == null || value.trim().isEmpty) return 'Email is required';
-                  if (!value.contains('@')) return 'Enter a valid email';
-                  return null;
+                  if (value == null || value.trim().isEmpty) return 'Email or phone is required';
+                  return validateEmail(value) == null || validatePhone(value) == null ? null : 'Enter a valid email or phone';
                 }),
             ],
             const SizedBox(height: 14),

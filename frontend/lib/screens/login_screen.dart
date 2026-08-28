@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../utils/constants.dart';
+import '../utils/validators.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -246,11 +247,7 @@ class _FormSide extends StatelessWidget {
                 labelText: 'Email',
                 prefixIcon: Icon(Icons.email_outlined, size: 20),
               ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) return 'Email is required';
-                if (!value.contains('@')) return 'Enter a valid email';
-                return null;
-              },
+              validator: validateEmail,
             ),
             const SizedBox(height: 16),
             TextFormField(

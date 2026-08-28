@@ -5,6 +5,7 @@ const tenancyController = require('../controllers/tenancy.controller');
 const checkRole = require('../middleware/role.middleware');
 const validate = require('../middleware/validate');
 const { createLimiter } = require('../middleware/rateLimiters');
+const { validateName, validateEmail, validatePhone } = require('../utils/validators');
 
 router.post('/',
   checkRole(['landlord', 'agent']),
@@ -21,9 +22,10 @@ router.post('/',
 router.post('/with-new-tenant',
   checkRole(['landlord', 'agent']),
   body('unit_id').isInt({ min: 1 }),
-  body('tenant_email').isEmail(),
-  body('tenant_first_name').trim().notEmpty().isLength({ max: 100 }),
-  body('tenant_last_name').trim().notEmpty().isLength({ max: 100 }),
+  validateEmail('tenant_email'),
+  validateName('tenant_first_name'),
+  validateName('tenant_last_name'),
+  validatePhone('tenant_phone'),
   body('start_date').isISO8601(),
   body('end_date').optional({ values: 'falsy' }).isISO8601(),
   body('rent_amount').isFloat({ min: 0 }),

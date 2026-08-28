@@ -4,6 +4,7 @@ const { body } = require('express-validator');
 const { rateLimit } = require('express-rate-limit');
 const authController = require('../controllers/auth.controller');
 const authMiddleware = require('../middleware/auth.middleware');
+const { validateName, validateEmail, validatePhone } = require('../utils/validators');
 
 // Throttle credential-guessing on sensitive auth endpoints (brute-force / OTP abuse).
 const authLimiter = rateLimit({
@@ -16,11 +17,12 @@ const authLimiter = rateLimit({
 
 router.post('/register',
   authLimiter,
-  body('email').isEmail(),
+  validateEmail('email'),
   body('password').isLength({ min: 6 }),
-  body('first_name').notEmpty(),
-  body('last_name').notEmpty(),
+  validateName('first_name'),
+  validateName('last_name'),
   body('role').isIn(['landlord', 'tenant', 'caretaker', 'agent']),
+  validatePhone('phone'),
   authController.register
 );
 
@@ -70,10 +72,10 @@ router.get('/me', authMiddleware, authController.getCurrentUser);
 
 router.put('/profile',
   authMiddleware,
-  body('first_name').optional().trim().isLength({ min: 1, max: 100 }),
-  body('last_name').optional().trim().isLength({ min: 1, max: 100 }),
-  body('email').optional().isEmail().normalizeEmail(),
-  body('phone').optional().trim().isLength({ max: 20 }),
+  validateName('first_name', { optional: true }),
+  validateName('last_name', { optional: true }),
+  validateEmail('email', { optional: true }),
+  validatePhone('phone'),
   authController.updateProfile
 );
 

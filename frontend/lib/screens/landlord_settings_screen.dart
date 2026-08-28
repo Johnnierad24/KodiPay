@@ -6,6 +6,7 @@ import 'package:file_picker/file_picker.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
+import '../utils/validators.dart';
 
 class LandlordSettingsScreen extends StatefulWidget {
   const LandlordSettingsScreen({super.key});
@@ -234,29 +235,13 @@ class _PersonalInfoTabState extends State<_PersonalInfoTab> {
             ],
           ),
           const SizedBox(height: 24),
-          _buildField('First Name', _firstNameCtl, Icons.person_outline_rounded, validator: (v) {
-            if (v == null || v.trim().isEmpty) return 'Required';
-            if (v.trim().length > 100) return 'Max 100 characters';
-            return null;
-          }),
+          _buildField('First Name', _firstNameCtl, Icons.person_outline_rounded, validator: (v) => validateHumanName(v, 'First name')),
           const SizedBox(height: 16),
-          _buildField('Last Name', _lastNameCtl, Icons.person_outline_rounded, validator: (v) {
-            if (v == null || v.trim().isEmpty) return 'Required';
-            if (v.trim().length > 100) return 'Max 100 characters';
-            return null;
-          }),
+          _buildField('Last Name', _lastNameCtl, Icons.person_outline_rounded, validator: (v) => validateHumanName(v, 'Last name')),
           const SizedBox(height: 16),
-          _buildField('Email Address', _emailCtl, Icons.email_outlined, validator: (v) {
-            if (v == null || v.trim().isEmpty) return 'Required';
-            if (!v.contains('@')) return 'Must contain @';
-            return null;
-          }),
+          _buildField('Email Address', _emailCtl, Icons.email_outlined, validator: validateEmail),
           const SizedBox(height: 16),
-          _buildField('Phone Number', _phoneCtl, Icons.phone_outlined, validator: (v) {
-            if (v == null || v.trim().isEmpty) return null;
-            if (v.trim().length > 20) return 'Max 20 characters';
-            return null;
-          }),
+          _buildField('Phone Number', _phoneCtl, Icons.phone_outlined, validator: validatePhone),
           const SizedBox(height: 24),
           SizedBox(
             height: 48,
