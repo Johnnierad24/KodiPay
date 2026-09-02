@@ -117,8 +117,11 @@ class _CaretakerTasksScreenState extends State<CaretakerTasksScreen> {
 
     return Container(
       color: AppColors.background,
-      child: CustomScrollView(
-        slivers: [
+      child: AppRefreshIndicator(
+        onRefresh: () async => _reload(),
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
             sliver: SliverToBoxAdapter(
@@ -194,6 +197,7 @@ class _CaretakerTasksScreenState extends State<CaretakerTasksScreen> {
           ),
           const SliverPadding(padding: EdgeInsets.only(bottom: 24)),
         ],
+      ),
       ),
     );
   }

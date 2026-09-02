@@ -196,8 +196,11 @@ class _CaretakerAlertsScreenState extends State<CaretakerAlertsScreen> {
       children: [
         Container(
           color: AppColors.background,
-          child: CustomScrollView(
-            slivers: [
+          child: AppRefreshIndicator(
+            onRefresh: () async => _reload(),
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
                 sliver: SliverToBoxAdapter(child: _buildPageHeader()),
@@ -274,6 +277,7 @@ class _CaretakerAlertsScreenState extends State<CaretakerAlertsScreen> {
               ),
               const SliverPadding(padding: EdgeInsets.only(bottom: 24)),
             ],
+          ),
           ),
         ),
         Positioned(

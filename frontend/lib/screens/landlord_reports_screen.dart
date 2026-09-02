@@ -8,6 +8,7 @@ import '../services/api_service.dart';
 import '../services/pdf_report_service.dart';
 import '../providers/auth_provider.dart';
 import '../utils/constants.dart';
+import '../widgets/shared_screen_components.dart';
 
 class LandlordReportsScreen extends StatefulWidget {
   const LandlordReportsScreen({super.key});
@@ -131,8 +132,11 @@ class _LandlordReportsScreenState extends State<LandlordReportsScreen> {
     final pending = _num(_incomeSummary['pending']);
     final assignedExpected = expected > 0 ? expected : thisMonthIncome + pendingAmount;
 
-    return ListView(
-      padding: const EdgeInsets.all(24),
+    return AppRefreshIndicator(
+      onRefresh: _fetchData,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(24),
       children: [
         // Header
         Row(
@@ -298,6 +302,7 @@ class _LandlordReportsScreenState extends State<LandlordReportsScreen> {
           ],
         ),
       ],
+      ),
     );
   }
 

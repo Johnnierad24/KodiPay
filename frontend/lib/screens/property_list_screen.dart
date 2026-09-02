@@ -6,6 +6,7 @@ import '../models/property_data.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
 import '../widgets/dashboard_components.dart';
+import '../widgets/shared_screen_components.dart';
 import 'property_detail_screen.dart';
 import 'add_property_screen.dart';
 
@@ -193,8 +194,11 @@ class _PropertyListScreenState extends State<PropertyListScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final crossAxisCount = constraints.maxWidth > 900 ? 3 : (constraints.maxWidth > 600 ? 2 : 1);
-        return GridView.builder(
-          padding: const EdgeInsets.all(24),
+        return AppRefreshIndicator(
+          onRefresh: _load,
+          child: GridView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(24),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
             mainAxisSpacing: 16,
@@ -209,14 +213,18 @@ class _PropertyListScreenState extends State<PropertyListScreen> {
               if (changed == true) _load();
             },
           ),
+        ),
         );
       },
     );
   }
 
   Widget _buildMapPlaceholder() {
-    return ListView(
-      padding: const EdgeInsets.all(24),
+    return AppRefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(24),
       children: [
         const Text('Property Locations', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, fontFamily: 'Lexend', color: AppColors.onSurface)),
         const SizedBox(height: 8),
@@ -243,6 +251,7 @@ class _PropertyListScreenState extends State<PropertyListScreen> {
           ),
         )),
       ],
+    ),
     );
   }
 }

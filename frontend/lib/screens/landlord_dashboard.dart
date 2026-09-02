@@ -466,7 +466,7 @@ class _HomeTab extends StatelessWidget {
   final dynamic user;
   final _DashboardOverview? overview;
   final int unreadCount;
-  final VoidCallback onRefresh;
+  final Future<void> Function() onRefresh;
   final VoidCallback? onNavigateToReports;
   final VoidCallback? onNavigateToProperties;
 
@@ -483,9 +483,12 @@ class _HomeTab extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final horizontalPad = constraints.maxWidth < 600 ? 16.0 : 24.0;
-        return SingleChildScrollView(
-          padding: EdgeInsets.symmetric(horizontal: horizontalPad, vertical: 24),
-          child: Column(
+        return AppRefreshIndicator(
+          onRefresh: onRefresh,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.symmetric(horizontal: horizontalPad, vertical: 24),
+            child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Welcome
@@ -679,6 +682,7 @@ class _HomeTab extends StatelessWidget {
             ),
           ),
         ],
+      ),
       ),
     );
       },

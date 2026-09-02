@@ -88,8 +88,11 @@ class _CaretakerProfileScreenState extends State<CaretakerProfileScreen> {
 
     return Container(
       color: AppColors.background,
-      child: CustomScrollView(
-        slivers: [
+      child: AppRefreshIndicator(
+        onRefresh: _loadProfile,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
             sliver: SliverToBoxAdapter(
@@ -113,6 +116,7 @@ class _CaretakerProfileScreenState extends State<CaretakerProfileScreen> {
           ),
           const SliverPadding(padding: EdgeInsets.only(bottom: 40)),
         ],
+      ),
       ),
     );
   }

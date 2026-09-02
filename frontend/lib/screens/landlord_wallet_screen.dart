@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../utils/constants.dart';
 import '../services/api_service.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/shared_screen_components.dart';
 
 class LandlordWalletScreen extends StatefulWidget {
   const LandlordWalletScreen({super.key});
@@ -85,8 +86,11 @@ class _LandlordWalletScreenState extends State<LandlordWalletScreen> {
     return Scaffold(
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+          : AppRefreshIndicator(
+              onRefresh: _loadData,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -98,6 +102,7 @@ class _LandlordWalletScreenState extends State<LandlordWalletScreen> {
                   const SizedBox(height: 24),
                   _buildFooter(),
                 ],
+              ),
               ),
             ),
     );

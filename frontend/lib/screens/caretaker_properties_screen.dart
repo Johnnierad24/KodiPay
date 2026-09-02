@@ -72,8 +72,11 @@ class _CaretakerPropertiesScreenState extends State<CaretakerPropertiesScreen> {
   Widget build(BuildContext context) {
     return Container(
       color: AppColors.background,
-      child: CustomScrollView(
-        slivers: [
+      child: AppRefreshIndicator(
+        onRefresh: () async => _reload(),
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
             sliver: SliverToBoxAdapter(child: _buildHeader()),
@@ -132,6 +135,7 @@ class _CaretakerPropertiesScreenState extends State<CaretakerPropertiesScreen> {
           ),
           const SliverPadding(padding: EdgeInsets.only(bottom: 24)),
         ],
+      ),
       ),
     );
   }

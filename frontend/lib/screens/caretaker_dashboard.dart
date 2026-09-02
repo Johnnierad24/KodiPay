@@ -483,8 +483,11 @@ class _CaretakerHomeTabState extends State<_CaretakerHomeTab> {
 
     return Container(
       color: AppColors.background,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+      child: AppRefreshIndicator(
+        onRefresh: _loadTasks,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -502,6 +505,7 @@ class _CaretakerHomeTabState extends State<_CaretakerHomeTab> {
             else
               _buildMobileColumn(),
           ],
+        ),
         ),
       ),
     );

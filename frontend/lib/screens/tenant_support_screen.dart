@@ -17,6 +17,7 @@ class TenantSupportScreen extends StatefulWidget {
 
 class _TenantSupportScreenState extends State<TenantSupportScreen> {
   final _ticketsKey = GlobalKey<_OpenTicketsCardState>();
+  final _caretakerKey = GlobalKey<_CaretakerCardState>();
 
   @override
   Widget build(BuildContext context) {
@@ -32,8 +33,14 @@ class _TenantSupportScreenState extends State<TenantSupportScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
+      body: AppRefreshIndicator(
+        onRefresh: () async {
+          _ticketsKey.currentState?.refresh();
+          _caretakerKey.currentState?.refresh();
+        },
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(20),
         children: [
           // Top row: Maintenance + Caretaker (stack on mobile)
           LayoutBuilder(
@@ -43,7 +50,7 @@ class _TenantSupportScreenState extends State<TenantSupportScreen> {
                   children: [
                     _MaintenanceCard(onMaintenanceRaised: () => _ticketsKey.currentState?.refresh()),
                     const SizedBox(height: 16),
-                    const _CaretakerCard(),
+                    _CaretakerCard(key: _caretakerKey),
                   ],
                 );
               }
@@ -52,7 +59,7 @@ class _TenantSupportScreenState extends State<TenantSupportScreen> {
                 children: [
                   Expanded(flex: 8, child: _MaintenanceCard(onMaintenanceRaised: () => _ticketsKey.currentState?.refresh())),
                   const SizedBox(width: 16),
-                  const Expanded(flex: 4, child: _CaretakerCard()),
+                  Expanded(flex: 4, child: _CaretakerCard(key: _caretakerKey)),
                 ],
               );
             },
@@ -85,6 +92,7 @@ class _TenantSupportScreenState extends State<TenantSupportScreen> {
           _BannerSection(),
           const SizedBox(height: 20),
         ],
+      ),
       ),
     );
   }
@@ -143,7 +151,7 @@ class _MaintenanceCard extends StatelessWidget {
 }
 
 class _CaretakerCard extends StatefulWidget {
-  const _CaretakerCard();
+  const _CaretakerCard({super.key});
 
   @override
   State<_CaretakerCard> createState() => _CaretakerCardState();
@@ -153,6 +161,11 @@ class _CaretakerCardState extends State<_CaretakerCard> {
   String? _caretakerName;
   String? _propertyName;
   bool _loading = true;
+
+  void refresh() {
+    setState(() => _loading = true);
+    _load();
+  }
 
   @override
   void initState() {
