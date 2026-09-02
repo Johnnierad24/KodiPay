@@ -146,7 +146,7 @@ class _PaymentsContentState extends State<_PaymentsContent> {
                       children: [
                         _BalanceCard(amount: outstanding, selectedMethod: _selectedMethod, onPayNow: _payNow),
                         const SizedBox(height: 16),
-                        _LastPaymentCard(),
+                        _LastPaymentCard(payments: payments),
                       ],
                     )
                   : Row(
@@ -154,7 +154,7 @@ class _PaymentsContentState extends State<_PaymentsContent> {
                       children: [
                         Expanded(flex: 2, child: _BalanceCard(amount: outstanding, selectedMethod: _selectedMethod, onPayNow: _payNow)),
                         const SizedBox(width: 16),
-                        Expanded(flex: 1, child: _LastPaymentCard()),
+                        Expanded(flex: 1, child: _LastPaymentCard(payments: payments)),
                       ],
                     );
             },
@@ -167,7 +167,7 @@ class _PaymentsContentState extends State<_PaymentsContent> {
               return isNarrow
                   ? Column(
                       children: [
-                        _UpcomingBillsSection(rentAmount: rentAmount),
+                        _UpcomingBillsSection(tenancyId: tenancy?.id ?? 0, rentAmount: rentAmount),
                         const SizedBox(height: 16),
                         _PaymentMethodsSection(
                           selectedMethod: _selectedMethod,
@@ -185,7 +185,7 @@ class _PaymentsContentState extends State<_PaymentsContent> {
                           flex: 4,
                           child: Column(
                             children: [
-                              _UpcomingBillsSection(rentAmount: rentAmount),
+                        _UpcomingBillsSection(tenancyId: tenancy?.id ?? 0, rentAmount: rentAmount),
                               const SizedBox(height: 16),
                               _PaymentMethodsSection(
                                 selectedMethod: _selectedMethod,
@@ -304,8 +304,22 @@ class _BalanceCard extends StatelessWidget {
 
 // ── Last Payment Card ────────────────────────────────────
 class _LastPaymentCard extends StatelessWidget {
+  final List<_TenantPayment> payments;
+  const _LastPaymentCard({required this.payments});
+
+  static const _months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
   @override
   Widget build(BuildContext context) {
+    final completed = payments
+        .where((p) => p.status == 'completed' && p.paymentDate != null)
+        .toList()
+      ..sort((a, b) => b.paymentDate!.compareTo(a.paymentDate!));
+    final last = completed.isNotEmpty ? completed.first : null;
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -320,29 +334,34 @@ class _LastPaymentCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text('Last Payment', style: TextStyle(fontFamily: 'Lexend', fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.primary)),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.kodiGreen.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(4),
+              if (last != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.kodiGreen.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text('SUCCESSFUL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.kodiGreen)),
                 ),
-                child: const Text('SUCCESSFUL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.kodiGreen)),
-              ),
             ],
           ),
           const SizedBox(height: 16),
-          const Text('Rent - September 2023', style: TextStyle(fontSize: 14, color: AppColors.secondary)),
-          const SizedBox(height: 4),
-          const Text('KSh 45,000', style: TextStyle(fontFamily: 'Lexend', fontSize: 24, fontWeight: FontWeight.w600, color: AppColors.primary)),
+          if (last == null)
+            const Text('No payments yet', style: TextStyle(fontSize: 14, color: AppColors.secondary))
+          else ...[
+            Text('Rent - ${_months[last.paymentDate!.month - 1]} ${last.paymentDate!.year}', style: const TextStyle(fontSize: 14, color: AppColors.secondary)),
+            const SizedBox(height: 4),
+            Text('KSh ${_amountLabel(last.amount)}', style: const TextStyle(fontFamily: 'Lexend', fontSize: 24, fontWeight: FontWeight.w600, color: AppColors.primary)),
+          ],
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.only(top: 16),
             decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.outlineVariant))),
-            child: const Row(
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Transaction ID', style: TextStyle(fontSize: 14, color: AppColors.secondary)),
-                Text('#KP-9283-X1', style: TextStyle(fontSize: 14, fontFamily: 'Inter', fontWeight: FontWeight.w500)),
+                const Text('Transaction ID', style: TextStyle(fontSize: 14, color: AppColors.secondary)),
+                Text(last?.transactionRef ?? '—', style: const TextStyle(fontSize: 14, fontFamily: 'Inter', fontWeight: FontWeight.w500)),
               ],
             ),
           ),
@@ -350,12 +369,49 @@ class _LastPaymentCard extends StatelessWidget {
       ),
     );
   }
+
+  static String _amountLabel(num value) {
+    final fixed = value.toStringAsFixed(0);
+    return fixed.replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
+  }
 }
 
 // ── Upcoming Bills ───────────────────────────────────────
-class _UpcomingBillsSection extends StatelessWidget {
+class _UpcomingBillsSection extends StatefulWidget {
+  final int tenancyId;
   final num rentAmount;
-  const _UpcomingBillsSection({required this.rentAmount});
+  const _UpcomingBillsSection({required this.tenancyId, required this.rentAmount});
+
+  @override
+  State<_UpcomingBillsSection> createState() => _UpcomingBillsSectionState();
+}
+
+class _UpcomingBillsSectionState extends State<_UpcomingBillsSection> {
+  Future<List<Map<String, dynamic>>>? _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _fetchBills();
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchBills() async {
+    try {
+      final resp = await ApiService().get('/bills/${widget.tenancyId}');
+      if (resp.statusCode != 200) return [];
+      final list = (jsonDecode(resp.body) as List).cast<Map<String, dynamic>>();
+      return list.where((b) => (b['status']?.toString() ?? '').toLowerCase() != 'paid').toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  static const _billIcons = <String, IconData>{
+    'service_charge': Icons.cleaning_services,
+    'water': Icons.water_drop,
+    'electricity': Icons.electric_bolt,
+    'rent': Icons.apartment,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -370,11 +426,36 @@ class _UpcomingBillsSection extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-        _BillCard(icon: Icons.apartment, title: 'Monthly Rent', subtitle: 'Due Oct 1', amount: 'KSh ${formatKsh(rentAmount)}'),
+        _BillCard(icon: Icons.apartment, title: 'Monthly Rent', subtitle: 'Due Oct 1', amount: 'KSh ${formatKsh(widget.rentAmount)}'),
         const SizedBox(height: 12),
-        const _BillCard(icon: Icons.cleaning_services, title: 'Service Charge', subtitle: 'Due Oct 1', amount: 'KSh 3,500'),
-        const SizedBox(height: 12),
-        const _BillCard(icon: Icons.water_drop, title: 'Water Bill', subtitle: 'Reading: 243 m³', amount: 'KSh 1,500'),
+        FutureBuilder<List<Map<String, dynamic>>>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+            final bills = snapshot.data ?? [];
+            if (bills.isEmpty) {
+              return const SizedBox.shrink();
+            }
+            return Column(
+              children: [
+                for (var i = 0; i < bills.length; i++) ...[
+                  const SizedBox(height: 12),
+                  _BillCard(
+                    icon: _billIcons[bills[i]['bill_type']?.toString()] ?? Icons.receipt,
+                    title: (bills[i]['title'] ?? bills[i]['bill_type'] ?? 'Bill').toString(),
+                    subtitle: bills[i]['due_date'] != null ? 'Due ${bills[i]['due_date']}' : '',
+                    amount: 'KSh ${formatKsh(toNum(bills[i]['amount']))}',
+                  ),
+                ],
+              ],
+            );
+          },
+        ),
       ],
     );
   }

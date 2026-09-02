@@ -11,6 +11,19 @@ CREATE TABLE IF NOT EXISTS users (
     phone VARCHAR(20),
     role VARCHAR(20) CHECK (role IN ('landlord', 'tenant', 'caretaker', 'agent')) NOT NULL,
     fcm_token VARCHAR(255),
+    emergency_contact_name VARCHAR(100),
+    emergency_contact_relation VARCHAR(50),
+    emergency_contact_phone VARCHAR(20),
+    business_name VARCHAR(255),
+    business_registration VARCHAR(255),
+    business_kra_pin VARCHAR(50),
+    business_contact_person VARCHAR(100),
+    business_address TEXT,
+    business_city VARCHAR(100),
+    business_county VARCHAR(100),
+    business_postal_code VARCHAR(20),
+    business_phone VARCHAR(20),
+    business_email VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -99,6 +112,7 @@ CREATE TABLE IF NOT EXISTS maintenance_requests (
     status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'in_progress', 'completed', 'cancelled')),
     priority VARCHAR(20) DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent', 'emergency')),
     image_urls TEXT[],
+    cost DECIMAL(10,2),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -168,6 +182,35 @@ CREATE TABLE IF NOT EXISTS documents (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Landlord payouts
+CREATE TABLE IF NOT EXISTS payouts (
+    id SERIAL PRIMARY KEY,
+    landlord_id INTEGER REFERENCES users(id) ON DELETE CASCADE NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    method VARCHAR(50) NOT NULL,
+    status VARCHAR(20) DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'pending', 'completed', 'failed')),
+    reference VARCHAR(255),
+    scheduled_date DATE,
+    completed_date TIMESTAMP,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Tenant bills (service charges, water, utilities)
+CREATE TABLE IF NOT EXISTS bills (
+    id SERIAL PRIMARY KEY,
+    tenancy_id INTEGER REFERENCES tenancies(id) ON DELETE CASCADE NOT NULL,
+    bill_type VARCHAR(30) NOT NULL CHECK (bill_type IN ('service_charge', 'water', 'electricity', 'other')),
+    title VARCHAR(255) NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    due_date DATE,
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'paid', 'overdue')),
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
@@ -188,3 +231,5 @@ CREATE INDEX IF NOT EXISTS idx_documents_tenant ON documents(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_documents_tenancy ON documents(tenancy_id);
 CREATE INDEX IF NOT EXISTS idx_documents_type ON documents(type);
 CREATE INDEX IF NOT EXISTS idx_documents_expires_on ON documents(expires_on) WHERE expires_on IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_payouts_landlord ON payouts(landlord_id);
+CREATE INDEX IF NOT EXISTS idx_bills_tenancy ON bills(tenancy_id);

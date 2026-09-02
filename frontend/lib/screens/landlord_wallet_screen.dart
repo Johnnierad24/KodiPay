@@ -1,5 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../utils/constants.dart';
+import '../services/api_service.dart';
+import '../providers/auth_provider.dart';
 
 class LandlordWalletScreen extends StatefulWidget {
   const LandlordWalletScreen({super.key});
@@ -9,24 +13,93 @@ class LandlordWalletScreen extends StatefulWidget {
 }
 
 class _LandlordWalletScreenState extends State<LandlordWalletScreen> {
+  final _api = ApiService();
+  bool _loading = true;
+  double _balance = 0;
+  List<Map<String, dynamic>> _payouts = [];
+  List<Map<String, dynamic>> _transactions = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  String _fmtKsh(num v) {
+    final s = v.toStringAsFixed(0);
+    final buf = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+      buf.write(s[i]);
+    }
+    return 'KSh $buf';
+  }
+
+  String _fmtDate(String? d) {
+    if (d == null || d.isEmpty) return '-';
+    try {
+      final dt = DateTime.parse(d);
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
+    } catch (_) {
+      return d;
+    }
+  }
+
+  Future<void> _loadData() async {
+    try {
+      final results = await Future.wait([
+        _api.get('/payouts/balance'),
+        _api.get('/payouts'),
+        _api.get('/reports/transactions'),
+      ]);
+      if (!mounted) return;
+      final balRes = results[0];
+      final payRes = results[1];
+      final txRes = results[2];
+
+      Map<String, dynamic> balData = {};
+      List<dynamic> payList = [];
+      List<dynamic> txList = [];
+
+      if (balRes.statusCode == 200) balData = jsonDecode(balRes.body);
+      if (payRes.statusCode == 200) payList = jsonDecode(payRes.body);
+      if (txRes.statusCode == 200) txList = jsonDecode(txRes.body);
+
+      setState(() {
+        _balance = (balData['balance'] ?? 0).toDouble();
+        _payouts = payList.cast<Map<String, dynamic>>();
+        _transactions = txList.cast<Map<String, dynamic>>();
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(),
-            const SizedBox(height: 24),
-            _buildBentoGrid(),
-            const SizedBox(height: 24),
-            _buildTransactionHistory(),
-            const SizedBox(height: 24),
-            _buildFooter(),
-          ],
-        ),
-      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(),
+                  const SizedBox(height: 24),
+                  _buildBentoGrid(),
+                  const SizedBox(height: 24),
+                  _buildTransactionHistory(),
+                  const SizedBox(height: 24),
+                  _buildFooter(),
+                ],
+              ),
+            ),
     );
   }
 
@@ -86,6 +159,8 @@ class _LandlordWalletScreenState extends State<LandlordWalletScreen> {
   }
 
   Widget _buildBalanceCard() {
+    final whole = _balance.floor();
+    final cents = ((_balance - whole) * 100).round().toString().padLeft(2, '0');
     return Container(
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
@@ -99,10 +174,10 @@ class _LandlordWalletScreenState extends State<LandlordWalletScreen> {
           const Text('AVAILABLE BALANCE', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1, color: AppColors.primaryFixedDim)),
           const SizedBox(height: 8),
           RichText(
-            text: const TextSpan(
+            text: TextSpan(
               children: [
-                TextSpan(text: 'KSh 840,200', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w700, fontFamily: 'Lexend', color: AppColors.onPrimary)),
-                TextSpan(text: '.00', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, color: AppColors.primaryFixedDim)),
+                TextSpan(text: _fmtKsh(whole), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w700, fontFamily: 'Lexend', color: AppColors.onPrimary)),
+                TextSpan(text: '.$cents', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w400, color: AppColors.primaryFixedDim)),
               ],
             ),
           ),
@@ -138,6 +213,15 @@ class _LandlordWalletScreenState extends State<LandlordWalletScreen> {
   }
 
   Widget _buildUpcomingPayouts() {
+    final scheduled = _payouts
+        .where((p) => (p['status'] == 'scheduled' || p['status'] == 'pending'))
+        .toList()
+      ..sort((a, b) {
+        final da = a['scheduled_date'] ?? '';
+        final db = b['scheduled_date'] ?? '';
+        return da.toString().compareTo(db.toString());
+      });
+    final show = scheduled.take(2).toList();
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -156,9 +240,22 @@ class _LandlordWalletScreenState extends State<LandlordWalletScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          _payoutItem('Weekly Settlement', 'Oct 24, 2023', 'KSh 125,000', 'SCHEDULED'),
-          const SizedBox(height: 12),
-          _payoutItem('Monthly Reserve Release', 'Nov 01, 2023', 'KSh 45,200', 'PENDING'),
+          if (show.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Text('No upcoming payouts', style: TextStyle(fontSize: 13, color: AppColors.onSurfaceVariant)),
+            )
+          else ...[
+            for (var i = 0; i < show.length; i++) ...[
+              if (i > 0) const SizedBox(height: 12),
+              _payoutItem(
+                show[i]['description'] ?? show[i]['method'] ?? 'Payout',
+                _fmtDate(show[i]['scheduled_date']),
+                _fmtKsh((show[i]['amount'] ?? 0).toDouble()),
+                (show[i]['status'] ?? 'pending').toString().toUpperCase(),
+              ),
+            ],
+          ],
           const SizedBox(height: 16),
           Center(
             child: TextButton.icon(
@@ -212,14 +309,37 @@ class _LandlordWalletScreenState extends State<LandlordWalletScreen> {
     );
   }
 
-  Widget _buildTransactionHistory() {
-    final transactions = <_TransactionRowData>[
-      const _TransactionRowData('Rent Payment', 'Unit 4B - Savannah Estates', 'Oct 18, 2023', '+ KSh 85,000', 'SUCCESS', Icons.receipt_long_rounded, AppColors.kodiGreen),
-      const _TransactionRowData('Withdrawal', 'Standard Chartered (A/C ...4521)', 'Oct 15, 2023', '- KSh 300,000', 'SUCCESS', Icons.outbound_rounded, AppColors.primaryContainer),
-      const _TransactionRowData('Service Fee', 'Maintenance: Plumbing Repair', 'Oct 12, 2023', '- KSh 4,500', 'SUCCESS', Icons.settings_suggest_rounded, AppColors.error),
-      const _TransactionRowData('Rent Payment', 'Unit 1A - Savannah Estates', 'Oct 10, 2023', '+ KSh 120,000', 'PENDING', Icons.receipt_long_rounded, AppColors.kodiGreen),
-    ];
+  _TransactionRowData _mapTransaction(Map<String, dynamic> t) {
+    final amount = (t['amount'] ?? 0).toDouble();
+    final paymentMethod = (t['payment_method'] ?? '').toString().toLowerCase();
+    final isPositive = amount >= 0;
+    final icon = paymentMethod.contains('mpesa') || paymentMethod.contains('m-pesa')
+        ? Icons.phone_android_rounded
+        : paymentMethod.contains('bank')
+            ? Icons.account_balance_rounded
+            : Icons.receipt_long_rounded;
+    final color = isPositive ? AppColors.kodiGreen : AppColors.error;
+    final tenantName = t['tenant_name'] ?? '';
+    final unit = t['unit_number'] ?? '';
+    final prop = t['property_name'] ?? '';
+    final details = [if (unit.isNotEmpty) unit, if (prop.isNotEmpty) prop].join(' - ');
+    final amountStr = '${isPositive ? '+' : '-'} ${_fmtKsh(amount.abs())}';
+    final status = (t['status'] ?? 'SUCCESS').toString().toUpperCase();
+    final dateStr = _fmtDate(t['payment_date']);
+    return _TransactionRowData(
+      tenantName.isNotEmpty ? tenantName : (t['transaction_ref'] ?? 'Transaction'),
+      details.isNotEmpty ? details : '-',
+      dateStr,
+      amountStr,
+      status,
+      icon,
+      color,
+    );
+  }
 
+  Widget _buildTransactionHistory() {
+    final txs = _transactions.take(10).toList();
+    final transactions = txs.map(_mapTransaction).toList();
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surfaceLowest,
@@ -256,7 +376,6 @@ class _LandlordWalletScreenState extends State<LandlordWalletScreen> {
               ],
             ),
           ),
-          // Transaction list - responsive
           LayoutBuilder(
             builder: (context, constraints) {
               final isNarrow = constraints.maxWidth < 600;
@@ -309,7 +428,6 @@ class _LandlordWalletScreenState extends State<LandlordWalletScreen> {
               }
               return Column(
                 children: [
-                  // Table header
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
                     color: AppColors.surfaceLow,
@@ -377,7 +495,7 @@ class _LandlordWalletScreenState extends State<LandlordWalletScreen> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                const Text('Showing 1-10 of 124 transactions', style: TextStyle(fontSize: 12, color: AppColors.onSurfaceVariant)),
+                Text('Showing 1-${transactions.length} of ${_transactions.length} transactions', style: const TextStyle(fontSize: 12, color: AppColors.onSurfaceVariant)),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -387,7 +505,7 @@ class _LandlordWalletScreenState extends State<LandlordWalletScreen> {
                     ),
                     IconButton(
                       icon: const Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.primary),
-                      onPressed: () => _showSnack('Page 2 of 13'),
+                      onPressed: _transactions.length > 10 ? () => _showSnack('Page 2 of ${(_transactions.length / 10).ceil()}') : null,
                     ),
                   ],
                 ),
@@ -451,19 +569,21 @@ class _LandlordWalletScreenState extends State<LandlordWalletScreen> {
   }
 
   void _showPayoutMethodsDialog() {
+    final user = context.read<AuthProvider>().user;
+    final phone = user?.phone ?? '-';
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Payout Methods'),
-        content: const Column(
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ListTile(leading: Icon(Icons.phone_android), title: Text('M-Pesa'), subtitle: Text('+254 712 345 678'), contentPadding: EdgeInsets.zero),
-            Divider(),
-            ListTile(leading: Icon(Icons.account_balance), title: Text('Standard Chartered'), subtitle: Text('A/C ****4521'), contentPadding: EdgeInsets.zero),
-            Divider(),
-            ListTile(leading: Icon(Icons.add_circle_outline), title: Text('Add New Method'), contentPadding: EdgeInsets.zero),
+            ListTile(leading: const Icon(Icons.phone_android), title: const Text('M-Pesa'), subtitle: Text(phone), contentPadding: EdgeInsets.zero),
+            const Divider(),
+            const ListTile(leading: Icon(Icons.account_balance), title: Text('Bank Transfer'), subtitle: Text('No bank account linked'), contentPadding: EdgeInsets.zero),
+            const Divider(),
+            const ListTile(leading: Icon(Icons.add_circle_outline), title: Text('Add New Method'), contentPadding: EdgeInsets.zero),
           ],
         ),
         actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close'))],
@@ -472,25 +592,30 @@ class _LandlordWalletScreenState extends State<LandlordWalletScreen> {
   }
 
   void _showPayoutCalendarDialog() {
+    final scheduled = _payouts
+        .where((p) => p['scheduled_date'] != null)
+        .toList()
+      ..sort((a, b) => a['scheduled_date'].toString().compareTo(b['scheduled_date'].toString()));
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Payout Calendar'),
-        content: const SizedBox(
+        content: SizedBox(
           width: 320,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('October 2024', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-              SizedBox(height: 12),
-              Text('Mon 24 - Weekly Settlement (KSh 125,000)'),
-              SizedBox(height: 4),
-              Text('Wed 26 - M-Pesa Processing (KSh 85,000)'),
-              SizedBox(height: 4),
-              Text('Fri 28 - Bank Transfer (KSh 300,000)'),
-              SizedBox(height: 4),
-              Text('Nov 01 - Monthly Reserve Release (KSh 45,200)'),
+              if (scheduled.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Text('No scheduled payouts', style: TextStyle(fontSize: 13, color: AppColors.onSurfaceVariant)),
+                )
+              else
+                for (final p in scheduled) ...[
+                  Text('${_fmtDate(p['scheduled_date'])} - ${p['description'] ?? p['method'] ?? 'Payout'} (${_fmtKsh((p['amount'] ?? 0).toDouble())})', style: const TextStyle(fontSize: 13)),
+                  const SizedBox(height: 8),
+                ],
             ],
           ),
         ),
@@ -536,10 +661,10 @@ class _LandlordWalletScreenState extends State<LandlordWalletScreen> {
   void _exportCsv() {
     final csv = StringBuffer();
     csv.writeln('Type,Details,Date,Amount,Status');
-    csv.writeln('Rent Payment,Unit 4B - Savannah Estates,Oct 18 2023,+ KSh 85,000,SUCCESS');
-    csv.writeln('Withdrawal,Standard Chartered (A/C ...4521),Oct 15 2023,- KSh 300,000,SUCCESS');
-    csv.writeln('Service Fee,Maintenance: Plumbing Repair,Oct 12 2023,- KSh 4,500,SUCCESS');
-    csv.writeln('Rent Payment,Unit 1A - Savannah Estates,Oct 10 2023,+ KSh 120,000,PENDING');
+    for (final t in _transactions) {
+      final tx = _mapTransaction(t);
+      csv.writeln('${tx.title},${tx.details},${tx.date},${tx.amount},${tx.status}');
+    }
     _showSnack('CSV exported: ${csv.toString().length} bytes');
   }
 }

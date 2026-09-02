@@ -1,8 +1,12 @@
-import 'package:flutter/material.dart';
+import 'dart:convert';
 import 'dart:js_interop';
+import 'package:flutter/material.dart';
 import 'package:web/web.dart' as web;
 import 'package:fl_chart/fl_chart.dart';
+import 'package:provider/provider.dart';
+import '../services/api_service.dart';
 import '../services/pdf_report_service.dart';
+import '../providers/auth_provider.dart';
 import '../utils/constants.dart';
 
 class LandlordReportsScreen extends StatefulWidget {
@@ -14,9 +18,119 @@ class LandlordReportsScreen extends StatefulWidget {
 
 class _LandlordReportsScreenState extends State<LandlordReportsScreen> {
   String _period = 'This Month';
+  bool _loading = true;
+
+  Map<String, dynamic> _dashboard = {};
+  Map<String, dynamic> _incomeSummary = {};
+  List<Map<String, dynamic>> _incomeByProperty = [];
+  List<Map<String, dynamic>> _paymentTrends = [];
+  List<Map<String, dynamic>> _arrears = [];
+  List<Map<String, String>> _payments = [];
+
+  static const _months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchData();
+  }
+
+  Future<void> _fetchData() async {
+    setState(() => _loading = true);
+    try {
+      final api = ApiService();
+      final results = await Future.wait([
+        api.get('/analytics/dashboard'),
+        api.get('/reports/income'),
+        api.get('/reports/payment-trends', query: {'months': '12'}),
+        api.get('/reports/transactions'),
+        api.get('/reports/arrears'),
+      ]);
+
+      if (results[0].statusCode == 200) {
+        _dashboard = jsonDecode(results[0].body) as Map<String, dynamic>;
+      }
+      if (results[1].statusCode == 200) {
+        final data = jsonDecode(results[1].body) as Map<String, dynamic>;
+        _incomeSummary = (data['summary'] as Map<String, dynamic>?) ?? {};
+        _incomeByProperty = ((data['byProperty'] as List?) ?? []).cast<Map<String, dynamic>>();
+      }
+      if (results[2].statusCode == 200) {
+        _paymentTrends = ((jsonDecode(results[2].body) as List?) ?? []).cast<Map<String, dynamic>>();
+      }
+      if (results[3].statusCode == 200) {
+        final txn = ((jsonDecode(results[3].body) as List?) ?? []).cast<Map<String, dynamic>>();
+        final sorted = List<Map<String, dynamic>>.from(txn)
+          ..sort((a, b) => (b['payment_date'] ?? '').toString().compareTo((a['payment_date'] ?? '').toString()));
+        _payments = sorted.take(10).map(_mapPayment).toList();
+      }
+      if (results[4].statusCode == 200) {
+        _arrears = ((jsonDecode(results[4].body) as List?) ?? []).cast<Map<String, dynamic>>();
+      }
+    } catch (e) {
+      debugPrint('Reports fetch error: $e');
+    }
+    if (mounted) setState(() => _loading = false);
+  }
+
+  Map<String, String> _mapPayment(Map<String, dynamic> t) {
+    return {
+      'tenant': (t['tenant_name'] ?? '-').toString(),
+      'unit': (t['unit_number'] ?? '-').toString(),
+      'property': (t['property_name'] ?? '-').toString(),
+      'amount': 'KSh ${_fmt(_num(t['amount']))}',
+      'status': _capitalize((t['status'] ?? 'pending').toString()),
+      'date': _formatDate((t['payment_date'] ?? '').toString()),
+    };
+  }
+
+  int _num(dynamic v) {
+    if (v == null) return 0;
+    return (v is num) ? v.toInt() : int.tryParse(v.toString()) ?? 0;
+  }
+
+  double _dbl(dynamic v) {
+    if (v == null) return 0;
+    return (v is num) ? v.toDouble() : double.tryParse(v.toString()) ?? 0;
+  }
+
+  double _pct(double part, double total) {
+    if (total <= 0) return 0;
+    return (part / total * 100).roundToDouble();
+  }
+
+  String _capitalize(String s) {
+    if (s.isEmpty) return s;
+    return s[0].toUpperCase() + s.substring(1);
+  }
+
+  String _formatDate(String iso) {
+    if (iso.isEmpty || iso == '-') return '-';
+    final dt = DateTime.tryParse(iso);
+    if (dt == null) return '-';
+    return '${dt.day} ${_months[dt.month - 1]} ${dt.year}';
+  }
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.read<AuthProvider>();
+
+    final totalProperties = _num(_dashboard['total_properties']);
+    final totalUnits = _num(_dashboard['total_units']);
+    final occupiedUnits = _num(_dashboard['occupied_units']);
+    final thisMonthIncome = _num(_dashboard['this_month_income']);
+    final pendingAmount = _num(_dashboard['pending_amount']);
+    final overdueInvoices = _num(_dashboard['overdue_invoices']);
+    final occupancy = _pct(occupiedUnits.toDouble(), totalUnits.toDouble());
+
+    final collected = _num(_incomeSummary['collected']);
+    final expected = _num(_incomeSummary['expected']);
+    final pending = _num(_incomeSummary['pending']);
+    final assignedExpected = expected > 0 ? expected : thisMonthIncome + pendingAmount;
+
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
@@ -47,13 +161,13 @@ class _LandlordReportsScreenState extends State<LandlordReportsScreen> {
         const SizedBox(height: 20),
 
         // Summary cards row
-        const Wrap(
+        Wrap(
           spacing: 14, runSpacing: 14,
           children: [
-            _SummaryCard(title: 'Total Properties', value: '3', icon: Icons.domain, color: AppColors.kodiBlue),
-            _SummaryCard(title: 'Total Units', value: '9', icon: Icons.meeting_room, color: AppColors.tertiaryFixed),
-            _SummaryCard(title: 'Occupancy', value: '89%', icon: Icons.people, color: AppColors.kodiGreen),
-            _SummaryCard(title: 'Monthly Revenue', value: 'KSh 195,000', icon: Icons.trending_up, color: AppColors.kodiOrange),
+            _SummaryCard(title: 'Total Properties', value: '$totalProperties', icon: Icons.domain, color: AppColors.kodiBlue),
+            _SummaryCard(title: 'Total Units', value: '$totalUnits', icon: Icons.meeting_room, color: AppColors.tertiaryFixed),
+            _SummaryCard(title: 'Occupancy', value: '$occupancy%', icon: Icons.people, color: AppColors.kodiGreen),
+            _SummaryCard(title: 'Monthly Revenue', value: 'KSh ${_fmt(thisMonthIncome)}', icon: Icons.trending_up, color: AppColors.kodiOrange),
           ],
         ),
         const SizedBox(height: 20),
@@ -62,20 +176,29 @@ class _LandlordReportsScreenState extends State<LandlordReportsScreen> {
         LayoutBuilder(
           builder: (context, constraints) {
             final isNarrow = constraints.maxWidth < 600;
+            final chart = _loading ? _buildLoading(height: 200) : _buildChart();
+            final overview = _loading ? _buildLoading(height: 150) : _buildOverview(
+              collected: thisMonthIncome,
+              pending: pendingAmount,
+              overdueAmount: overdueInvoices,
+              occupied: occupiedUnits,
+              total: totalUnits,
+              expected: assignedExpected,
+            );
             return isNarrow
                 ? Column(
                     children: [
-                      _buildChart(),
+                      chart,
                       const SizedBox(height: 16),
-                      _buildOverview(),
+                      overview,
                     ],
                   )
                 : Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(flex: 3, child: _buildChart()),
+                      Expanded(flex: 3, child: chart),
                       const SizedBox(width: 16),
-                      Expanded(flex: 2, child: _buildOverview()),
+                      Expanded(flex: 2, child: overview),
                     ],
                   );
           },
@@ -95,25 +218,35 @@ class _LandlordReportsScreenState extends State<LandlordReportsScreen> {
               child: OutlinedButton.icon(
                 onPressed: () async {
                   final pdf = PdfReportService();
+                  final user = auth.user;
                   await pdf.generatePaymentReport(
-                    landlordName: 'Johnnie Njenga',
-                    landlordEmail: 'njengajohnnie@gmail.com',
-                    landlordPhone: '+254 700 000 000',
-                    propertyCount: 3, totalExpected: 245000, totalCollected: 195000, totalPending: 50000,
+                    landlordName: '${user?.firstName ?? ''} ${user?.lastName ?? ''}'.trim(),
+                    landlordEmail: user?.email ?? '',
+                    landlordPhone: user?.phone ?? '',
+                    propertyCount: totalProperties,
+                    totalExpected: expected > 0 ? expected : pending + collected,
+                    totalCollected: collected,
+                    totalPending: pending,
                     period: _period,
                     payments: _payments.map((p) => {'tenant': p['tenant']!, 'unit': p['unit']!, 'property': p['property']!, 'amount': p['amount']!, 'status': p['status']!, 'date': p['date']!}).toList(),
-                    propertyBreakdown: [
-                      {'name': 'Sunview Apartments', 'units': '3', 'collected': 'KSh 75,000', 'pending': 'KSh 0'},
-                      {'name': 'Greenfield Heights', 'units': '3', 'collected': 'KSh 60,000', 'pending': 'KSh 25,000'},
-                      {'name': 'Lakeview Villas', 'units': '3', 'collected': 'KSh 60,000', 'pending': 'KSh 25,000'},
-                    ],
-                    arrears: [{'tenant': 'Peter Ochieng', 'unit': 'C3', 'amount': 'KSh 25,000', 'days': '5 days'}],
-                    barChartData: [
-                      {'label': 'Sunview Apartments', 'value': 75000},
-                      {'label': 'Greenfield Heights', 'value': 60000},
-                      {'label': 'Lakeview Villas', 'value': 60000},
-                    ],
-                    pieCollected: 195000, piePending: 50000,
+                    propertyBreakdown: _incomeByProperty.map((b) => {
+                      'name': (b['property_name'] ?? '-').toString(),
+                      'units': '-',
+                      'collected': 'KSh ${_fmt(_num(b['collected']))}',
+                      'pending': 'KSh ${_fmt(_num(b['pending']))}',
+                    }).toList(),
+                    arrears: _arrears.map((a) => {
+                      'tenant': (a['tenant_name'] ?? '-').toString(),
+                      'unit': (a['unit_number'] ?? '-').toString(),
+                      'amount': 'KSh ${_fmt(_num(a['amount']))}',
+                      'days': '${_num(a['days_overdue'])} days',
+                    }).toList(),
+                    barChartData: _incomeByProperty.map((b) => {
+                      'label': (b['property_name'] ?? '-').toString(),
+                      'value': _num(b['collected']),
+                    }).toList(),
+                    pieCollected: collected,
+                    piePending: pending,
                   );
                 },
                 icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
@@ -168,7 +301,23 @@ class _LandlordReportsScreenState extends State<LandlordReportsScreen> {
     );
   }
 
+  Widget _buildLoading({required double height}) {
+    return Container(
+      height: height,
+      alignment: Alignment.center,
+      child: const CircularProgressIndicator(),
+    );
+  }
+
   Widget _buildChart() {
+    final spots = _paymentTrends.asMap().entries.map((e) => FlSpot(e.key.toDouble(), _dbl(e.value['income']))).toList();
+    final labels = _paymentTrends.map((t) {
+      final m = DateTime.tryParse((t['month'] ?? '').toString());
+      return m != null ? _months[m.month - 1] : '-';
+    }).toList();
+    final maxX = spots.isEmpty ? 0.0 : (spots.length - 1).toDouble();
+    final maxY = spots.isEmpty ? 0.0 : spots.fold<double>(0, (m, s) => s.y > m ? s.y : m) * 1.2;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -191,54 +340,68 @@ class _LandlordReportsScreenState extends State<LandlordReportsScreen> {
           const SizedBox(height: 20),
           SizedBox(
             height: 200,
-            child: LineChart(
-              LineChartData(
-                gridData: FlGridData(show: true, drawVerticalLine: false, horizontalInterval: 50000,
-                  getDrawingHorizontalLine: (value) => const FlLine(color: AppColors.outlineVariant, strokeWidth: 1),
-                ),
-                titlesData: FlTitlesData(
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: true, reservedSize: 48,
-                      getTitlesWidget: (value, meta) => Text('KSh ${_fmt(value.toInt())}', style: const TextStyle(fontSize: 10, color: AppColors.muted)),
+            child: spots.isEmpty
+                ? const Center(child: Text('No data available', style: TextStyle(color: AppColors.muted)))
+                : LineChart(
+                    LineChartData(
+                      gridData: FlGridData(show: true, drawVerticalLine: false, horizontalInterval: maxY > 0 ? (maxY / 4).ceilToDouble() : 1,
+                        getDrawingHorizontalLine: (value) => const FlLine(color: AppColors.outlineVariant, strokeWidth: 1),
+                      ),
+                      titlesData: FlTitlesData(
+                        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(showTitles: true, reservedSize: 48,
+                            getTitlesWidget: (value, meta) => Text('KSh ${_fmt(value.toInt())}', style: const TextStyle(fontSize: 10, color: AppColors.muted)),
+                          ),
+                        ),
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(showTitles: true, reservedSize: 28, interval: 1,
+                            getTitlesWidget: (value, meta) {
+                              final index = value.toInt();
+                              if (index < 0 || index >= labels.length) return const SizedBox.shrink();
+                              return Text(labels[index], style: const TextStyle(fontSize: 11, color: AppColors.muted));
+                            },
+                          ),
+                        ),
+                      ),
+                      borderData: FlBorderData(show: false),
+                      minX: 0, maxX: maxX, minY: 0, maxY: maxY,
+                      lineBarsData: [
+                        LineChartBarData(
+                          spots: spots,
+                          isCurved: true, barWidth: 3, color: AppColors.kodiBlue,
+                          belowBarData: BarAreaData(show: true, color: AppColors.kodiBlue.withValues(alpha: 0.08)),
+                          dotData: const FlDotData(show: true),
+                        ),
+                        LineChartBarData(
+                          spots: spots.map((s) => FlSpot(s.x, s.y * 1.2)).toList(),
+                          isCurved: true, barWidth: 3, color: AppColors.kodiOrange, dashArray: [6, 4],
+                          dotData: const FlDotData(show: true),
+                        ),
+                      ],
                     ),
                   ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: true, reservedSize: 28, interval: 1,
-                      getTitlesWidget: (value, meta) {
-                        const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May'];
-                        final index = value.toInt();
-                        if (index < 0 || index >= labels.length) return const SizedBox.shrink();
-                        return Text(labels[index], style: const TextStyle(fontSize: 11, color: AppColors.muted));
-                      },
-                    ),
-                  ),
-                ),
-                borderData: FlBorderData(show: false),
-                minX: 0, maxX: 4, minY: 0, maxY: 350000,
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: const [FlSpot(0, 120000), FlSpot(1, 160000), FlSpot(2, 145000), FlSpot(3, 195000), FlSpot(4, 180000)],
-                    isCurved: true, barWidth: 3, color: AppColors.kodiBlue,
-                    belowBarData: BarAreaData(show: true, color: AppColors.kodiBlue.withValues(alpha: 0.08)),
-                    dotData: const FlDotData(show: true),
-                  ),
-                  LineChartBarData(
-                    spots: const [FlSpot(0, 160000), FlSpot(1, 200000), FlSpot(2, 180000), FlSpot(3, 245000), FlSpot(4, 220000)],
-                    isCurved: true, barWidth: 3, color: AppColors.kodiOrange, dashArray: [6, 4],
-                    dotData: const FlDotData(show: true),
-                  ),
-                ],
-              ),
-            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildOverview() {
+  Widget _buildOverview({
+    required int collected,
+    required int pending,
+    required int overdueAmount,
+    required int occupied,
+    required int total,
+    required int expected,
+  }) {
+    final totalIncome = collected + pending;
+    final collectedPct = _pct(collected.toDouble(), totalIncome.toDouble());
+    final pendingPct = _pct(pending.toDouble(), totalIncome.toDouble());
+    final overduePct = _pct(overdueAmount.toDouble(), totalIncome.toDouble());
+    final occupancyPct = _pct(occupied.toDouble(), total.toDouble());
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -246,18 +409,18 @@ class _LandlordReportsScreenState extends State<LandlordReportsScreen> {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.outlineVariant),
       ),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Quick Overview', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: AppColors.onSurface)),
-          SizedBox(height: 16),
-          _OverviewRow(label: 'Collected', value: 'KSh 195,000', color: AppColors.kodiGreen, pct: '80%'),
-          SizedBox(height: 14),
-          _OverviewRow(label: 'Pending', value: 'KSh 50,000', color: AppColors.warning, pct: '20%'),
-          SizedBox(height: 14),
-          _OverviewRow(label: 'Overdue', value: 'KSh 25,000', color: AppColors.danger, pct: '10%'),
-          SizedBox(height: 14),
-          _OverviewRow(label: 'Occupied Units', value: '8 / 9', color: AppColors.kodiBlue, pct: '89%'),
+          const Text('Quick Overview', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: AppColors.onSurface)),
+          const SizedBox(height: 16),
+          _OverviewRow(label: 'Collected', value: 'KSh ${_fmt(collected)}', color: AppColors.kodiGreen, pct: '$collectedPct%'),
+          const SizedBox(height: 14),
+          _OverviewRow(label: 'Pending', value: 'KSh ${_fmt(pending)}', color: AppColors.warning, pct: '$pendingPct%'),
+          const SizedBox(height: 14),
+          _OverviewRow(label: 'Overdue', value: 'KSh ${_fmt(overdueAmount)}', color: AppColors.danger, pct: '$overduePct%'),
+          const SizedBox(height: 14),
+          _OverviewRow(label: 'Occupied Units', value: '$occupied / $total', color: AppColors.kodiBlue, pct: '$occupancyPct%'),
         ],
       ),
     );
@@ -371,14 +534,6 @@ class _LandlordReportsScreenState extends State<LandlordReportsScreen> {
     );
   }
 
-  final List<Map<String, String>> _payments = [
-    {'tenant': 'Mary Wanjiku', 'unit': 'A2', 'property': 'Sunview Apartments', 'amount': 'KSh 25,000', 'status': 'Paid', 'date': '15 May 2026'},
-    {'tenant': 'John Kamau', 'unit': 'B1', 'property': 'Greenfield Heights', 'amount': 'KSh 20,000', 'status': 'Paid', 'date': '14 May 2026'},
-    {'tenant': 'Peter Ochieng', 'unit': 'C3', 'property': 'Lakeview Villas', 'amount': 'KSh 25,000', 'status': 'Pending', 'date': '-'},
-    {'tenant': 'Grace Mwangi', 'unit': 'A1', 'property': 'Sunview Apartments', 'amount': 'KSh 30,000', 'status': 'Paid', 'date': '12 May 2026'},
-    {'tenant': 'David Otieno', 'unit': 'B2', 'property': 'Greenfield Heights', 'amount': 'KSh 15,000', 'status': 'Overdue', 'date': '-'},
-  ];
-
   void _showSnack(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating));
   }
@@ -485,4 +640,3 @@ class _StatusBadge extends StatelessWidget {
     );
   }
 }
-

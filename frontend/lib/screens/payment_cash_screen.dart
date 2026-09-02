@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
@@ -17,6 +19,36 @@ class _PaymentCashScreenState extends State<PaymentCashScreen> {
   final ApiService _api = ApiService();
   bool _isSubmitting = false;
   bool _confirmed = false;
+  Future<Map<String, String>?> _caretakerFuture = Future.value(null);
+
+  @override
+  void initState() {
+    super.initState();
+    _caretakerFuture = _loadCaretaker();
+  }
+
+  Future<Map<String, String>?> _loadCaretaker() async {
+    try {
+      final response = await _api.get('/caretakers');
+      if (response.statusCode != 200) return null;
+      final list = jsonDecode(response.body);
+      if (list is! List) return null;
+      for (final item in list) {
+        if (item is! Map) continue;
+        final propertyName = (item['property_name'] ?? '').toString();
+        if (propertyName == widget.due.propertyName) {
+          final first = (item['first_name'] ?? '').toString();
+          final last = (item['last_name'] ?? '').toString();
+          final phone = (item['phone'] ?? '').toString();
+          final name = [first, last].where((s) => s.isNotEmpty).join(' ');
+          return {'name': name.isEmpty ? '-' : name, 'phone': phone.isEmpty ? '-' : phone};
+        }
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
 
   Future<void> _confirmCashPayment() async {
     setState(() => _isSubmitting = true);
@@ -167,13 +199,24 @@ class _PaymentCashScreenState extends State<PaymentCashScreen> {
                 children: [
                   const Text('Caretaker Information', style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.textDark, fontSize: 15)),
                   const SizedBox(height: 16),
-                  const _InfoRow(icon: Icons.person_outline_rounded, label: 'Name', value: 'John Kamau'),
-                  const SizedBox(height: 12),
-                  const _InfoRow(icon: Icons.phone_outlined, label: 'Phone', value: '+254 712 345 678'),
-                  const SizedBox(height: 12),
-                  const _InfoRow(icon: Icons.schedule_outlined, label: 'Office Hours', value: 'Mon–Fri, 8 AM – 5 PM'),
-                  const SizedBox(height: 12),
-                  _InfoRow(icon: Icons.location_on_outlined, label: 'Location', value: 'Ground Floor, ${widget.due.propertyName}'),
+                  FutureBuilder<Map<String, String>?>(
+                    future: _caretakerFuture,
+                    builder: (context, snapshot) {
+                      final caretaker = snapshot.data;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _InfoRow(icon: Icons.person_outline_rounded, label: 'Name', value: caretaker?['name'] ?? '-'),
+                          const SizedBox(height: 12),
+                          _InfoRow(icon: Icons.phone_outlined, label: 'Phone', value: caretaker?['phone'] ?? '-'),
+                          const SizedBox(height: 12),
+                          const _InfoRow(icon: Icons.schedule_outlined, label: 'Office Hours', value: 'As scheduled'),
+                          const SizedBox(height: 12),
+                          _InfoRow(icon: Icons.location_on_outlined, label: 'Location', value: 'Ground Floor, ${widget.due.propertyName}'),
+                        ],
+                      );
+                    },
+                  ),
                 ],
               ),
             ),

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 import '../utils/constants.dart';
 import '../widgets/shared_screen_components.dart';
 
@@ -11,6 +13,8 @@ class BusinessDetailsScreen extends StatefulWidget {
 class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
   @override
   Widget build(BuildContext context) {
+    final user = context.watch<AuthProvider>().user;
+    String orEmpty(String? s) => (s == null || s.isEmpty) ? '—' : s;
     return FeatureScaffold(
       title: 'Business Details',
       accentColor: AppColors.kodiNavy,
@@ -25,17 +29,17 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _field('Business Name', 'Amani Kwetu Properties Ltd'),
+                _field('Business Name', orEmpty(user?.businessName)),
                 const SizedBox(height: 12),
-                _field('Registration Number', 'BN/2024/67890'),
+                _field('Registration Number', orEmpty(user?.businessRegistration)),
                 const SizedBox(height: 12),
-                _buildKraField(),
+                _field('KRA PIN', orEmpty(user?.businessKraPin)),
                 const SizedBox(height: 12),
-                _field('Contact Person', 'James Mwangi'),
+                _field('Contact Person', orEmpty(user?.businessContactPerson)),
                 const SizedBox(height: 12),
-                _field('Phone Number', '0700 000 111'),
+                _field('Phone Number', orEmpty(user?.businessPhone)),
                 const SizedBox(height: 12),
-                _field('Email Address', 'james@amanikwetu.co.ke'),
+                _field('Email Address', orEmpty(user?.businessEmail)),
               ],
             ),
           ),
@@ -48,32 +52,13 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _field('Address', '123 Ngong Road, Nairobi'),
+                _field('Address', orEmpty(user?.businessAddress)),
                 const SizedBox(height: 12),
-                _field('City', 'Nairobi'),
+                _field('City', orEmpty(user?.businessCity)),
                 const SizedBox(height: 12),
-                _field('Postal Code', '00100'),
-                const SizedBox(height: 14),
-                Container(
-                  height: 140,
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceLow,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.outlineVariant),
-                  ),
-                  child: const Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.map_outlined, size: 36, color: AppColors.muted),
-                        SizedBox(height: 6),
-                        Text('Map Preview', style: TextStyle(fontSize: 12, color: AppColors.textLight, fontWeight: FontWeight.w600)),
-                        SizedBox(height: 4),
-                        Text('Ngong Road, Nairobi, Kenya', style: TextStyle(fontSize: 10, color: AppColors.muted)),
-                      ],
-                    ),
-                  ),
-                ),
+                _field('County', orEmpty(user?.businessCounty)),
+                const SizedBox(height: 12),
+                _field('Postal Code', orEmpty(user?.businessPostalCode)),
               ],
             ),
           ),
@@ -154,42 +139,6 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
             borderRadius: BorderRadius.circular(8),
           ),
           child: Text(value, style: const TextStyle(fontSize: 13, color: AppColors.textDark, fontWeight: FontWeight.w600)),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildKraField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('KRA PIN', style: TextStyle(fontSize: 11, color: AppColors.textLight, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 4),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceLow,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            children: [
-              const Text('P051234567Z', style: TextStyle(fontSize: 13, color: AppColors.textDark, fontWeight: FontWeight.w600)),
-              const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(color: AppColors.success.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(999)),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.check_circle, size: 10, color: AppColors.success),
-                    SizedBox(width: 3),
-                    Text('Verified', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: AppColors.success)),
-                  ],
-                ),
-              ),
-            ],
-          ),
         ),
       ],
     );

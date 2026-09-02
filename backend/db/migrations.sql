@@ -148,3 +148,96 @@ CREATE TABLE IF NOT EXISTS password_reset_otps (
 
 CREATE INDEX IF NOT EXISTS idx_password_reset_otps_identifier ON password_reset_otps(identifier);
 CREATE INDEX IF NOT EXISTS idx_password_reset_otps_user ON password_reset_otps(user_id);
+
+-- =====================================================================
+-- Data-quality & profile enrichment (emergency contact, business details)
+-- =====================================================================
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='emergency_contact_name') THEN
+        ALTER TABLE users ADD COLUMN emergency_contact_name VARCHAR(100);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='emergency_contact_relation') THEN
+        ALTER TABLE users ADD COLUMN emergency_contact_relation VARCHAR(50);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='emergency_contact_phone') THEN
+        ALTER TABLE users ADD COLUMN emergency_contact_phone VARCHAR(20);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='business_name') THEN
+        ALTER TABLE users ADD COLUMN business_name VARCHAR(255);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='business_registration') THEN
+        ALTER TABLE users ADD COLUMN business_registration VARCHAR(255);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='business_kra_pin') THEN
+        ALTER TABLE users ADD COLUMN business_kra_pin VARCHAR(50);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='business_contact_person') THEN
+        ALTER TABLE users ADD COLUMN business_contact_person VARCHAR(100);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='business_address') THEN
+        ALTER TABLE users ADD COLUMN business_address TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='business_city') THEN
+        ALTER TABLE users ADD COLUMN business_city VARCHAR(100);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='business_county') THEN
+        ALTER TABLE users ADD COLUMN business_county VARCHAR(100);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='business_postal_code') THEN
+        ALTER TABLE users ADD COLUMN business_postal_code VARCHAR(20);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='business_phone') THEN
+        ALTER TABLE users ADD COLUMN business_phone VARCHAR(20);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='business_email') THEN
+        ALTER TABLE users ADD COLUMN business_email VARCHAR(255);
+END IF;
+END $$;
+
+-- =====================================================================
+-- Maintenance cost
+-- =====================================================================
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='maintenance_requests' AND column_name='cost') THEN
+        ALTER TABLE maintenance_requests ADD COLUMN cost DECIMAL(10,2);
+    END IF;
+END $$;
+
+-- =====================================================================
+-- Landlord payouts
+-- =====================================================================
+CREATE TABLE IF NOT EXISTS payouts (
+    id SERIAL PRIMARY KEY,
+    landlord_id INTEGER REFERENCES users(id) ON DELETE CASCADE NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    method VARCHAR(50) NOT NULL,
+    status VARCHAR(20) DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'pending', 'completed', 'failed')),
+    reference VARCHAR(255),
+    scheduled_date DATE,
+    completed_date TIMESTAMP,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_payouts_landlord ON payouts(landlord_id);
+
+-- =====================================================================
+-- Tenant bills (service charges, water, utilities)
+-- =====================================================================
+CREATE TABLE IF NOT EXISTS bills (
+    id SERIAL PRIMARY KEY,
+    tenancy_id INTEGER REFERENCES tenancies(id) ON DELETE CASCADE NOT NULL,
+    bill_type VARCHAR(30) NOT NULL CHECK (bill_type IN ('service_charge', 'water', 'electricity', 'other')),
+    title VARCHAR(255) NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    due_date DATE,
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'paid', 'overdue')),
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_bills_tenancy ON bills(tenancy_id);

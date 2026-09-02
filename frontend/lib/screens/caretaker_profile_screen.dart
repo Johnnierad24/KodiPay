@@ -431,6 +431,7 @@ class _CaretakerProfileScreenState extends State<CaretakerProfileScreen> {
   }
 
   Widget _buildEmergencyContact() {
+    final user = context.watch<AuthProvider>().user;
     return Container(
       decoration: BoxDecoration(
         color: AppColors.white,
@@ -459,17 +460,17 @@ class _CaretakerProfileScreenState extends State<CaretakerProfileScreen> {
               children: [
                 Row(
                   children: [
-                    Expanded(child: _detailField('Contact Name', 'Peter Njenga')),
+                    Expanded(child: _detailField('Contact Name', user?.emergencyContactName ?? '—')),
                     const SizedBox(width: 20),
-                    Expanded(child: _detailField('Relationship', 'Spouse')),
+                    Expanded(child: _detailField('Relationship', user?.emergencyContactRelation ?? '—')),
                   ],
                 ),
                 const SizedBox(height: 20),
                 Row(
                   children: [
-                    Expanded(child: _detailField('Primary Phone', '+254 712 000 333')),
+                    Expanded(child: _detailField('Primary Phone', user?.emergencyContactPhone ?? '—')),
                     const SizedBox(width: 20),
-                    Expanded(child: _detailField('Alternative Phone', '+254 700 444 555')),
+                    Expanded(child: _detailField('Alternative Phone', '—')),
                   ],
                 ),
               ],

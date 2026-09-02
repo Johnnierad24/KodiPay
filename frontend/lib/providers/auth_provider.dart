@@ -185,6 +185,19 @@ class AuthProvider with ChangeNotifier {
     String? lastName,
     String? email,
     String? phone,
+    String? emergencyContactName,
+    String? emergencyContactRelation,
+    String? emergencyContactPhone,
+    String? businessName,
+    String? businessRegistration,
+    String? businessKraPin,
+    String? businessContactPerson,
+    String? businessAddress,
+    String? businessCity,
+    String? businessCounty,
+    String? businessPostalCode,
+    String? businessPhone,
+    String? businessEmail,
   }) async {
     _isLoading = true;
     notifyListeners();
@@ -195,6 +208,19 @@ class AuthProvider with ChangeNotifier {
       if (lastName != null) body['last_name'] = lastName.trim();
       if (email != null) body['email'] = email.trim();
       if (phone != null) body['phone'] = phone.trim();
+      if (emergencyContactName != null) body['emergency_contact_name'] = emergencyContactName.trim();
+      if (emergencyContactRelation != null) body['emergency_contact_relation'] = emergencyContactRelation.trim();
+      if (emergencyContactPhone != null) body['emergency_contact_phone'] = emergencyContactPhone.trim();
+      if (businessName != null) body['business_name'] = businessName.trim();
+      if (businessRegistration != null) body['business_registration'] = businessRegistration.trim();
+      if (businessKraPin != null) body['business_kra_pin'] = businessKraPin.trim();
+      if (businessContactPerson != null) body['business_contact_person'] = businessContactPerson.trim();
+      if (businessAddress != null) body['business_address'] = businessAddress.trim();
+      if (businessCity != null) body['business_city'] = businessCity.trim();
+      if (businessCounty != null) body['business_county'] = businessCounty.trim();
+      if (businessPostalCode != null) body['business_postal_code'] = businessPostalCode.trim();
+      if (businessPhone != null) body['business_phone'] = businessPhone.trim();
+      if (businessEmail != null) body['business_email'] = businessEmail.trim();
 
       final response = await _apiService.put('/auth/profile', body);
 

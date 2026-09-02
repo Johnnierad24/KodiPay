@@ -5,6 +5,7 @@ const {
   generateArrearsReport,
   generatePropertyPerformanceReport,
   generateMaintenanceReport,
+  generateMaintenanceCostReport,
   generatePaymentTrendsReport,
   generateTransactionReport,
   generateCSV,
@@ -122,6 +123,17 @@ exports.getMaintenanceReport = async (req, res) => {
     res.json(result.data);
   } catch (error) {
     res.status(500).json({ error: 'Failed to generate maintenance report' });
+  }
+};
+
+exports.getMaintenanceCostReport = async (req, res) => {
+  try {
+    const { startDate, endDate } = getDateRange(req);
+    const result = await generateMaintenanceCostReport(req.user.id, startDate, endDate);
+    if (!result.success) return res.status(500).json({ error: result.error });
+    res.json(result.data);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to generate maintenance cost report' });
   }
 };
 

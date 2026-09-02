@@ -43,7 +43,7 @@ class _TenantSupportScreenState extends State<TenantSupportScreen> {
                   children: [
                     _MaintenanceCard(onMaintenanceRaised: () => _ticketsKey.currentState?.refresh()),
                     const SizedBox(height: 16),
-                    _CaretakerCard(),
+                    const _CaretakerCard(),
                   ],
                 );
               }
@@ -52,7 +52,7 @@ class _TenantSupportScreenState extends State<TenantSupportScreen> {
                 children: [
                   Expanded(flex: 8, child: _MaintenanceCard(onMaintenanceRaised: () => _ticketsKey.currentState?.refresh())),
                   const SizedBox(width: 16),
-                  Expanded(flex: 4, child: _CaretakerCard()),
+                  const Expanded(flex: 4, child: _CaretakerCard()),
                 ],
               );
             },
@@ -142,9 +142,61 @@ class _MaintenanceCard extends StatelessWidget {
   }
 }
 
-class _CaretakerCard extends StatelessWidget {
+class _CaretakerCard extends StatefulWidget {
+  const _CaretakerCard();
+
+  @override
+  State<_CaretakerCard> createState() => _CaretakerCardState();
+}
+
+class _CaretakerCardState extends State<_CaretakerCard> {
+  String? _caretakerName;
+  String? _propertyName;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final overviewResp = await ApiService().get('/tenant/overview');
+      if (overviewResp.statusCode == 200) {
+        final data = jsonDecode(overviewResp.body) as Map<String, dynamic>;
+        _propertyName = data['property_name']?.toString();
+        final propertyId = data['property_id'];
+        if (propertyId != null) {
+          try {
+            final caretakersResp = await ApiService().get('/caretakers');
+            if (caretakersResp.statusCode == 200) {
+              final list = (jsonDecode(caretakersResp.body) as List).cast<Map<String, dynamic>>();
+              for (final c in list) {
+                if (c['property_id'].toString() == propertyId.toString()) {
+                  final first = (c['first_name'] ?? '').toString();
+                  final last = (c['last_name'] ?? '').toString();
+                  final name = '$first $last'.trim();
+                  if (name.isNotEmpty) _caretakerName = name;
+                  break;
+                }
+              }
+            }
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _loading = false);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final subtitle = _loading
+        ? 'Loading...'
+        : (_propertyName != null
+            ? (_caretakerName != null ? '$_caretakerName – $_propertyName' : _propertyName!)
+            : 'No property assigned');
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -177,9 +229,9 @@ class _CaretakerCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 18),
-          const Text('Caretaker', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 18)),
+          Text(_caretakerName != null ? 'Caretaker' : 'Your Caretaker', style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 18)),
           const SizedBox(height: 4),
-          Text('Eunice Njenga – Block C', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
+          Text(subtitle, style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
           const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,

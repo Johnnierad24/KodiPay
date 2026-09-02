@@ -588,17 +588,23 @@ class PaymentReportHeader extends StatelessWidget {
 }
 
 class LandlordReportInfo extends StatelessWidget {
-  const LandlordReportInfo({super.key});
+  final String? landlordName;
+  final String? landlordEmail;
+  final int? propertyCount;
+  const LandlordReportInfo({super.key, this.landlordName, this.landlordEmail, this.propertyCount});
 
   @override
   Widget build(BuildContext context) {
-    return const ReportBlock(
+    final name = landlordName ?? '-';
+    final email = landlordEmail ?? '-';
+    final count = propertyCount != null ? '$propertyCount properties' : '- properties';
+    return ReportBlock(
       title: 'Landlord Information',
       child: Column(
         children: [
-          ReportInfoRow(label: 'Landlord Name', value: 'James Mwangi'),
-          ReportInfoRow(label: 'Email / Phone', value: 'james@kodipay.co.ke / 0700 000 111'),
-          ReportInfoRow(label: 'Property Count', value: '3 properties'),
+          ReportInfoRow(label: 'Landlord Name', value: name),
+          ReportInfoRow(label: 'Email / Phone', value: email),
+          ReportInfoRow(label: 'Property Count', value: count),
         ],
       ),
     );
@@ -793,10 +799,12 @@ class ReportFilters extends StatelessWidget {
   final ValueChanged<String> onPeriodChanged;
   final ValueChanged<String> onPropertyChanged;
   final ValueChanged<String> onStatusChanged;
-  const ReportFilters({super.key, required this.period, required this.property, required this.status, required this.onPeriodChanged, required this.onPropertyChanged, required this.onStatusChanged});
+  final List<String>? propertyNames;
+  const ReportFilters({super.key, required this.period, required this.property, required this.status, required this.onPeriodChanged, required this.onPropertyChanged, required this.onStatusChanged, this.propertyNames});
 
   @override
   Widget build(BuildContext context) {
+    final properties = propertyNames ?? const <String>[];
     return TappableCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -805,7 +813,7 @@ class ReportFilters extends StatelessWidget {
           const SizedBox(height: 12),
           ReportDropdown(label: 'Date Range', value: period, values: const ['Today', 'This Month', 'This Quarter', 'This Year'], onChanged: onPeriodChanged),
           const SizedBox(height: 10),
-          ReportDropdown(label: 'Property', value: property, values: const ['All Properties', 'Sunview Apartments', 'Greenfield Heights', 'Lakeview Villas'], onChanged: onPropertyChanged),
+          ReportDropdown(label: 'Property', value: property, values: ['All Properties', ...properties], onChanged: onPropertyChanged),
           const SizedBox(height: 10),
           ReportDropdown(label: 'Status', value: status, values: const ['All', 'Paid', 'Pending', 'Overdue'], onChanged: onStatusChanged),
         ],
@@ -860,32 +868,16 @@ class ReportTypeSelector extends StatelessWidget {
 
 class ReportSummaryGrid extends StatelessWidget {
   final String reportType;
-  const ReportSummaryGrid({super.key, required this.reportType});
+  final List<ReportMetric>? metrics;
+  const ReportSummaryGrid({super.key, required this.reportType, this.metrics});
 
   @override
   Widget build(BuildContext context) {
-    final cards = switch (reportType) {
-      'Arrears' => const [
-        ReportMetric(label: 'Overdue Amount', value: 'KSh 75,000', color: AppColors.danger),
-        ReportMetric(label: 'Tenants Overdue', value: '5', color: AppColors.kodiOrange),
-        ReportMetric(label: 'Avg Days Late', value: '9', color: AppColors.kodiBlue),
-      ],
-      'Maintenance' => const [
-        ReportMetric(label: 'Open Issues', value: '12', color: AppColors.kodiOrange),
-        ReportMetric(label: 'Completed', value: '18', color: AppColors.kodiGreen),
-        ReportMetric(label: 'Cost', value: 'KSh 38k', color: AppColors.kodiBlue),
-      ],
-      'Property' => const [
-        ReportMetric(label: 'Best Property', value: 'Greenfield', color: AppColors.kodiGreen),
-        ReportMetric(label: 'Occupancy', value: '94%', color: AppColors.kodiBlue),
-        ReportMetric(label: 'Vacant Units', value: '6', color: AppColors.kodiOrange),
-      ],
-      _ => const [
-        ReportMetric(label: 'Collected', value: 'KSh 245k', color: AppColors.kodiGreen),
-        ReportMetric(label: 'Expected', value: 'KSh 320k', color: AppColors.kodiBlue),
-        ReportMetric(label: 'Pending', value: 'KSh 75k', color: AppColors.kodiOrange),
-      ],
-    };
+    final cards = metrics ?? const [
+      ReportMetric(label: 'Overdue Amount', value: '-', color: AppColors.danger),
+      ReportMetric(label: 'Tenants Overdue', value: '-', color: AppColors.kodiOrange),
+      ReportMetric(label: 'Avg Days Late', value: '-', color: AppColors.kodiBlue),
+    ];
     return GridView.count(
       crossAxisCount: 3, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
       childAspectRatio: 0.92, mainAxisSpacing: 10, crossAxisSpacing: 10,
@@ -920,10 +912,20 @@ class ReportMetric extends StatelessWidget {
 }
 
 class IncomeTrendCard extends StatelessWidget {
-  const IncomeTrendCard({super.key});
+  final List<Map<String, dynamic>>? trend;
+  const IncomeTrendCard({super.key, this.trend});
 
   @override
   Widget build(BuildContext context) {
+    final data = trend ?? const [];
+    final labels = data.map<String>((e) => (e['month_label'] ?? '').toString()).toList();
+    final incomes = data.map<double>((e) => (e['income'] as num?)?.toDouble() ?? 0).toList();
+    final maxIncome = incomes.isEmpty ? 1.0 : incomes.reduce((a, b) => a > b ? a : b);
+    final maxY = maxIncome > 340 ? (maxIncome * 1.15).ceilToDouble() : 320.0;
+    final spots = <FlSpot>[];
+    for (var i = 0; i < incomes.length; i++) {
+      spots.add(FlSpot(i.toDouble(), incomes[i]));
+    }
     return _ReportSection(
       title: 'Monthly Income Trend',
       child: SizedBox(
@@ -939,7 +941,6 @@ class IncomeTrendCard extends StatelessWidget {
                 sideTitles: SideTitles(
                   showTitles: true, reservedSize: 28, interval: 1,
                   getTitlesWidget: (value, meta) {
-                    const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May'];
                     final index = value.toInt();
                     if (index < 0 || index >= labels.length) return const SizedBox.shrink();
                     return Text(labels[index], style: AppStyles.caption);
@@ -948,10 +949,10 @@ class IncomeTrendCard extends StatelessWidget {
               ),
             ),
             borderData: FlBorderData(show: false),
-            minX: 0, maxX: 4, minY: 0, maxY: 320,
+            minX: 0, maxX: (spots.length > 1 ? spots.length - 1 : 4).toDouble(), minY: 0, maxY: maxY,
             lineBarsData: [
               LineChartBarData(
-                spots: const [FlSpot(0, 180), FlSpot(1, 210), FlSpot(2, 195), FlSpot(3, 245), FlSpot(4, 275)],
+                spots: spots,
                 isCurved: true, barWidth: 4, color: AppColors.kodiBlue,
                 belowBarData: BarAreaData(show: true, color: AppColors.kodiBlue.withValues(alpha: 0.12)),
                 dotData: const FlDotData(show: true),
@@ -965,10 +966,26 @@ class IncomeTrendCard extends StatelessWidget {
 }
 
 class PaidVsPendingCard extends StatelessWidget {
-  const PaidVsPendingCard({super.key});
+  final int? collected;
+  final int? pending;
+  const PaidVsPendingCard({super.key, this.collected, this.pending});
 
   @override
   Widget build(BuildContext context) {
+    final hasData = collected != null && pending != null;
+    final collectedPct = collected ?? 0;
+    final pendingPct = pending ?? 0;
+    final collectedLabel = collected != null ? 'KSh ${money(collected!)}' : '-';
+    final pendingLabel = pending != null ? 'KSh ${money(pending!)}' : '-';
+    if (!hasData) {
+      return const _ReportSection(
+        title: 'Paid vs Pending',
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 24),
+          child: Center(child: Text('No data available', style: AppStyles.caption)),
+        ),
+      );
+    }
     return _ReportSection(
       title: 'Paid vs Pending',
       child: Row(
@@ -979,20 +996,20 @@ class PaidVsPendingCard extends StatelessWidget {
               PieChartData(
                 sectionsSpace: 3, centerSpaceRadius: 34,
                 sections: [
-                  PieChartSectionData(value: 77, color: AppColors.kodiGreen, title: '77%', radius: 32, titleStyle: const TextStyle(color: AppColors.white, fontWeight: FontWeight.w800)),
-                  PieChartSectionData(value: 23, color: AppColors.kodiOrange, title: '23%', radius: 32, titleStyle: const TextStyle(color: AppColors.white, fontWeight: FontWeight.w800)),
+                  PieChartSectionData(value: collectedPct.toDouble(), color: AppColors.kodiGreen, title: '$collectedPct%', radius: 32, titleStyle: const TextStyle(color: AppColors.white, fontWeight: FontWeight.w800)),
+                  PieChartSectionData(value: pendingPct.toDouble(), color: AppColors.kodiOrange, title: '$pendingPct%', radius: 32, titleStyle: const TextStyle(color: AppColors.white, fontWeight: FontWeight.w800)),
                 ],
               ),
             ),
           ),
           const SizedBox(width: 18),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                LegendRow(color: AppColors.kodiGreen, label: 'Paid', value: 'KSh 245,000'),
-                SizedBox(height: 12),
-                LegendRow(color: AppColors.kodiOrange, label: 'Pending', value: 'KSh 75,000'),
+                LegendRow(color: AppColors.kodiGreen, label: 'Paid', value: collectedLabel),
+                const SizedBox(height: 12),
+                LegendRow(color: AppColors.kodiOrange, label: 'Pending', value: pendingLabel),
               ],
             ),
           ),
@@ -1003,40 +1020,89 @@ class PaidVsPendingCard extends StatelessWidget {
 }
 
 class PropertyIncomeBreakdown extends StatelessWidget {
-  const PropertyIncomeBreakdown({super.key});
+  final List<Map<String, dynamic>>? data;
+  const PropertyIncomeBreakdown({super.key, this.data});
 
   @override
   Widget build(BuildContext context) {
-    return const _ReportSection(
+    final rows = data ?? const [];
+    if (rows.isEmpty) {
+      return const _ReportSection(
+        title: 'Per Property Breakdown',
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 20),
+          child: Center(child: Text('No data available', style: AppStyles.caption)),
+        ),
+      );
+    }
+    return _ReportSection(
       title: 'Per Property Breakdown',
       child: Column(
         children: [
-          ReportDataRow(label: 'Sunview Apartments', value: 'KSh 250,000', status: '92% paid', color: AppColors.kodiGreen),
-          ReportDivider(),
-          ReportDataRow(label: 'Greenfield Heights', value: 'KSh 610,000', status: '96% paid', color: AppColors.kodiGreen),
-          ReportDivider(),
-          ReportDataRow(label: 'Lakeview Villas', value: 'KSh 180,000', status: '78% paid', color: AppColors.kodiOrange),
+          for (var i = 0; i < rows.length; i++) ...[
+            if (i > 0) const ReportDivider(),
+            ReportDataRow(
+              label: (rows[i]['property_name'] ?? '').toString(),
+              value: money(toInt(rows[i]['collected'])),
+              status: _pctStatus(rows[i]),
+              color: _pctColor(rows[i]),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  String _pctStatus(Map<String, dynamic> row) {
+    final expected = toNum(row['expected']);
+    final collected = toNum(row['collected']);
+    if (expected <= 0) return '- paid';
+    final pct = (collected / expected * 100).round();
+    return '$pct% paid';
+  }
+
+  Color _pctColor(Map<String, dynamic> row) {
+    final expected = toNum(row['expected']);
+    final collected = toNum(row['collected']);
+    if (expected <= 0) return AppColors.kodiGreen;
+    final pct = collected / expected;
+    if (pct >= 0.9) return AppColors.kodiGreen;
+    if (pct >= 0.8) return AppColors.kodiOrange;
+    return AppColors.danger;
   }
 }
 
 class ArrearsReport extends StatelessWidget {
   final ValueChanged<String> onReminder;
-  const ArrearsReport({super.key, required this.onReminder});
+  final List<Map<String, dynamic>>? data;
+  const ArrearsReport({super.key, required this.onReminder, this.data});
 
   @override
   Widget build(BuildContext context) {
+    final rows = data ?? const [];
+    if (rows.isEmpty) {
+      return const _ReportSection(
+        title: 'Tenants With Unpaid Rent',
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 20),
+          child: Center(child: Text('No data available', style: AppStyles.caption)),
+        ),
+      );
+    }
     return _ReportSection(
       title: 'Tenants With Unpaid Rent',
       child: Column(
         children: [
-          _ArrearsRow(tenant: 'Peter Ochieng', unit: 'C3 - Lakeview Villas', amount: 'KSh 25,000', days: '12 days', onReminder: onReminder),
-          const ReportDivider(),
-          _ArrearsRow(tenant: 'Grace Njeri', unit: 'A1 - Sunview Apts', amount: 'KSh 30,000', days: '8 days', onReminder: onReminder),
-          const ReportDivider(),
-          _ArrearsRow(tenant: 'Brian Otieno', unit: 'B8 - Greenfield Hts', amount: 'KSh 20,000', days: '5 days', onReminder: onReminder),
+          for (var i = 0; i < rows.length; i++) ...[
+            if (i > 0) const ReportDivider(),
+            _ArrearsRow(
+              tenant: (rows[i]['tenant_name'] ?? '').toString(),
+              unit: '${rows[i]['unit_number'] ?? ''} - ${rows[i]['property_name'] ?? ''}',
+              amount: money(toInt(rows[i]['amount'])),
+              days: '${rows[i]['days_overdue'] ?? 0} days',
+              onReminder: onReminder,
+            ),
+          ],
         ],
       ),
     );
@@ -1082,19 +1148,34 @@ class _ArrearsRow extends StatelessWidget {
 }
 
 class PropertyPerformanceReport extends StatelessWidget {
-  const PropertyPerformanceReport({super.key});
+  final List<Map<String, dynamic>>? data;
+  const PropertyPerformanceReport({super.key, this.data});
 
   @override
   Widget build(BuildContext context) {
-    return const _ReportSection(
+    final rows = data ?? const [];
+    if (rows.isEmpty) {
+      return const _ReportSection(
+        title: 'Property Performance',
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 20),
+          child: Center(child: Text('No data available', style: AppStyles.caption)),
+        ),
+      );
+    }
+    return _ReportSection(
       title: 'Property Performance',
       child: Column(
         children: [
-          ReportDataRow(label: 'Greenfield Heights', value: 'KSh 610,000', status: '25/32 occupied', color: AppColors.kodiGreen),
-          ReportDivider(),
-          ReportDataRow(label: 'Sunview Apartments', value: 'KSh 250,000', status: '10/12 occupied', color: AppColors.kodiBlue),
-          ReportDivider(),
-          ReportDataRow(label: 'Lakeview Villas', value: 'KSh 180,000', status: '8/10 occupied', color: AppColors.kodiOrange),
+          for (var i = 0; i < rows.length; i++) ...[
+            if (i > 0) const ReportDivider(),
+            ReportDataRow(
+              label: (rows[i]['property_name'] ?? '').toString(),
+              value: money(toInt(rows[i]['income'])),
+              status: '${rows[i]['occupied_units'] ?? 0}/${rows[i]['total_units'] ?? 0} occupied',
+              color: AppColors.kodiBlue,
+            ),
+          ],
         ],
       ),
     );
@@ -1102,19 +1183,34 @@ class PropertyPerformanceReport extends StatelessWidget {
 }
 
 class MaintenanceReport extends StatelessWidget {
-  const MaintenanceReport({super.key});
+  final List<Map<String, dynamic>>? data;
+  const MaintenanceReport({super.key, this.data});
 
   @override
   Widget build(BuildContext context) {
-    return const _ReportSection(
+    final rows = data ?? const [];
+    if (rows.isEmpty) {
+      return const _ReportSection(
+        title: 'Maintenance Costs & Issues',
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 20),
+          child: Center(child: Text('No data available', style: AppStyles.caption)),
+        ),
+      );
+    }
+    return _ReportSection(
       title: 'Maintenance Costs & Issues',
       child: Column(
         children: [
-          ReportDataRow(label: 'Plumbing', value: '6 issues', status: 'KSh 18,000', color: AppColors.kodiOrange),
-          ReportDivider(),
-          ReportDataRow(label: 'Electrical', value: '3 issues', status: 'KSh 12,500', color: AppColors.danger),
-          ReportDivider(),
-          ReportDataRow(label: 'Locks & Doors', value: '3 issues', status: 'KSh 7,500', color: AppColors.kodiBlue),
+          for (var i = 0; i < rows.length; i++) ...[
+            if (i > 0) const ReportDivider(),
+            ReportDataRow(
+              label: (rows[i]['category'] ?? '').toString(),
+              value: '${rows[i]['issue_count'] ?? 0} issues',
+              status: money(toInt(rows[i]['total_cost'])),
+              color: AppColors.kodiOrange,
+            ),
+          ],
         ],
       ),
     );
@@ -1122,19 +1218,34 @@ class MaintenanceReport extends StatelessWidget {
 }
 
 class TransactionReport extends StatelessWidget {
-  const TransactionReport({super.key});
+  final List<Map<String, dynamic>>? data;
+  const TransactionReport({super.key, this.data});
 
   @override
   Widget build(BuildContext context) {
-    return const _ReportSection(
+    final rows = data ?? const [];
+    if (rows.isEmpty) {
+      return const _ReportSection(
+        title: 'Transaction History',
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 20),
+          child: Center(child: Text('No data available', style: AppStyles.caption)),
+        ),
+      );
+    }
+    return _ReportSection(
       title: 'Transaction History',
       child: Column(
         children: [
-          ReportDataRow(label: 'Mary Wanjiku', value: 'KSh 25,000', status: 'M-Pesa - Paid', color: AppColors.kodiGreen),
-          ReportDivider(),
-          ReportDataRow(label: 'John Kamau', value: 'KSh 20,000', status: 'Bank - Paid', color: AppColors.kodiGreen),
-          ReportDivider(),
-          ReportDataRow(label: 'Peter Ochieng', value: 'KSh 25,000', status: 'Pending', color: AppColors.kodiOrange),
+          for (var i = 0; i < rows.length; i++) ...[
+            if (i > 0) const ReportDivider(),
+            ReportDataRow(
+              label: (rows[i]['tenant_name'] ?? '').toString(),
+              value: money(toInt(rows[i]['amount'])),
+              status: '${rows[i]['payment_method'] ?? ''} - ${rows[i]['status'] ?? ''}',
+              color: (rows[i]['status'] ?? '').toString().toLowerCase() == 'pending' ? AppColors.kodiOrange : AppColors.kodiGreen,
+            ),
+          ],
         ],
       ),
     );

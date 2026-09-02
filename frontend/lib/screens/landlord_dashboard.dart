@@ -112,7 +112,7 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
                       // Top bar
                       _TopBar(
                         unreadCount: _unreadCount,
-                        userName: '${user?.firstName ?? 'Jabari'} ${user?.lastName ?? 'Kamau'}',
+                        userName: '${user?.firstName ?? 'Landlord'}${user?.lastName != null ? ' ${user!.lastName}' : ''}',
                         sidebarOpen: isWide ? _sidebarOpen : _mobileSidebarOpen,
                         onMenuTap: _onMenuTap,
                         onNotifications: () async {
@@ -490,7 +490,7 @@ class _HomeTab extends StatelessWidget {
         children: [
           // Welcome
           const SizedBox(height: 8),
-          Text('Welcome back, ${user?.firstName ?? 'Jabari'}!', style: AppStyles.headlineLg.copyWith(fontSize: 28)),
+          Text('Welcome back, ${user?.firstName ?? 'Landlord'}!', style: AppStyles.headlineLg.copyWith(fontSize: 28)),
           const SizedBox(height: 4),
           Text('Here is your portfolio performance for October.', style: AppStyles.bodyLg.copyWith(color: AppColors.onSurfaceVariant)),
           const SizedBox(height: 24),
@@ -1006,17 +1006,57 @@ class _StatCard extends StatelessWidget {
 }
 
 // ── Recent Transactions ──────────────────────────────
-class _RecentTransactions extends StatelessWidget {
+class _RecentTransactions extends StatefulWidget {
+  @override
+  State<_RecentTransactions> createState() => _RecentTransactionsState();
+}
+
+class _RecentTransactionsState extends State<_RecentTransactions> {
+  final ApiService _api = ApiService();
+  late Future<List<_TxnRow>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _loadTransactions();
+  }
+
+  Future<List<_TxnRow>> _loadTransactions() async {
+    try {
+      final res = await _api.get('/reports/transactions');
+      if (res.statusCode != 200) return _fallback();
+      final list = jsonDecode(res.body) as List<dynamic>;
+      final rows = list.take(5).map<_TxnRow>((item) {
+        final m = item as Map<String, dynamic>;
+        final paid = (m['status'] ?? '').toString().toLowerCase() == 'completed';
+        final amount = (m['amount'] is num) ? (m['amount'] as num).toInt() : int.tryParse('${m['amount']}') ?? 0;
+        final dateStr = _fmtDate(m['payment_date']);
+        final unit = '${m['property_name'] ?? ''} #${m['unit_number'] ?? ''}';
+        return _TxnRow(date: dateStr, unit: unit, amount: 'KSh ${_fmtKsh(amount)}', status: paid ? 'Paid' : 'Unpaid', color: paid ? AppColors.tertiaryFixedDim : AppColors.errorContainer, textColor: paid ? AppColors.onTertiaryFixedVariant : AppColors.onErrorContainer);
+      }).toList();
+      return rows.isEmpty ? _fallback() : rows;
+    } catch (_) {
+      return _fallback();
+    }
+  }
+
+  static List<_TxnRow> _fallback() => const [];
+
+  static String _fmtDate(dynamic d) {
+    if (d == null) return '-';
+    try {
+      final dt = DateTime.parse(d.toString());
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return '${months[dt.month - 1]} ${dt.day.toString().padLeft(2, '0')}, ${dt.year}';
+    } catch (_) {
+      return d.toString();
+    }
+  }
+
+  static String _fmtKsh(int v) => v.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
+
   @override
   Widget build(BuildContext context) {
-    final transactions = [
-      ('Oct 12, 2024', 'Riverside Apt #4B', 'KSh 45,000', 'Paid', AppColors.tertiaryFixedDim, AppColors.onTertiaryFixedVariant),
-      ('Oct 11, 2024', 'Kilimani Court #12', 'KSh 62,500', 'Unpaid', AppColors.errorContainer, AppColors.onErrorContainer),
-      ('Oct 10, 2024', 'Garden Estate #A2', 'KSh 120,000', 'Paid', AppColors.tertiaryFixedDim, AppColors.onTertiaryFixedVariant),
-      ('Oct 09, 2024', 'Riverside Apt #2C', 'KSh 45,000', 'Paid', AppColors.tertiaryFixedDim, AppColors.onTertiaryFixedVariant),
-      ('Oct 08, 2024', 'Kilimani Court #05', 'KSh 58,000', 'Unpaid', AppColors.errorContainer, AppColors.onErrorContainer),
-    ];
-
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surfaceLowest,
@@ -1037,87 +1077,99 @@ class _RecentTransactions extends StatelessWidget {
             ),
           ),
           // Transaction list - responsive
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final isNarrow = constraints.maxWidth < 500;
-              if (isNarrow) {
-                return Column(
-                  children: transactions.map((t) => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    decoration: BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.5)))),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
+          FutureBuilder<List<_TxnRow>>(
+            future: _future,
+            builder: (context, snapshot) {
+              final transactions = snapshot.data ?? const <_TxnRow>[];
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  final isNarrow = constraints.maxWidth < 500;
+                  if (transactions.isEmpty) {
+                    return const SizedBox(
+                      height: 80,
+                      child: Center(child: Text('No recent transactions.', style: TextStyle(fontSize: 13, color: AppColors.onSurfaceVariant))),
+                    );
+                  }
+                  if (isNarrow) {
+                    return Column(
+                      children: transactions.map((t) => Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        decoration: BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.5)))),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Expanded(child: Text(t.$2, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary))),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: t.$4 == 'Paid' ? AppColors.tertiaryFixed.withValues(alpha: 0.2) : AppColors.errorContainer,
-                                      borderRadius: BorderRadius.circular(999),
-                                      border: Border.all(color: t.$4 == 'Paid' ? AppColors.tertiaryFixedDim : AppColors.error.withValues(alpha: 0.2)),
-                                    ),
-                                    child: Text(t.$4, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: t.$5)),
+                                  Row(
+                                    children: [
+                                      Expanded(child: Text(t.unit, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary))),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: t.status == 'Paid' ? AppColors.tertiaryFixed.withValues(alpha: 0.2) : AppColors.errorContainer,
+                                          borderRadius: BorderRadius.circular(999),
+                                          border: Border.all(color: t.status == 'Paid' ? AppColors.tertiaryFixedDim : AppColors.error.withValues(alpha: 0.2)),
+                                        ),
+                                        child: Text(t.status, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: t.textColor)),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Text(t.date, style: const TextStyle(fontSize: 12, color: AppColors.onSurfaceVariant)),
+                                      const Spacer(),
+                                      Text(t.amount, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                    ],
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  Text(t.$1, style: const TextStyle(fontSize: 12, color: AppColors.onSurfaceVariant)),
-                                  const Spacer(),
-                                  Text(t.$3, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                                ],
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  )).toList(),
-                );
-              }
-              return Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-                    color: AppColors.surfaceLow,
-                    child: Row(
-                      children: [
-                        Expanded(flex: 2, child: _th('Date')),
-                        Expanded(flex: 3, child: _th('Unit')),
-                        Expanded(flex: 2, child: _th('Amount')),
-                        Expanded(flex: 2, child: _th('Status')),
-                        Expanded(child: _th('Action')),
-                      ],
-                    ),
-                  ),
-                  ...transactions.map((t) => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                    decoration: BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.5)))),
-                    child: Row(
-                      children: [
-                        Expanded(flex: 2, child: Text(t.$1, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.onSurface))),
-                        Expanded(flex: 3, child: Text(t.$2, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary))),
-                        Expanded(flex: 2, child: Text(t.$3, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500))),
-                        Expanded(flex: 2, child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: t.$4 == 'Paid' ? AppColors.tertiaryFixed.withValues(alpha: 0.2) : AppColors.errorContainer,
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(color: t.$4 == 'Paid' ? AppColors.tertiaryFixedDim : AppColors.error.withValues(alpha: 0.2)),
-                          ),
-                          child: Text(t.$4, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: t.$5)),
-                        )),
-                        const Expanded(child: Icon(Icons.more_horiz, size: 18, color: AppColors.secondary)),
-                      ],
-                    ),
-                  )),
-                ],
+                      )).toList(),
+                    );
+                  }
+                  return Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                        color: AppColors.surfaceLow,
+                        child: Row(
+                          children: [
+                            Expanded(flex: 2, child: _th('Date')),
+                            Expanded(flex: 3, child: _th('Unit')),
+                            Expanded(flex: 2, child: _th('Amount')),
+                            Expanded(flex: 2, child: _th('Status')),
+                            Expanded(child: _th('Action')),
+                          ],
+                        ),
+                      ),
+                      ...transactions.map((t) => Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                        decoration: BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.5)))),
+                        child: Row(
+                          children: [
+                            Expanded(flex: 2, child: Text(t.date, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.onSurface))),
+                            Expanded(flex: 3, child: Text(t.unit, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary))),
+                            Expanded(flex: 2, child: Text(t.amount, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500))),
+                            Expanded(flex: 2, child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: t.status == 'Paid' ? AppColors.tertiaryFixed.withValues(alpha: 0.2) : AppColors.errorContainer,
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(color: t.status == 'Paid' ? AppColors.tertiaryFixedDim : AppColors.error.withValues(alpha: 0.2)),
+                              ),
+                              child: Text(t.status, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: t.textColor)),
+                            )),
+                            const Expanded(child: Icon(Icons.more_horiz, size: 18, color: AppColors.secondary)),
+                          ],
+                        ),
+                      )),
+                    ],
+                  );
+                },
               );
             },
           ),
@@ -1131,13 +1183,83 @@ class _RecentTransactions extends StatelessWidget {
   }
 }
 
+class _TxnRow {
+  final String date;
+  final String unit;
+  final String amount;
+  final String status;
+  final Color color;
+  final Color textColor;
+  const _TxnRow({required this.date, required this.unit, required this.amount, required this.status, required this.color, required this.textColor});
+}
+
 // ── Portfolio Yield ──────────────────────────────────
-class _PortfolioYield extends StatelessWidget {
+class _PortfolioYield extends StatefulWidget {
+  @override
+  State<_PortfolioYield> createState() => _PortfolioYieldState();
+}
+
+class _PortfolioYieldState extends State<_PortfolioYield> {
+  final ApiService _api = ApiService();
+  late Future<_YieldData> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _loadYield();
+  }
+
+  Future<_YieldData> _loadYield() async {
+    List<double> bars = [0.6, 0.75, 0.65, 0.9, 0.8, 0.85];
+    List<String> labels = ['MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT'];
+    String occupancy = '98.2%';
+    String avgDelay = '-';
+    try {
+      final trendsRes = await _api.get('/reports/payment-trends?months=12');
+      if (trendsRes.statusCode == 200) {
+        final trendList = jsonDecode(trendsRes.body) as List<dynamic>;
+        if (trendList.isNotEmpty) {
+          final recent6 = trendList.length > 6 ? trendList.sublist(trendList.length - 6) : trendList;
+          final incomes = recent6.map<num>((e) => (e['income'] as num?) ?? 0).toList();
+          final maxIncome = incomes.fold<num>(0, (a, b) => a > b ? a : b);
+          bars = incomes.map<double>((e) => maxIncome > 0 ? (e / maxIncome).toDouble().clamp(0.05, 1.0) : 0.0).toList();
+          labels = recent6.map<String>((e) {
+            final monthStr = (e['month'] ?? '').toString();
+            try {
+              final dt = DateTime.parse(monthStr);
+              const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+              return months[dt.month - 1];
+            } catch (_) {
+              return monthStr.substring(0, monthStr.length > 3 ? 3 : monthStr.length).toUpperCase();
+            }
+          }).toList();
+        }
+      }
+    } catch (_) {}
+
+    try {
+      final occRes = await _api.get('/analytics/occupancy');
+      if (occRes.statusCode == 200) {
+        final occData = jsonDecode(occRes.body) as Map<String, dynamic>;
+        final rate = occData['occupancy_rate'];
+        if (rate != null) occupancy = '$rate%';
+      }
+    } catch (_) {}
+
+    try {
+      final dashRes = await _api.get('/analytics/dashboard');
+      if (dashRes.statusCode == 200) {
+        final dashData = jsonDecode(dashRes.body) as Map<String, dynamic>;
+        final overdue = dashData['overdue_count'];
+        if (overdue != null) avgDelay = '$overdue overdue';
+      }
+    } catch (_) {}
+
+    return _YieldData(bars: bars, labels: labels, occupancy: occupancy, avgDelay: avgDelay);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final bars = [0.6, 0.75, 0.65, 0.9, 0.8, 0.85];
-    final labels = ['MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT'];
-
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -1145,65 +1267,72 @@ class _PortfolioYield extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.outlineVariant),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: FutureBuilder<_YieldData>(
+        future: _future,
+        builder: (context, snapshot) {
+          final data = snapshot.data ?? const _YieldData(bars: [0.6,0.75,0.65,0.9,0.8,0.85], labels: ['MAY','JUN','JUL','AUG','SEP','OCT'], occupancy: '98.2%', avgDelay: '-');
+          final bars = data.bars;
+          final labels = data.labels;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Portfolio Yield', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, fontFamily: 'Lexend', color: AppColors.primary)),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: AppColors.surfaceLow, borderRadius: BorderRadius.circular(6), border: Border.all(color: AppColors.outlineVariant)),
-                child: const Text('Last 6 Months', style: TextStyle(fontSize: 12, color: AppColors.secondary)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 32),
-          // Chart bars
-          SizedBox(
-            height: 220,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: List.generate(bars.length, (i) {
-                final isOct = i == 5;
-                return Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Container(
-                          height: 210 * bars[i],
-                          decoration: BoxDecoration(
-                            color: isOct ? AppColors.tertiaryFixedDim : AppColors.primary.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                        ),
-                      ],
-                    ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Portfolio Yield', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, fontFamily: 'Lexend', color: AppColors.primary)),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(color: AppColors.surfaceLow, borderRadius: BorderRadius.circular(6), border: Border.all(color: AppColors.outlineVariant)),
+                    child: const Text('Last 6 Months', style: TextStyle(fontSize: 12, color: AppColors.secondary)),
                   ),
-                );
-              }),
-            ),
-          ),
-          const SizedBox(height: 10),
-          // X-axis labels
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(labels.length, (i) {
-              final isOct = i == 5;
-              return Text(labels[i], style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: isOct ? AppColors.primary : AppColors.secondary));
-            }),
-          ),
-          const SizedBox(height: 24),
-          Container(height: 1, color: AppColors.outlineVariant),
-          const SizedBox(height: 20),
-          // Stats
-          _yieldRow('Occupancy Rate', '98.2%'),
-          const SizedBox(height: 12),
-          _yieldRow('Avg. Rent Delay', '2.4 Days'),
-        ],
+                ],
+              ),
+              const SizedBox(height: 32),
+              // Chart bars
+              SizedBox(
+                height: 220,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: List.generate(bars.length, (i) {
+                    final isLast = i == bars.length - 1;
+                    return Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Container(
+                              height: 210 * bars[i],
+                              decoration: BoxDecoration(
+                                color: isLast ? AppColors.tertiaryFixedDim : AppColors.primary.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+              ),
+              const SizedBox(height: 10),
+              // X-axis labels
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: List.generate(labels.length, (i) {
+                  final isLast = i == labels.length - 1;
+                  return Text(labels[i], style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: isLast ? AppColors.primary : AppColors.secondary));
+                }),
+              ),
+              const SizedBox(height: 24),
+              Container(height: 1, color: AppColors.outlineVariant),
+              const SizedBox(height: 20),
+              _yieldRow('Occupancy Rate', data.occupancy),
+              const SizedBox(height: 12),
+              _yieldRow('Avg. Rent Delay', data.avgDelay),
+            ],
+          );
+        },
       ),
     );
   }
@@ -1217,6 +1346,14 @@ class _PortfolioYield extends StatelessWidget {
       ],
     );
   }
+}
+
+class _YieldData {
+  final List<double> bars;
+  final List<String> labels;
+  final String occupancy;
+  final String avgDelay;
+  const _YieldData({required this.bars, required this.labels, required this.occupancy, required this.avgDelay});
 }
 
 class _DashboardOverview {

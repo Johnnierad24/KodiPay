@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../utils/constants.dart';
+import '../services/api_service.dart';
 import 'app_preferences_screen.dart';
 import 'profile_screen.dart';
 import 'caretakers_screen.dart';
@@ -54,48 +56,122 @@ class WalletPayoutsScreen extends StatefulWidget {
 }
 
 class _WalletPayoutsScreenState extends State<WalletPayoutsScreen> {
+  final _api = ApiService();
+  bool _loading = true;
+  double _balance = 0;
+  double _thisMonthIncome = 0;
+  double _pendingAmount = 0;
+  double _totalEarnings = 0;
+  List<Map<String, dynamic>> _payouts = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  String _fmtKsh(num v) {
+    final s = v.toStringAsFixed(0);
+    final buf = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+      buf.write(s[i]);
+    }
+    return 'KSh $buf';
+  }
+
+  String _fmtDate(String? d) {
+    if (d == null || d.isEmpty) return '-';
+    try {
+      final dt = DateTime.parse(d);
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
+    } catch (_) {
+      return d;
+    }
+  }
+
+  Future<void> _loadData() async {
+    try {
+      final results = await Future.wait([
+        _api.get('/payouts/balance'),
+        _api.get('/analytics/dashboard'),
+        _api.get('/reports/income'),
+        _api.get('/payouts'),
+      ]);
+      if (!mounted) return;
+
+      Map<String, dynamic> balData = {};
+      Map<String, dynamic> dashData = {};
+      Map<String, dynamic> incomeData = {};
+      List<dynamic> payList = [];
+
+      if (results[0].statusCode == 200) balData = jsonDecode(results[0].body);
+      if (results[1].statusCode == 200) dashData = jsonDecode(results[1].body);
+      if (results[2].statusCode == 200) incomeData = jsonDecode(results[2].body);
+      if (results[3].statusCode == 200) payList = jsonDecode(results[3].body);
+
+      final summary = incomeData['summary'] ?? {};
+      setState(() {
+        _balance = (balData['balance'] ?? 0).toDouble();
+        _thisMonthIncome = (dashData['this_month_income'] ?? 0).toDouble();
+        _pendingAmount = (dashData['pending_amount'] ?? 0).toDouble();
+        _totalEarnings = (summary['collected'] ?? 0).toDouble();
+        _payouts = payList.cast<Map<String, dynamic>>();
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('Wallet & Payouts', style: TextStyle(fontWeight: FontWeight.w700))),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          // Balance card
-          _buildBalanceCard(),
-          const SizedBox(height: 20),
-          // Stats row
-          Wrap(
-            spacing: 12, runSpacing: 12,
-            children: [
-              SizedBox(width: 160, child: _buildStatCard('Total Earnings', 'KSh 827,500', Icons.trending_up, AppColors.kodiGreen)),
-              SizedBox(width: 160, child: _buildStatCard('This Month', 'KSh 195,000', Icons.calendar_month, AppColors.kodiBlue)),
-              SizedBox(width: 160, child: _buildStatCard('Pending', 'KSh 50,000', Icons.hourglass_empty, AppColors.warning)),
-            ],
-          ),
-          const SizedBox(height: 24),
-          // Recent payouts header
-          Row(
-            children: [
-              const Expanded(child: Text('Payout History', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: AppColors.onSurface))),
-              TextButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.download_rounded, size: 16),
-                label: const Text('Download Statement', style: TextStyle(fontSize: 12)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          _buildPayoutItem('M-Pesa', 'KSh 45,000', 'Oct 12, 2026', Icons.phone_android_rounded, 'Completed'),
-          _buildDivider(),
-          _buildPayoutItem('Bank Transfer', 'KSh 62,500', 'Sep 28, 2026', Icons.account_balance_rounded, 'Completed'),
-          _buildDivider(),
-          _buildPayoutItem('M-Pesa', 'KSh 120,000', 'Sep 15, 2026', Icons.phone_android_rounded, 'Processing'),
-          _buildDivider(),
-          _buildPayoutItem('Bank Transfer', 'KSh 55,000', 'Aug 30, 2026', Icons.account_balance_rounded, 'Completed'),
-        ],
-      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
+                _buildBalanceCard(),
+                const SizedBox(height: 20),
+                Wrap(
+                  spacing: 12, runSpacing: 12,
+                  children: [
+                    SizedBox(width: 160, child: _buildStatCard('Total Earnings', _fmtKsh(_totalEarnings), Icons.trending_up, AppColors.kodiGreen)),
+                    SizedBox(width: 160, child: _buildStatCard('This Month', _fmtKsh(_thisMonthIncome), Icons.calendar_month, AppColors.kodiBlue)),
+                    SizedBox(width: 160, child: _buildStatCard('Pending', _fmtKsh(_pendingAmount), Icons.hourglass_empty, AppColors.warning)),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    const Expanded(child: Text('Payout History', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: AppColors.onSurface))),
+                    TextButton.icon(
+                      onPressed: () {},
+                      icon: const Icon(Icons.download_rounded, size: 16),
+                      label: const Text('Download Statement', style: TextStyle(fontSize: 12)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                if (_payouts.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: Center(child: Text('No payout history', style: TextStyle(fontSize: 13, color: AppColors.onSurfaceVariant))),
+                  )
+                else
+                  for (var i = 0; i < _payouts.length; i++) ...[
+                    _buildPayoutItem(_payouts[i]),
+                    if (i < _payouts.length - 1) _buildDivider(),
+                  ],
+              ],
+            ),
     );
   }
 
@@ -127,9 +203,9 @@ class _WalletPayoutsScreenState extends State<WalletPayoutsScreen> {
           const SizedBox(height: 16),
           const Text('Available Balance', style: TextStyle(fontSize: 12, color: Colors.white70)),
           const SizedBox(height: 4),
-          const Text('KSh 185,400', style: TextStyle(fontSize: 36, fontWeight: FontWeight.w800, color: Colors.white, fontFamily: 'Lexend')),
+          Text(_fmtKsh(_balance), style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w800, color: Colors.white, fontFamily: 'Lexend')),
           const SizedBox(height: 4),
-          const Text('+ KSh 195,000 expected this month', style: TextStyle(fontSize: 12, color: AppColors.tertiaryFixed)),
+          Text('+ ${_fmtKsh(_thisMonthIncome)} expected this month', style: const TextStyle(fontSize: 12, color: AppColors.tertiaryFixed)),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -194,8 +270,16 @@ class _WalletPayoutsScreenState extends State<WalletPayoutsScreen> {
     );
   }
 
-  Widget _buildPayoutItem(String method, String amount, String date, IconData icon, String status) {
+  Widget _buildPayoutItem(Map<String, dynamic> p) {
+    final amount = (p['amount'] ?? 0).toDouble();
+    final method = (p['method'] ?? '').toString();
+    final rawStatus = (p['status'] ?? '').toString().toLowerCase();
+    final status = rawStatus == 'completed' ? 'Completed' : 'Processing';
     final isCompleted = status == 'Completed';
+    final dateStr = _fmtDate(p['completed_date'] ?? p['scheduled_date']);
+    final icon = method.toLowerCase().contains('mpesa') || method.toLowerCase().contains('m-pesa')
+        ? Icons.phone_android_rounded
+        : Icons.account_balance_rounded;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 14),
       child: Row(
@@ -210,9 +294,9 @@ class _WalletPayoutsScreenState extends State<WalletPayoutsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(amount, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: AppColors.onSurface)),
+                Text(_fmtKsh(amount), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: AppColors.onSurface)),
                 const SizedBox(height: 2),
-                Text('$method • $date', style: const TextStyle(fontSize: 12, color: AppColors.secondary)),
+                Text('$method • $dateStr', style: const TextStyle(fontSize: 12, color: AppColors.secondary)),
               ],
             ),
           ),
@@ -236,4 +320,3 @@ class _WalletPayoutsScreenState extends State<WalletPayoutsScreen> {
     return const Divider(height: 1, color: AppColors.outlineVariant);
   }
 }
-

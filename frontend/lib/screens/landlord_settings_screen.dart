@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
+import '../models/user.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../utils/constants.dart';
@@ -333,46 +334,127 @@ class _BusinessDetailsTab extends StatefulWidget {
 }
 
 class _BusinessDetailsTabState extends State<_BusinessDetailsTab> {
+  late TextEditingController _businessNameCtl;
+  late TextEditingController _registrationCtl;
+  late TextEditingController _kraPinCtl;
+  late TextEditingController _contactPersonCtl;
+  late TextEditingController _phoneCtl;
+  late TextEditingController _emailCtl;
+  late TextEditingController _addressCtl;
+  late TextEditingController _cityCtl;
+  late TextEditingController _countyCtl;
+  late TextEditingController _postalCodeCtl;
+  bool _saving = false;
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _businessNameCtl = TextEditingController();
+    _registrationCtl = TextEditingController();
+    _kraPinCtl = TextEditingController();
+    _contactPersonCtl = TextEditingController();
+    _phoneCtl = TextEditingController();
+    _emailCtl = TextEditingController();
+    _addressCtl = TextEditingController();
+    _cityCtl = TextEditingController();
+    _countyCtl = TextEditingController();
+    _postalCodeCtl = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _businessNameCtl.dispose();
+    _registrationCtl.dispose();
+    _kraPinCtl.dispose();
+    _contactPersonCtl.dispose();
+    _phoneCtl.dispose();
+    _emailCtl.dispose();
+    _addressCtl.dispose();
+    _cityCtl.dispose();
+    _countyCtl.dispose();
+    _postalCodeCtl.dispose();
+    super.dispose();
+  }
+
+  void _initFromUser(User? user) {
+    if (_initialized || user == null) return;
+    _initialized = true;
+    _businessNameCtl.text = user.businessName ?? '';
+    _registrationCtl.text = user.businessRegistration ?? '';
+    _kraPinCtl.text = user.businessKraPin ?? '';
+    _contactPersonCtl.text = user.businessContactPerson ?? '';
+    _phoneCtl.text = user.businessPhone ?? '';
+    _emailCtl.text = user.businessEmail ?? '';
+    _addressCtl.text = user.businessAddress ?? '';
+    _cityCtl.text = user.businessCity ?? '';
+    _countyCtl.text = user.businessCounty ?? '';
+    _postalCodeCtl.text = user.businessPostalCode ?? '';
+  }
 
   void _showSnack(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    final success = await context.read<AuthProvider>().updateProfile(
+      businessName: _businessNameCtl.text.trim(),
+      businessRegistration: _registrationCtl.text.trim(),
+      businessKraPin: _kraPinCtl.text.trim(),
+      businessContactPerson: _contactPersonCtl.text.trim(),
+      businessPhone: _phoneCtl.text.trim(),
+      businessEmail: _emailCtl.text.trim(),
+      businessAddress: _addressCtl.text.trim(),
+      businessCity: _cityCtl.text.trim(),
+      businessCounty: _countyCtl.text.trim(),
+      businessPostalCode: _postalCodeCtl.text.trim(),
+    );
+    if (mounted) {
+      setState(() => _saving = false);
+      _showSnack(success ? 'Business details updated successfully' : 'Update failed');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final user = context.watch<AuthProvider>().user;
+    _initFromUser(user);
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
         _sectionHeader('Legal Information'),
         const SizedBox(height: 16),
-        _buildField('Business Name', Icons.business_rounded, 'Amani Kwetu Properties Ltd'),
+        _buildField('Business Name', Icons.business_rounded, _businessNameCtl),
         const SizedBox(height: 16),
-        _buildField('Registration Number', Icons.assignment_outlined, 'BN/2024/67890'),
+        _buildField('Registration Number', Icons.assignment_outlined, _registrationCtl),
         const SizedBox(height: 16),
-        _buildField('KRA PIN', Icons.receipt_long_outlined, 'P051234567Z'),
+        _buildField('KRA PIN', Icons.receipt_long_outlined, _kraPinCtl),
         const SizedBox(height: 16),
-        _buildField('Contact Person', Icons.person_outline_rounded, 'James Mwangi'),
+        _buildField('Contact Person', Icons.person_outline_rounded, _contactPersonCtl),
         const SizedBox(height: 16),
-        _buildField('Phone Number', Icons.phone_outlined, '0700 000 111'),
+        _buildField('Phone Number', Icons.phone_outlined, _phoneCtl),
         const SizedBox(height: 16),
-        _buildField('Email Address', Icons.email_outlined, 'james@amanikwetu.co.ke'),
+        _buildField('Email Address', Icons.email_outlined, _emailCtl),
         const SizedBox(height: 24),
         _sectionHeader('Business Address'),
         const SizedBox(height: 16),
-        _buildField('Building/Street', Icons.location_on_outlined, 'Koinange Street, 6th Floor'),
+        _buildField('Building/Street', Icons.location_on_outlined, _addressCtl),
         const SizedBox(height: 16),
-        _buildField('City', Icons.map_outlined, 'Nairobi'),
+        _buildField('City', Icons.map_outlined, _cityCtl),
         const SizedBox(height: 16),
-        _buildField('County', Icons.map_outlined, 'Nairobi'),
+        _buildField('County', Icons.map_outlined, _countyCtl),
         const SizedBox(height: 16),
-        _buildField('Postal Code', Icons.mail_outline_rounded, '00100'),
+        _buildField('Postal Code', Icons.mail_outline_rounded, _postalCodeCtl),
         const SizedBox(height: 24),
         SizedBox(
           height: 48,
           child: ElevatedButton(
-            onPressed: () => _showSnack('Business details updated successfully'),
+            onPressed: _saving ? null : _save,
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.kodiGreen),
-            child: const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.w700)),
+            child: _saving
+                ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.w700)),
           ),
         ),
       ],
@@ -383,11 +465,11 @@ class _BusinessDetailsTabState extends State<_BusinessDetailsTab> {
     return Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: AppColors.onSurface, fontFamily: 'Lexend'));
   }
 
-  Widget _buildField(String label, IconData icon, String value) {
+  Widget _buildField(String label, IconData icon, TextEditingController ctl) {
     return TextField(
+      controller: ctl,
       decoration: InputDecoration(
         labelText: label,
-        hintText: value,
         prefixIcon: Icon(icon, size: 20),
       ),
     );
@@ -543,11 +625,7 @@ class _SecurityTabState extends State<_SecurityTab> {
             ),
             child: Column(
               children: [
-                _sessionRow('Chrome • Windows', 'Active now', Icons.laptop_windows_rounded, true),
-                const Divider(height: 16),
-                _sessionRow('Safari • iPhone', 'Last active 2h ago', Icons.phone_iphone_rounded, false),
-                const Divider(height: 16),
-                _sessionRow('Firefox • macOS', 'Last active 1d ago', Icons.laptop_mac_rounded, false),
+                _sessionRow('This device', 'Active now', Icons.laptop_windows_rounded, true),
               ],
             ),
           ),

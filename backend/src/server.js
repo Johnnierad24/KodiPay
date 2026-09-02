@@ -8,6 +8,19 @@ require('dotenv').config();
 
 const app = express();
 
+// Auto-apply idempotent schema migrations on the first request (serverless-safe:
+// the request awaits completion so the runtime doesn't freeze the bootstrap).
+// Safe to re-run; failures are logged and never block the server.
+const { ensureMigrated } = require('../db/migrate');
+app.use(async (req, res, next) => {
+  try {
+    await ensureMigrated();
+  } catch (error) {
+    console.error('Migration bootstrap failed (app will continue):', error.message);
+  }
+  next();
+});
+
 // Error tracking (Sentry). Optional — no-op when SENTRY_DSN is unset (local dev).
 if (process.env.SENTRY_DSN) {
   Sentry.init({
@@ -85,6 +98,8 @@ app.use('/api/notifications', authMiddleware, require('./routes/notification.rou
 app.use('/api/invoices', authMiddleware, require('./routes/invoice.routes'));
 app.use('/api/analytics', authMiddleware, require('./routes/analytics.routes'));
 app.use('/api/reports', authMiddleware, require('./routes/report.routes'));
+app.use('/api/payouts', authMiddleware, require('./routes/payout.routes'));
+app.use('/api/bills', authMiddleware, require('./routes/bill.routes'));
 app.use('/api/chatbot', authMiddleware, require('./routes/chatbot.routes'));
 app.use('/api/upload', authMiddleware, require('./routes/upload.routes'));
 app.use('/api/documents', authMiddleware, require('./routes/document.routes'));

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:js_interop';
+import 'package:provider/provider.dart';
 import 'package:web/web.dart' as web;
 import '../models/payment_record.dart';
+import '../providers/auth_provider.dart';
 import '../services/pdf_report_service.dart';
 import '../utils/constants.dart';
 import '../widgets/shared_screen_components.dart';
@@ -11,8 +13,24 @@ class PaymentReportScreen extends StatelessWidget {
 
   const PaymentReportScreen({super.key, required this.payments});
 
+  String _today() {
+    final now = DateTime.now();
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${now.day} ${months[now.month - 1]} ${now.year}';
+  }
+
+  String _currentMonth() {
+    final now = DateTime.now();
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${months[now.month - 1]} ${now.year}';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final user = context.read<AuthProvider>().user;
+    final landlordName = '${user?.firstName ?? ''} ${user?.lastName ?? ''}'.trim();
+    final landlordEmail = user?.email ?? '';
+    final landlordPhone = user?.phone ?? '';
     final totalExpected =
         payments.fold<int>(0, (sum, payment) => sum + payment.amount);
     final totalCollected = payments
@@ -35,12 +53,16 @@ class PaymentReportScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const PaymentReportHeader(
-                  generatedDate: '19 May 2026',
-                  period: 'May 2026',
+                PaymentReportHeader(
+                  generatedDate: _today(),
+                  period: _currentMonth(),
                 ),
                 const SizedBox(height: 18),
-                const LandlordReportInfo(),
+                LandlordReportInfo(
+                  landlordName: landlordName.isEmpty ? null : landlordName,
+                  landlordEmail: landlordEmail.isEmpty ? null : landlordEmail,
+                  propertyCount: null,
+                ),
                 const SizedBox(height: 18),
                 PaymentReportSummary(
                   totalExpected: totalExpected,
@@ -88,14 +110,14 @@ class PaymentReportScreen extends StatelessWidget {
                   onPressed: () async {
                     final pdfService = PdfReportService();
                     await pdfService.generatePaymentReport(
-                      landlordName: 'Johnnie Njenga',
-                      landlordEmail: 'njengajohnnie@gmail.com',
-                      landlordPhone: '+254 700 000 000',
-                      propertyCount: 3,
+                      landlordName: landlordName.isEmpty ? 'KodiPay Landlord' : landlordName,
+                      landlordEmail: landlordEmail,
+                      landlordPhone: landlordPhone,
+                      propertyCount: 0,
                       totalExpected: totalExpected,
                       totalCollected: totalCollected,
                       totalPending: totalPending,
-                      period: 'May 2026',
+                      period: _currentMonth(),
                       payments: payments.map((p) => {
                         'tenant': p.tenantName,
                         'unit': p.unit,

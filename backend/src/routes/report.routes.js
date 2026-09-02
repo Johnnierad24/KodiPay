@@ -12,6 +12,7 @@ router.get('/income', reportController.getIncomeReport);
 router.get('/arrears', reportController.getArrearsReport);
 router.get('/property-performance', reportController.getPropertyPerformanceReport);
 router.get('/maintenance', reportController.getMaintenanceReport);
+router.get('/maintenance-cost', reportController.getMaintenanceCostReport);
 router.get('/payment-trends', reportController.getPaymentTrendsReport);
 router.get('/transactions', reportController.getTransactionReport);
 router.get('/rent-collection/pdf', reportController.downloadRentReportPDF);

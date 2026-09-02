@@ -159,7 +159,8 @@ async function generateMaintenanceReport(landlordId, startDate, endDate) {
       SELECT
         mr.status,
         mr.priority,
-        COUNT(*) AS issue_count
+        COUNT(*) AS issue_count,
+        COALESCE(SUM(mr.cost), 0) AS total_cost
       FROM maintenance_requests mr
       JOIN units u ON mr.unit_id = u.id
       JOIN properties p ON u.property_id = p.id
@@ -182,6 +183,25 @@ async function generateMaintenanceReport(landlordId, startDate, endDate) {
     `, [landlordId, startDate, endDate]);
 
     return { success: true, data: { byStatus: result.rows, frequentProblems: frequentProblems.rows } };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+async function generateMaintenanceCostReport(landlordId, startDate, endDate) {
+  try {
+    const result = await pool.query(`
+      SELECT category, COUNT(*) AS issue_count, COALESCE(SUM(cost), 0) AS total_cost
+      FROM maintenance_requests mr
+      JOIN units u ON mr.unit_id = u.id
+      JOIN properties p ON u.property_id = p.id
+      WHERE p.landlord_id = $1
+        AND mr.created_at::date BETWEEN $2 AND $3
+      GROUP BY category
+      ORDER BY total_cost DESC
+    `, [landlordId, startDate, endDate]);
+
+    return { success: true, data: result.rows };
   } catch (error) {
     return { success: false, error: error.message };
   }
@@ -289,6 +309,7 @@ module.exports = {
   generateArrearsReport,
   generatePropertyPerformanceReport,
   generateMaintenanceReport,
+  generateMaintenanceCostReport,
   generatePaymentTrendsReport,
   generateTransactionReport,
   generateCSV,

@@ -347,7 +347,12 @@ exports.resetPasswordWithOtp = async (req, res) => {
 exports.getCurrentUser = async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, email, first_name, last_name, phone, role FROM users WHERE id = $1',
+      `SELECT id, email, first_name, last_name, phone, role,
+              emergency_contact_name, emergency_contact_relation, emergency_contact_phone,
+              business_name, business_registration, business_kra_pin, business_contact_person,
+              business_address, business_city, business_county, business_postal_code,
+              business_phone, business_email
+       FROM users WHERE id = $1`,
       [req.user.id]
     );
 
@@ -360,7 +365,13 @@ exports.getCurrentUser = async (req, res) => {
 
 exports.updateProfile = async (req, res) => {
   try {
-    const { first_name, last_name, email, phone } = req.body;
+    const {
+      first_name, last_name, email, phone,
+      emergency_contact_name, emergency_contact_relation, emergency_contact_phone,
+      business_name, business_registration, business_kra_pin, business_contact_person,
+      business_address, business_city, business_county, business_postal_code,
+      business_phone, business_email,
+    } = req.body;
     const userId = req.user.id;
 
     if (email) {
@@ -379,10 +390,32 @@ exports.updateProfile = async (req, res) => {
            last_name  = COALESCE(NULLIF($2, ''), last_name),
            email      = COALESCE(NULLIF($3, ''), email),
            phone      = COALESCE(NULLIF($4, ''), phone),
+           emergency_contact_name   = COALESCE(NULLIF($5, ''), emergency_contact_name),
+           emergency_contact_relation = COALESCE(NULLIF($6, ''), emergency_contact_relation),
+           emergency_contact_phone  = COALESCE(NULLIF($7, ''), emergency_contact_phone),
+           business_name            = COALESCE(NULLIF($8, ''), business_name),
+           business_registration    = COALESCE(NULLIF($9, ''), business_registration),
+           business_kra_pin         = COALESCE(NULLIF($10, ''), business_kra_pin),
+           business_contact_person  = COALESCE(NULLIF($11, ''), business_contact_person),
+           business_address         = COALESCE(NULLIF($12, ''), business_address),
+           business_city            = COALESCE(NULLIF($13, ''), business_city),
+           business_county          = COALESCE(NULLIF($14, ''), business_county),
+           business_postal_code     = COALESCE(NULLIF($15, ''), business_postal_code),
+           business_phone           = COALESCE(NULLIF($16, ''), business_phone),
+           business_email           = COALESCE(NULLIF($17, ''), business_email),
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $5
-       RETURNING id, email, first_name, last_name, phone, role`,
-      [first_name, last_name, email, phone, userId]
+       WHERE id = $18
+       RETURNING id, email, first_name, last_name, phone, role,
+                 emergency_contact_name, emergency_contact_relation, emergency_contact_phone,
+                 business_name, business_registration, business_kra_pin, business_contact_person,
+                 business_address, business_city, business_county, business_postal_code,
+                 business_phone, business_email`,
+      [first_name, last_name, email, phone,
+       emergency_contact_name, emergency_contact_relation, emergency_contact_phone,
+       business_name, business_registration, business_kra_pin, business_contact_person,
+       business_address, business_city, business_county, business_postal_code,
+       business_phone, business_email,
+       userId]
     );
 
     if (result.rows.length === 0) {
