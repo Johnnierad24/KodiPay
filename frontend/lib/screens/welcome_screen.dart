@@ -378,7 +378,9 @@ class _RoleSelectionSection extends StatelessWidget {
                       title: 'Tenant',
                       description: 'Pay rent securely via M-Pesa or Card, track your payment history, and raise maintenance requests with a single tap.',
                       isHighlighted: false,
-                      onGetStarted: () => Navigator.pushNamed(context, '/register', arguments: 'tenant'),
+                      onGetStarted: () {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tenant accounts are created by your landlord. Confirm your login credentials from the landlord.')));
+                      },
                     )),
                     const SizedBox(width: 16),
                     Expanded(child: _roleCard(
@@ -394,7 +396,9 @@ class _RoleSelectionSection extends StatelessWidget {
                       title: 'Caretaker',
                       description: 'Oversee day-to-day operations, verify tenant payments, and manage utility billing with ease and transparency.',
                       isHighlighted: false,
-                      onGetStarted: () => Navigator.pushNamed(context, '/register', arguments: 'caretaker'),
+                      onGetStarted: () {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Caretaker accounts are created by your landlord. Confirm your login credentials from the landlord.')));
+                      },
                     )),
                   ],
                 );

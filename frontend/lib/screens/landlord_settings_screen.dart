@@ -100,7 +100,7 @@ class _LandlordSettingsScreenState extends State<LandlordSettingsScreen>
             child: TabBarView(
               controller: _tabController,
               children: [
-                _PersonalInfoTab(fullName: fullName, email: email, firstName: firstName, lastName: lastName),
+                _PersonalInfoTab(fullName: fullName, email: email, firstName: firstName, lastName: lastName, phone: user?.phone ?? '', profilePhotoUrl: user?.profilePhotoUrl),
                 const _BusinessDetailsTab(),
                 const _SecurityTab(),
                 const _NotificationsTab(),
@@ -126,7 +126,9 @@ class _PersonalInfoTab extends StatefulWidget {
   final String email;
   final String firstName;
   final String lastName;
-  const _PersonalInfoTab({required this.fullName, required this.email, required this.firstName, required this.lastName});
+  final String phone;
+  final String? profilePhotoUrl;
+  const _PersonalInfoTab({required this.fullName, required this.email, required this.firstName, required this.lastName, this.phone = '', this.profilePhotoUrl});
 
   @override
   State<_PersonalInfoTab> createState() => _PersonalInfoTabState();
@@ -147,7 +149,7 @@ class _PersonalInfoTabState extends State<_PersonalInfoTab> {
     _firstNameCtl = TextEditingController(text: widget.firstName);
     _lastNameCtl = TextEditingController(text: widget.lastName);
     _emailCtl = TextEditingController(text: widget.email);
-    _phoneCtl = TextEditingController(text: '');
+    _phoneCtl = TextEditingController(text: widget.phone);
   }
 
   @override
@@ -163,23 +165,59 @@ class _PersonalInfoTabState extends State<_PersonalInfoTab> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
+  ImageProvider<Object>? _avatarProvider() {
+    if (_selectedPhotoPath != null) return FileImage(File(_selectedPhotoPath!));
+    if (widget.profilePhotoUrl != null && widget.profilePhotoUrl!.isNotEmpty) {
+      return NetworkImage(widget.profilePhotoUrl!);
+    }
+    return null;
+  }
+
   Future<void> _pickAndUploadPhoto() async {
+    final auth = context.read<AuthProvider>();
     final result = await FilePicker.platform.pickFiles(type: FileType.image);
     if (result == null || result.files.single.path == null) return;
     final path = result.files.single.path!;
     final bytes = await File(path).readAsBytes();
     setState(() { _selectedPhotoPath = path; _uploading = true; });
+    String? errorText;
     try {
-      final response = await ApiService().uploadMultipart('/users/profile-photo', fileBytes: bytes, fileName: result.files.single.name, fieldName: 'photo');
+      final response = await ApiService().uploadMultipart('/users/profile-photo', fileBytes: bytes, fileName: result.files.single.name, fieldName: 'photo', mimeType: result.files.single.extension == null ? null : 'image/${result.files.single.extension}');
       if (response.statusCode >= 400) {
-        _showSnack('Upload failed (${response.statusCode})');
+        errorText = 'Upload failed (${response.statusCode})';
       } else {
         _showSnack('Photo updated successfully');
+        await auth.refreshProfile();
       }
     } catch (e) {
-      _showSnack('Upload error: $e');
+      errorText = 'Upload error: $e';
     }
-    if (mounted) setState(() => _uploading = false);
+    if (!mounted) return;
+    if (errorText != null) _showSnack(errorText);
+    setState(() => _uploading = false);
+  }
+
+  Future<void> _saveChanges() async {
+    if (!_formKey.currentState!.validate()) return;
+    final auth = context.read<AuthProvider>();
+    final saved = await auth.updateProfile(
+      firstName: _firstNameCtl.text,
+      lastName: _lastNameCtl.text,
+      email: _emailCtl.text,
+      phone: _phoneCtl.text,
+    );
+    if (!mounted) return;
+    _showSnack(saved ? 'Profile updated successfully' : 'Could not save your profile. Please try again.');
+    if (saved) {
+      await auth.refreshProfile();
+      if (mounted) {
+        final user = auth.user;
+        setState(() {
+          _firstNameCtl.text = user?.firstName ?? _firstNameCtl.text;
+          _lastNameCtl.text = user?.lastName ?? _lastNameCtl.text;
+        });
+      }
+    }
   }
 
   @override
@@ -198,8 +236,8 @@ class _PersonalInfoTabState extends State<_PersonalInfoTab> {
                   CircleAvatar(
                     radius: 40,
                     backgroundColor: AppColors.kodiGreen.withValues(alpha: 0.12),
-                    backgroundImage: _selectedPhotoPath != null ? FileImage(File(_selectedPhotoPath!)) : null,
-                    child: _selectedPhotoPath == null
+                    backgroundImage: _avatarProvider(),
+                    child: (_selectedPhotoPath == null && (widget.profilePhotoUrl == null || widget.profilePhotoUrl!.isEmpty))
                         ? Text(
                             _initials(widget.firstName, widget.lastName),
                             style: const TextStyle(color: AppColors.kodiGreen, fontWeight: FontWeight.w800, fontSize: 24),
@@ -247,11 +285,7 @@ class _PersonalInfoTabState extends State<_PersonalInfoTab> {
           SizedBox(
             height: 48,
             child: ElevatedButton(
-              onPressed: () {
-                if (_formKey.currentState!.validate()) {
-                  _showSnack('Profile updated successfully');
-                }
-              },
+              onPressed: _saveChanges,
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.kodiGreen),
               child: const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.w700)),
             ),

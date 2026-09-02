@@ -475,10 +475,12 @@ class _HomeTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final o = overview;
-    final collectionRate = o?.collectionRate ?? 92;
-    final totalCollected = o?.totalCollected ?? 1100000;
-    final outstanding = o?.outstanding ?? 96500;
-    final pendingIssues = o?.pendingIssues ?? 3;
+    final collectionRate = o?.collectionRate ?? 0;
+    final totalCollected = o?.totalCollected ?? 0;
+    final outstanding = o?.outstanding ?? 0;
+    final pendingIssues = o?.pendingIssues ?? 0;
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    final monthName = months[DateTime.now().month - 1];
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -495,7 +497,7 @@ class _HomeTab extends StatelessWidget {
           const SizedBox(height: 8),
           Text('Welcome back, ${user?.firstName ?? 'Landlord'}!', style: AppStyles.headlineLg.copyWith(fontSize: 28)),
           const SizedBox(height: 4),
-          Text('Here is your portfolio performance for October.', style: AppStyles.bodyLg.copyWith(color: AppColors.onSurfaceVariant)),
+          Text('Here is your portfolio performance for $monthName.', style: AppStyles.bodyLg.copyWith(color: AppColors.onSurfaceVariant)),
           const SizedBox(height: 24),
           // Quick Actions
           Wrap(
@@ -588,7 +590,7 @@ class _HomeTab extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Oct 2024', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.secondary)),
+                        Text('$monthName ${DateTime.now().year}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5, color: AppColors.secondary)),
                         const SizedBox(height: 4),
                         Text('KSh ${_fmt(totalCollected)}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600, fontFamily: 'Lexend', color: AppColors.primary)),
                       ],
@@ -605,9 +607,9 @@ class _HomeTab extends StatelessWidget {
                         const SizedBox(height: 4),
                         const Row(
                           children: [
-                            Icon(Icons.trending_up, size: 14, color: AppColors.error),
+                            Icon(Icons.info_outline, size: 14, color: AppColors.onSurfaceVariant),
                             SizedBox(width: 4),
-                            Text('+4% from last month', style: TextStyle(fontSize: 12, color: AppColors.error)),
+                            Text('Updated in real time', style: TextStyle(fontSize: 12, color: AppColors.onSurfaceVariant)),
                           ],
                         ),
                       ],
@@ -1370,10 +1372,10 @@ class _DashboardOverview {
 
   factory _DashboardOverview.fromJson(Map<String, dynamic> json) {
     return _DashboardOverview(
-      totalCollected: (json['total_collected'] ?? 1100000).toDouble(),
-      outstanding: (json['outstanding'] ?? 96500).toDouble(),
-      collectionRate: (json['collection_rate'] ?? 92).toInt(),
-      pendingIssues: (json['pending_issues'] ?? 3).toInt(),
+      totalCollected: (json['total_collected'] ?? 0).toDouble(),
+      outstanding: (json['outstanding'] ?? 0).toDouble(),
+      collectionRate: (json['collection_rate'] ?? 0).toInt(),
+      pendingIssues: (json['pending_issues'] ?? 0).toInt(),
     );
   }
 }

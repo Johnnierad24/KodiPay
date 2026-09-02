@@ -35,7 +35,16 @@ class OnboardingScreen extends StatelessWidget {
                       title: r.title,
                       icon: r.icon,
                       description: r.description,
-                      onTap: () => Navigator.pushNamed(context, '/register', arguments: r.title.toLowerCase()),
+                      onTap: () {
+                        final role = r.title.toLowerCase();
+                        if (role == 'tenant') {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tenant accounts are created by your landlord. Confirm your login credentials from the landlord.')));
+                        } else if (role == 'caretaker') {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Caretaker accounts are created by your landlord. Confirm your login credentials from the landlord.')));
+                        } else {
+                          Navigator.pushNamed(context, '/register', arguments: 'landlord');
+                        }
+                      },
                     );
                   },
                 ),

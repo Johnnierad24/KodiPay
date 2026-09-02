@@ -252,6 +252,18 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> refreshProfile() async {
+    try {
+      final response = await _apiService.get('/auth/me');
+      if (response.statusCode == 200) {
+        _user = User.fromJson(jsonDecode(response.body));
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Refresh profile error: $e');
+    }
+  }
+
   Future<void> tryAutoLogin() async {
     try {
       final prefs = await SharedPreferences.getInstance();

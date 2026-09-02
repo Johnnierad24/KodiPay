@@ -190,9 +190,19 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='business_phone') THEN
         ALTER TABLE users ADD COLUMN business_phone VARCHAR(20);
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='business_email') THEN
+IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='business_email') THEN
         ALTER TABLE users ADD COLUMN business_email VARCHAR(255);
 END IF;
+END $$;
+
+-- =====================================================================
+-- Profile photo on users
+-- =====================================================================
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='profile_photo_url') THEN
+        ALTER TABLE users ADD COLUMN profile_photo_url TEXT;
+    END IF;
 END $$;
 
 -- =====================================================================

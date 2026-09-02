@@ -356,9 +356,7 @@ class _PaymentCardScreenState extends State<PaymentCardScreen> {
               const SizedBox(height: 20),
               _SummaryRow(label: 'Monthly Rent', value: 'KSh ${formatKsh(due.rentAmount)}.00'),
               const SizedBox(height: 12),
-              const _SummaryRow(label: 'Service Charge', value: 'KSh 3,000.00'),
-              const SizedBox(height: 12),
-              const _SummaryRow(label: 'Utility Balance', value: 'KSh 0.00'),
+              _SummaryRow(label: 'Outstanding Balance', value: 'KSh ${formatKsh(due.outstanding)}.00'),
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.only(top: 16),

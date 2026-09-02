@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import '../providers/auth_provider.dart';
+import '../services/api_service.dart';
 import '../utils/constants.dart';
 import '../widgets/shared_screen_components.dart';
 
@@ -28,8 +30,9 @@ class _TenantProfileScreenState extends State<TenantProfileScreen> {
     _nameController.text = '${user?.firstName ?? ''} ${user?.lastName ?? ''}'.trim();
     _emailController.text = user?.email ?? '';
     _phoneController.text = (user?.phone?.trim().isNotEmpty ?? false) ? user!.phone!.trim() : '';
-    _emergNameController.text = 'Jane Mercer';
-    _emergPhoneController.text = '+254 789 012 345';
+    _emergNameController.text = user?.emergencyContactName ?? '';
+    _emergRelation = user?.emergencyContactRelation ?? 'Spouse';
+    _emergPhoneController.text = user?.emergencyContactPhone ?? '';
   }
 
   @override
@@ -44,28 +47,35 @@ class _TenantProfileScreenState extends State<TenantProfileScreen> {
 
   Future<void> _save() async {
     setState(() => _saving = true);
-    await Future.delayed(const Duration(milliseconds: 1200));
+    final auth = context.read<AuthProvider>();
+    final parts = _nameController.text.trim().split(RegExp(r'\s+')).where((s) => s.isNotEmpty).toList();
+    final firstName = parts.isNotEmpty ? parts.first : null;
+    final lastName = parts.length > 1 ? parts.sublist(1).join(' ') : null;
+    final hasName = _nameController.text.trim().isNotEmpty;
+    final success = await auth.updateProfile(
+      firstName: hasName ? (firstName ?? '') : null,
+      lastName: hasName ? (lastName ?? '') : null,
+      phone: _phoneController.text,
+      emergencyContactName: _emergNameController.text,
+      emergencyContactRelation: _emergRelation,
+      emergencyContactPhone: _emergPhoneController.text,
+    );
     if (!mounted) return;
-    setState(() {
-      _saving = false;
-    });
+    setState(() => _saving = false);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Row(
+        content: Row(
           children: [
-            Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
-            SizedBox(width: 10),
-            Expanded(child: Text('Settings Saved – Your profile has been updated.')),
+            Icon(success ? Icons.check_circle_rounded : Icons.error_outline_rounded, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(child: Text(success ? 'Settings Saved – Your profile has been updated.' : 'Could not save your settings. Please try again.')),
           ],
         ),
-        backgroundColor: AppColors.tertiaryContainer,
+        backgroundColor: success ? AppColors.tertiaryContainer : AppColors.danger,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
-    Future.delayed(const Duration(seconds: 4), () {
-      if (mounted) setState(() {});
-    });
   }
 
   @override
@@ -203,7 +213,7 @@ class _PersonalInfoCard extends StatelessWidget {
               const SizedBox(height: 16),
               _ProfileField(label: 'Phone Number', controller: phoneController, keyboardType: TextInputType.phone),
               const SizedBox(height: 16),
-              const _ReadonlyField(label: 'National ID / Passport', value: '********4521'),
+              _ReadonlyField(label: 'National ID / Passport', value: _maskedId(phoneController.text)),
             ],
           );
           if (isNarrow) {
@@ -285,11 +295,41 @@ class _ReadonlyField extends StatelessWidget {
   }
 }
 
-class _LeaseDetailsCard extends StatelessWidget {
+class _LeaseDetailsCard extends StatefulWidget {
   const _LeaseDetailsCard();
 
   @override
+  State<_LeaseDetailsCard> createState() => _LeaseDetailsCardState();
+}
+
+class _LeaseDetailsCardState extends State<_LeaseDetailsCard> {
+  final ApiService _api = ApiService();
+  Map<String, dynamic>? _data;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final resp = await _api.get('/tenant/overview');
+      if (resp.statusCode == 200 && mounted) {
+        setState(() => _data = jsonDecode(resp.body) as Map<String, dynamic>);
+      }
+    } catch (_) {}
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final propertyName = _data?['property_name']?.toString() ?? '—';
+    final unitNumber = _data?['unit_number']?.toString() ?? '';
+    final rentAmount = (_data?['rent_amount'] ?? 0).toString();
+    final status = (_data?['tenancy_status'] ?? '').toString().toLowerCase() == 'inactive' ? 'Inactive' : 'Active';
+    final startRaw = _data?['start_date']?.toString();
+    final startDate = DateTime.tryParse(startRaw ?? '');
+    final startLabel = startDate == null ? '—' : '${startDate.day.toString().padLeft(2, '0')} ${_monthAbbr(startDate.month)}, ${startDate.year}';
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -309,7 +349,7 @@ class _LeaseDetailsCard extends StatelessWidget {
                   color: AppColors.kodiGreen,
                   borderRadius: BorderRadius.circular(99),
                 ),
-                child: const Text('Active', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white)),
+                child: Text(status, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white)),
               ),
             ],
           ),
@@ -326,9 +366,9 @@ class _LeaseDetailsCard extends StatelessWidget {
                   children: [
                     Text('PROPERTY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: Colors.white.withValues(alpha: 0.5))),
                     const SizedBox(height: 4),
-                    const Text('The Heights', style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white, fontSize: 16)),
+                    Text(propertyName, style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.white, fontSize: 16)),
                     const SizedBox(height: 2),
-                    Text('Unit 4B, Silicon Valley East', style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.8))),
+                    Text(unitNumber.isEmpty ? 'Unit —' : 'Unit $unitNumber', style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.8))),
                   ],
                 ),
               ),
@@ -346,7 +386,7 @@ class _LeaseDetailsCard extends StatelessWidget {
                     children: [
                       Text('START DATE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: Colors.white.withValues(alpha: 0.5))),
                       const SizedBox(height: 4),
-                      Text('Jan 01, 2024', style: TextStyle(fontSize: 14, fontFamily: 'Inter', color: Colors.white.withValues(alpha: 0.9))),
+                      Text(startLabel, style: TextStyle(fontSize: 14, fontFamily: 'Inter', color: Colors.white.withValues(alpha: 0.9))),
                     ],
                   ),
                 ),
@@ -356,7 +396,7 @@ class _LeaseDetailsCard extends StatelessWidget {
                     children: [
                       Text('END DATE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: Colors.white.withValues(alpha: 0.5))),
                       const SizedBox(height: 4),
-                      Text('Dec 31, 2024', style: TextStyle(fontSize: 14, fontFamily: 'Inter', color: Colors.white.withValues(alpha: 0.9))),
+                      Text(status.toLowerCase() == 'inactive' ? 'Ended' : 'Ongoing', style: TextStyle(fontSize: 14, fontFamily: 'Inter', color: Colors.white.withValues(alpha: 0.9))),
                     ],
                   ),
                 ),
@@ -371,7 +411,7 @@ class _LeaseDetailsCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('MONTHLY RENT', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.05, color: Colors.white.withValues(alpha: 0.5))),
-                const Text('KSh 120,000', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.kodiGreen, fontSize: 20)),
+                Text('KSh ${_fmtKsh(_normaliseNum(rentAmount))}', style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.kodiGreen, fontSize: 20)),
               ],
             ),
           ),
@@ -379,6 +419,29 @@ class _LeaseDetailsCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _maskedId(String value) {
+  final digits = value.replaceAll(RegExp(r'\D'), '');
+  if (digits.length < 4) return '—';
+  return 'Verified member ••••${digits.substring(digits.length - 4)}';
+}
+
+String _monthAbbr(int month) {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return month >= 1 && month <= 12 ? months[month - 1] : '—';
+}
+
+num _normaliseNum(String raw) => num.tryParse(raw) ?? 0;
+
+String _fmtKsh(num value) {
+  final digits = value.toStringAsFixed(0);
+  final buffer = StringBuffer();
+  for (var i = 0; i < digits.length; i++) {
+    if (i > 0 && (digits.length - i) % 3 == 0) buffer.write(',');
+    buffer.write(digits[i]);
+  }
+  return buffer.toString();
 }
 
 class _EmergencyContactCard extends StatelessWidget {
@@ -485,7 +548,7 @@ class _DocumentCenterCard extends StatelessWidget {
             iconColor: AppColors.danger,
             iconBg: AppColors.dangerSoft,
             title: 'View Lease Agreement',
-            subtitle: 'PDF • 2.4 MB • Updated Jan 2024',
+            subtitle: 'PDF • Lease agreement on file',
           ),
           const SizedBox(height: 10),
           const _DocTile(

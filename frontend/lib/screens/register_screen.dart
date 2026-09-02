@@ -19,7 +19,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
-  String _role = 'tenant';
+  String _role = 'landlord';
   bool _loadedRouteRole = false;
 
   @override
@@ -27,8 +27,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.didChangeDependencies();
     if (_loadedRouteRole) return;
     final role = ModalRoute.of(context)?.settings.arguments;
-    if (role is String && ['landlord', 'tenant', 'caretaker'].contains(role)) {
-      _role = role;
+    if (role == 'landlord') {
+      _role = 'landlord';
+    } else if (role is String) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$role accounts are created by your landlord. Confirm your login credentials from the landlord.')),
+        );
+        Navigator.pop(context);
+      });
     }
     _loadedRouteRole = true;
   }
@@ -67,9 +75,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-    final roles = ['tenant', 'landlord', 'caretaker'];
-    final roleIcons = [Icons.person_outline, Icons.business_outlined, Icons.engineering_outlined];
-    final roleNames = ['Tenant', 'Landlord', 'Caretaker'];
+    const roles = ['landlord'];
+    const roleIcons = [Icons.business_outlined];
+    const roleNames = ['Landlord'];
 
     return Scaffold(
       appBar: AppBar(leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new_outlined), onPressed: () => Navigator.pop(context))),
@@ -91,7 +99,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const SizedBox(height: 20),
               const Text('Create Account', style: AppStyles.heading1),
               const SizedBox(height: 4),
-              const Text('Choose your role in the KodiPay ecosystem.', style: AppStyles.bodySmall),
+              const Text('Create your landlord account. Tenants and caretakers are added by their landlord.', style: AppStyles.bodySmall),
               const SizedBox(height: 24),
               // Role chips
               SingleChildScrollView(

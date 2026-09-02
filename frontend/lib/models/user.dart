@@ -18,6 +18,7 @@ class User {
   final String? businessPostalCode;
   final String? businessPhone;
   final String? businessEmail;
+  final String? profilePhotoUrl;
 
   User({
     required this.id,
@@ -39,6 +40,7 @@ class User {
     this.businessPostalCode,
     this.businessPhone,
     this.businessEmail,
+    this.profilePhotoUrl,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -62,6 +64,7 @@ class User {
       businessPostalCode: json['business_postal_code'],
       businessPhone: json['business_phone'],
       businessEmail: json['business_email'],
+      profilePhotoUrl: json['profile_photo_url'],
     );
   }
 }

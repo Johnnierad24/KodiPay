@@ -49,6 +49,7 @@ exports.getOverview = async (req, res) => {
       unit_number: row.unit_number || '',
       tenancy_id: row.tenancy_id,
       tenancy_status: row.tenancy_status,
+      start_date: row.start_date || null,
       rent_amount: Number(row.rent_amount) || 0,
       rent_expected: expected,
       rent_paid: paid,

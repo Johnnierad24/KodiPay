@@ -100,7 +100,7 @@ class _PaymentsContentState extends State<_PaymentsContent> {
     tenancyId: widget.bundle.tenancy?.id ?? 0,
     propertyName: widget.bundle.tenancy?.propertyName ?? '',
     unitNumber: widget.bundle.tenancy?.unitNumber ?? '',
-    rentAmount: widget.bundle.tenancy?.rentAmount ?? 45000,
+    rentAmount: widget.bundle.tenancy?.rentAmount ?? 0,
     rentPaid: widget.bundle.tenancy?.rentPaid ?? 0,
     outstanding: widget.bundle.tenancy?.rentOutstanding ?? 0,
     dueDate: DateTime.now(),
@@ -130,7 +130,7 @@ class _PaymentsContentState extends State<_PaymentsContent> {
   Widget build(BuildContext context) {
     final tenancy = widget.bundle.tenancy;
     final payments = widget.bundle.payments;
-    final rentAmount = tenancy?.rentAmount ?? 45000;
+    final rentAmount = tenancy?.rentAmount ?? 0;
     final outstanding = tenancy?.rentOutstanding ?? 0;
 
     return SingleChildScrollView(
@@ -167,7 +167,7 @@ class _PaymentsContentState extends State<_PaymentsContent> {
               return isNarrow
                   ? Column(
                       children: [
-                        _UpcomingBillsSection(tenancyId: tenancy?.id ?? 0, rentAmount: rentAmount),
+                        _UpcomingBillsSection(tenancyId: tenancy?.id ?? 0, rentAmount: rentAmount, dueDay: tenancy?.dueDay ?? 25),
                         const SizedBox(height: 16),
                         _PaymentMethodsSection(
                           selectedMethod: _selectedMethod,
@@ -185,7 +185,7 @@ class _PaymentsContentState extends State<_PaymentsContent> {
                           flex: 4,
                           child: Column(
                             children: [
-                        _UpcomingBillsSection(tenancyId: tenancy?.id ?? 0, rentAmount: rentAmount),
+                        _UpcomingBillsSection(tenancyId: tenancy?.id ?? 0, rentAmount: rentAmount, dueDay: tenancy?.dueDay ?? 25),
                               const SizedBox(height: 16),
                               _PaymentMethodsSection(
                                 selectedMethod: _selectedMethod,
@@ -380,7 +380,8 @@ class _LastPaymentCard extends StatelessWidget {
 class _UpcomingBillsSection extends StatefulWidget {
   final int tenancyId;
   final num rentAmount;
-  const _UpcomingBillsSection({required this.tenancyId, required this.rentAmount});
+  final int dueDay;
+  const _UpcomingBillsSection({required this.tenancyId, required this.rentAmount, this.dueDay = 25});
 
   @override
   State<_UpcomingBillsSection> createState() => _UpcomingBillsSectionState();
@@ -413,6 +414,13 @@ class _UpcomingBillsSectionState extends State<_UpcomingBillsSection> {
     'rent': Icons.apartment,
   };
 
+  String get _rentDueLabel {
+    final now = DateTime.now();
+    final lastDay = _maxDayIn(now);
+    final day = widget.dueDay.clamp(1, lastDay);
+    return _formatDueDate(DateTime(now.year, now.month, day));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -426,7 +434,7 @@ class _UpcomingBillsSectionState extends State<_UpcomingBillsSection> {
           ],
         ),
         const SizedBox(height: 12),
-        _BillCard(icon: Icons.apartment, title: 'Monthly Rent', subtitle: 'Due Oct 1', amount: 'KSh ${formatKsh(widget.rentAmount)}'),
+        _BillCard(icon: Icons.apartment, title: 'Monthly Rent', subtitle: 'Due $_rentDueLabel', amount: 'KSh ${formatKsh(widget.rentAmount)}'),
         const SizedBox(height: 12),
         FutureBuilder<List<Map<String, dynamic>>>(
           future: _future,
@@ -892,6 +900,13 @@ class _DemoPayment {
   const _DemoPayment(this.date, this.description, this.subtitle, this.amount, this.status);
 }
 
+int _maxDayIn(DateTime d) => DateTime(d.year, d.month + 1, 0).day;
+
+String _formatDueDate(DateTime d) {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return '${months[d.month - 1]} ${d.day}';
+}
+
 String _statusLabel(String status) {
   switch (status.toLowerCase()) {
     case 'completed':
@@ -940,7 +955,8 @@ class _TenancySummary {
   final num rentAmount;
   final num rentPaid;
   final num rentOutstanding;
-  const _TenancySummary({required this.id, this.tenantName = '', required this.propertyName, required this.unitNumber, required this.rentAmount, this.rentPaid = 0, this.rentOutstanding = 0});
+  final int dueDay;
+  const _TenancySummary({required this.id, this.tenantName = '', required this.propertyName, required this.unitNumber, required this.rentAmount, this.rentPaid = 0, this.rentOutstanding = 0, this.dueDay = 25});
 
   factory _TenancySummary.fromJson(Map<String, dynamic> json) => _TenancySummary(
     id: toInt(json['id']),
@@ -952,7 +968,14 @@ class _TenancySummary {
     rentAmount: toNum(json['rent_amount']),
     rentPaid: toNum(json['rent_paid']),
     rentOutstanding: json['rent_outstanding'] != null ? toNum(json['rent_outstanding']) : toNum(json['rent_amount']),
+    dueDay: _deriveDueDay(json['start_date']),
   );
+
+  static int _deriveDueDay(dynamic startDate) {
+    final start = DateTime.tryParse(startDate?.toString() ?? '');
+    if (start == null) return 25;
+    return start.day.clamp(1, 28);
+  }
 }
 
 class _TenantPayment {

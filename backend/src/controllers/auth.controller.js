@@ -351,7 +351,7 @@ exports.getCurrentUser = async (req, res) => {
               emergency_contact_name, emergency_contact_relation, emergency_contact_phone,
               business_name, business_registration, business_kra_pin, business_contact_person,
               business_address, business_city, business_county, business_postal_code,
-              business_phone, business_email
+              business_phone, business_email, profile_photo_url
        FROM users WHERE id = $1`,
       [req.user.id]
     );
@@ -409,7 +409,7 @@ exports.updateProfile = async (req, res) => {
                  emergency_contact_name, emergency_contact_relation, emergency_contact_phone,
                  business_name, business_registration, business_kra_pin, business_contact_person,
                  business_address, business_city, business_county, business_postal_code,
-                 business_phone, business_email`,
+                 business_phone, business_email, profile_photo_url`,
       [first_name, last_name, email, phone,
        emergency_contact_name, emergency_contact_relation, emergency_contact_phone,
        business_name, business_registration, business_kra_pin, business_contact_person,

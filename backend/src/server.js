@@ -102,6 +102,7 @@ app.use('/api/payouts', authMiddleware, require('./routes/payout.routes'));
 app.use('/api/bills', authMiddleware, require('./routes/bill.routes'));
 app.use('/api/chatbot', authMiddleware, require('./routes/chatbot.routes'));
 app.use('/api/upload', authMiddleware, require('./routes/upload.routes'));
+app.use('/api/users', authMiddleware, require('./routes/user.routes'));
 app.use('/api/documents', authMiddleware, require('./routes/document.routes'));
 app.use('/api/caretakers', authMiddleware, require('./routes/caretaker.routes'));
 

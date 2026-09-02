@@ -62,7 +62,7 @@ class _TenantDashboardState extends State<TenantDashboard> {
   @override
   Widget build(BuildContext context) {
     final screens = <Widget>[
-      _TenantHomeTab(overview: _overview, onRefresh: _loadOverview),
+      _TenantHomeTab(overview: _overview, onRefresh: _loadOverview, onNavigateToPayments: () => _onNavTap(1)),
       const TenantPaymentsScreen(),
       const TenantProfileScreen(),
       const TenantSupportScreen(),
@@ -349,7 +349,8 @@ class _TenantTopBar extends StatelessWidget {
 class _TenantHomeTab extends StatelessWidget {
   final _TenantOverview? overview;
   final VoidCallback onRefresh;
-  const _TenantHomeTab({this.overview, required this.onRefresh});
+  final VoidCallback onNavigateToPayments;
+  const _TenantHomeTab({this.overview, required this.onRefresh, required this.onNavigateToPayments});
 
   void _downloadInvoice(_TenantOverview o) {
     try {
@@ -370,7 +371,7 @@ class _TenantHomeTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final o = overview;
     final hasData = o != null;
-    final outstanding = hasData ? o.rentOutstanding : 45000;
+    final outstanding = hasData ? o.rentOutstanding : 0;
     final paid = o?.rentPaid ?? 0;
 
     return AppRefreshIndicator(
@@ -451,7 +452,7 @@ class _TenantHomeTab extends StatelessWidget {
             const SizedBox(height: 24),
 
             // Recent Transactions Table
-            _RecentTransactionsTable(),
+            _RecentTransactionsTable(tenancyId: o?.tenancyId ?? 0, onViewAllHistory: onNavigateToPayments),
             const SizedBox(height: 24),
 
             // Unit details row
@@ -643,7 +644,74 @@ class _MaintenanceCard extends StatelessWidget {
 }
 
 // ── Recent Transactions Table ────────────────────────────
-class _RecentTransactionsTable extends StatelessWidget {
+class _RecentTransactionsTable extends StatefulWidget {
+  final int tenancyId;
+  final VoidCallback onViewAllHistory;
+  const _RecentTransactionsTable({required this.tenancyId, required this.onViewAllHistory});
+
+  @override
+  State<_RecentTransactionsTable> createState() => _RecentTransactionsTableState();
+}
+
+class _RecentTransactionsTableState extends State<_RecentTransactionsTable> {
+  final ApiService _api = ApiService();
+  Future<List<_PaymentTx>>? _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _fetch();
+  }
+
+  Future<List<_PaymentTx>> _fetch() async {
+    try {
+      if (widget.tenancyId == 0) return [];
+      final resp = await _api.get('/payments/tenancy/${widget.tenancyId}');
+      if (resp.statusCode != 200) return [];
+      final list = (jsonDecode(resp.body) as List).cast<Map<String, dynamic>>();
+      list.sort((a, b) {
+        final da = DateTime.tryParse(a['payment_date']?.toString() ?? '');
+        final db = DateTime.tryParse(b['payment_date']?.toString() ?? '');
+        return (db ?? DateTime.fromMillisecondsSinceEpoch(0)).compareTo(da ?? DateTime.fromMillisecondsSinceEpoch(0));
+      });
+      return list.take(5).map(_PaymentTx.fromJson).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  String _statusLabel(String status) {
+    switch (status.toLowerCase()) {
+      case 'completed':
+        return 'Paid';
+      case 'failed':
+        return 'Failed';
+      default:
+        return 'Pending';
+    }
+  }
+
+  String _methodLabel(String method) {
+    switch (method.toLowerCase()) {
+      case 'mpesa':
+        return 'M-Pesa';
+      case 'bank_transfer':
+        return 'Bank Transfer';
+      case 'card':
+        return 'Card';
+      case 'cash':
+        return 'Cash';
+      default:
+        return method.isEmpty ? 'Payment' : method;
+    }
+  }
+
+  String _formatDate(DateTime? d) {
+    if (d == null) return '--';
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${months[d.month - 1]} ${d.day}, ${d.year}';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -661,7 +729,7 @@ class _RecentTransactionsTable extends StatelessWidget {
               children: [
                 const Text('Recent Transactions', style: TextStyle(fontFamily: 'Lexend', fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.primary)),
                 TextButton(
-                  onPressed: () {},
+                  onPressed: widget.onViewAllHistory,
                   child: const Text('View All History', style: TextStyle(fontSize: 14, color: AppColors.primary)),
                 ),
               ],
@@ -681,14 +749,57 @@ class _RecentTransactionsTable extends StatelessWidget {
               ],
             ),
           ),
-          const _TxRow(date: 'Oct 02, 2024', desc: 'Monthly Rent - October', ref: 'KP-992384', amount: 'KSh 40,000', status: 'Paid'),
-          const _TxRow(date: 'Oct 02, 2024', desc: 'Service Charge', ref: 'KP-992385', amount: 'KSh 5,000', status: 'Paid'),
-          const _TxRow(date: 'Sep 01, 2024', desc: 'Monthly Rent - September', ref: 'KP-812039', amount: 'KSh 40,000', status: 'Paid'),
+          FutureBuilder<List<_PaymentTx>>(
+            future: _future,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              final rows = snapshot.data ?? [];
+              if (rows.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20),
+                  child: Center(child: Text('No recent transactions yet.', style: TextStyle(fontSize: 14, color: AppColors.muted))),
+                );
+              }
+              return Column(
+                children: [
+                  for (final tx in rows) _TxRow(
+                    date: _formatDate(tx.paymentDate),
+                    desc: 'Monthly Rent - ${_methodLabel(tx.method)}',
+                    ref: tx.transactionRef ?? '--',
+                    amount: 'KSh ${formatKsh(tx.amount)}',
+                    status: _statusLabel(tx.status),
+                  ),
+                ],
+              );
+            },
+          ),
           const SizedBox(height: 8),
         ],
       ),
     );
   }
+}
+
+class _PaymentTx {
+  final num amount;
+  final String method;
+  final String? transactionRef;
+  final String status;
+  final DateTime? paymentDate;
+  const _PaymentTx({required this.amount, required this.method, required this.transactionRef, required this.status, required this.paymentDate});
+
+  factory _PaymentTx.fromJson(Map<String, dynamic> json) => _PaymentTx(
+    amount: (json['amount'] ?? 0).toDouble(),
+    method: (json['payment_method'] ?? '').toString(),
+    transactionRef: json['transaction_ref']?.toString(),
+    status: (json['status'] ?? '').toString(),
+    paymentDate: DateTime.tryParse(json['payment_date']?.toString() ?? ''),
+  );
 }
 
 class _TxRow extends StatelessWidget {
@@ -772,6 +883,7 @@ class _UnitDetailCard extends StatelessWidget {
 
 // ── Overview Model ───────────────────────────────────────
 class _TenantOverview {
+  final int tenancyId;
   final String tenantName;
   final String propertyName;
   final String unitNumber;
@@ -782,12 +894,14 @@ class _TenantOverview {
   final String rentStatus;
 
   _TenantOverview({
+    required this.tenancyId,
     required this.tenantName, required this.propertyName, required this.unitNumber,
     required this.rentAmount, required this.rentPaid, required this.rentOutstanding,
     required this.dueDay, required this.rentStatus,
   });
 
   factory _TenantOverview.fromJson(Map<String, dynamic> json) => _TenantOverview(
+    tenancyId: (json['tenancy_id'] ?? 0).toInt(),
     tenantName: json['tenant_name'] ?? 'Tenant',
     propertyName: json['property_name'] ?? 'Property',
     unitNumber: json['unit_number'] ?? '',
