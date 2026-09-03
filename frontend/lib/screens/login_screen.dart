@@ -32,7 +32,7 @@ class _LoginScreenState extends State<LoginScreen> {
           _passwordController.text,
         );
     if (success && mounted) {
-      Navigator.pushReplacementNamed(context, '/');
+      Navigator.of(context).popUntil((route) => route.isFirst);
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Login failed. Please check your credentials.')),

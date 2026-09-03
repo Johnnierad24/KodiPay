@@ -265,11 +265,11 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> tryAutoLogin() async {
+    if (isAuthenticated) return;
     try {
       final prefs = await SharedPreferences.getInstance();
       final storedToken = prefs.getString('jwt_token');
-      if (storedToken == null) {
-        _token = null;
+      if (storedToken == null || isAuthenticated) {
         notifyListeners();
         return;
       }

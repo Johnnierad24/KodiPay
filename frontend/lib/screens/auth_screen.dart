@@ -61,7 +61,7 @@ class _AuthScreenState extends State<AuthScreen> {
     final success = await context.read<AuthProvider>().login(_emailController.text.trim(), _passwordController.text);
     if (!mounted) return;
     if (success) {
-      Navigator.pushReplacementNamed(context, '/');
+      Navigator.of(context).popUntil((route) => route.isFirst);
     } else {
       _showSnack('Login failed. Please check your credentials.');
     }
@@ -80,7 +80,7 @@ class _AuthScreenState extends State<AuthScreen> {
     );
     if (!mounted) return;
     if (success) {
-      Navigator.pushReplacementNamed(context, '/');
+      Navigator.of(context).popUntil((route) => route.isFirst);
     } else {
       _showSnack('Registration failed. Please try again.');
     }
