@@ -267,14 +267,22 @@ class AuthProvider with ChangeNotifier {
   Future<void> tryAutoLogin() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      _token = prefs.getString('jwt_token');
-      if (_token != null) {
-        final response = await _apiService.get('/auth/me');
-        if (response.statusCode == 200) {
-          _user = User.fromJson(jsonDecode(response.body));
-        } else {
-          await logout();
-        }
+      final storedToken = prefs.getString('jwt_token');
+      if (storedToken == null) {
+        _token = null;
+        notifyListeners();
+        return;
+      }
+      _token = storedToken;
+      final response = await _apiService.get('/auth/me');
+      if (_token != storedToken) {
+        notifyListeners();
+        return;
+      }
+      if (response.statusCode == 200) {
+        _user = User.fromJson(jsonDecode(response.body));
+      } else {
+        await logout();
       }
     } catch (e) {
       _user = null;
