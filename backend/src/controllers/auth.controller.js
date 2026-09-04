@@ -347,18 +347,15 @@ exports.resetPasswordWithOtp = async (req, res) => {
 exports.getCurrentUser = async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, email, first_name, last_name, phone, role,
-              emergency_contact_name, emergency_contact_relation, emergency_contact_phone,
-              business_name, business_registration, business_kra_pin, business_contact_person,
-              business_address, business_city, business_county, business_postal_code,
-              business_phone, business_email, profile_photo_url
-       FROM users WHERE id = $1`,
+      'SELECT * FROM users WHERE id = $1',
       [req.user.id]
     );
 
     if (result.rows.length === 0) return res.status(404).json({ error: 'User not found' });
-    res.json(result.rows[0]);
+    const { password_hash, fcm_token, ...safe } = result.rows[0];
+    res.json(safe);
   } catch (error) {
+    console.error('getCurrentUser error:', error);
     res.status(500).json({ error: 'Failed to fetch current user' });
   }
 };
@@ -405,11 +402,7 @@ exports.updateProfile = async (req, res) => {
            business_email           = COALESCE(NULLIF($17, ''), business_email),
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $18
-       RETURNING id, email, first_name, last_name, phone, role,
-                 emergency_contact_name, emergency_contact_relation, emergency_contact_phone,
-                 business_name, business_registration, business_kra_pin, business_contact_person,
-                 business_address, business_city, business_county, business_postal_code,
-                 business_phone, business_email, profile_photo_url`,
+       RETURNING *`,
       [first_name, last_name, email, phone,
        emergency_contact_name, emergency_contact_relation, emergency_contact_phone,
        business_name, business_registration, business_kra_pin, business_contact_person,
@@ -422,7 +415,8 @@ exports.updateProfile = async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json({ user: result.rows[0] });
+    const { password_hash, fcm_token, ...safe } = result.rows[0];
+    res.json({ user: safe });
   } catch (error) {
     console.error('Update profile failed:', error);
     res.status(500).json({ error: 'Failed to update profile' });

@@ -721,25 +721,20 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() { _saving = true; _error = null; });
-    try {
-      final api = ApiService();
-      final res = await api.put('/auth/profile', {
-        'first_name': _firstNameCtl.text.trim(),
-        'last_name': _lastNameCtl.text.trim(),
-        'email': _emailCtl.text.trim(),
-        'phone': _phoneCtl.text.trim(),
-      });
-      if (res.statusCode == 200 && mounted) {
-        Navigator.pop(context, true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully.'), backgroundColor: AppColors.kodiGreen),
-        );
-      } else {
-        final body = jsonDecode(res.body);
-        setState(() { _error = body['error'] ?? 'Update failed'; _saving = false; });
-      }
-    } catch (e) {
-      setState(() { _error = 'Connection error'; _saving = false; });
+    final success = await context.read<AuthProvider>().updateProfile(
+      firstName: _firstNameCtl.text,
+      lastName: _lastNameCtl.text,
+      email: _emailCtl.text,
+      phone: _phoneCtl.text,
+    );
+    if (!mounted) return;
+    if (success) {
+      Navigator.pop(context, true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile updated successfully.'), backgroundColor: AppColors.kodiGreen),
+      );
+    } else {
+      setState(() { _error = 'Update failed'; _saving = false; });
     }
   }
 
