@@ -29,6 +29,11 @@ class _LandlordWalletScreenState extends State<LandlordWalletScreen> {
     _loadData();
   }
 
+  double _numOf(dynamic v) {
+    if (v is num) return v.toDouble();
+    return double.tryParse(v?.toString() ?? '') ?? 0;
+  }
+
   String _fmtKsh(num v) {
     final s = v.toStringAsFixed(0);
     final buf = StringBuffer();
@@ -283,7 +288,7 @@ class _LandlordWalletScreenState extends State<LandlordWalletScreen> {
               _payoutItem(
                 show[i]['description'] ?? show[i]['method'] ?? 'Payout',
                 _fmtDate(show[i]['scheduled_date']),
-                _fmtKsh((show[i]['amount'] ?? 0).toDouble()),
+                _fmtKsh(_numOf(show[i]['amount'])),
                 (show[i]['status'] ?? 'pending').toString().toUpperCase(),
               ),
             ],
@@ -360,7 +365,7 @@ class _LandlordWalletScreenState extends State<LandlordWalletScreen> {
                     ),
                   ),
                   Text(
-                    '${entry['type'] == 'credit' ? '+' : '-'} ${_fmtKsh((entry['amount'] ?? 0).toDouble())}',
+                    '${entry['type'] == 'credit' ? '+' : '-'} ${_fmtKsh(_numOf(entry['amount']))}',
                     style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
                         color: entry['type'] == 'credit' ? AppColors.kodiGreen : AppColors.error),
                   ),
@@ -414,7 +419,7 @@ class _LandlordWalletScreenState extends State<LandlordWalletScreen> {
   }
 
   _TransactionRowData _mapTransaction(Map<String, dynamic> t) {
-    final amount = (t['amount'] ?? 0).toDouble();
+    final amount = _numOf(t['amount']);
     final paymentMethod = (t['payment_method'] ?? '').toString().toLowerCase();
     final isPositive = amount >= 0;
     final icon = paymentMethod.contains('mpesa') || paymentMethod.contains('m-pesa')
@@ -763,7 +768,7 @@ class _LandlordWalletScreenState extends State<LandlordWalletScreen> {
                 )
               else
                 for (final p in scheduled) ...[
-                  Text('${_fmtDate(p['scheduled_date'])} - ${p['description'] ?? p['method'] ?? 'Payout'} (${_fmtKsh((p['amount'] ?? 0).toDouble())})', style: const TextStyle(fontSize: 13)),
+                  Text('${_fmtDate(p['scheduled_date'])} - ${p['description'] ?? p['method'] ?? 'Payout'} (${_fmtKsh(_numOf(p['amount']))})', style: const TextStyle(fontSize: 13)),
                   const SizedBox(height: 8),
                 ],
             ],
