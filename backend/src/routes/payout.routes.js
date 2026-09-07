@@ -19,5 +19,10 @@ router.post('/',
   validate,
   payoutController.createPayout
 );
+router.put('/:id/status',
+  body('status').isIn(['scheduled', 'pending', 'completed', 'failed']),
+  validate,
+  payoutController.updatePayoutStatus
+);
 
 module.exports = router;

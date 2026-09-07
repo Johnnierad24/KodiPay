@@ -2,6 +2,7 @@ const pool = require('../config/db');
 const { initiateSTKPush } = require('../services/mpesa.service');
 const { generateReceiptForPayment } = require('../services/document.service');
 const { getTenancyAccess, canReadTenancy, ownsProperty } = require('../utils/access-control');
+const escrowService = require('../services/escrow.service');
 
 exports.recordPayment = async (req, res) => {
   try {
@@ -48,6 +49,17 @@ exports.recordPayment = async (req, res) => {
          VALUES ($1, 'rent', $2, 'Manual payment recorded') RETURNING *`,
         [tenancy_id, amount]
       );
+
+      // Credit the landlord's escrow balance for this completed payment.
+      const landlordId = await escrowService.getLandlordIdForPayment(paymentResult.rows[0].id);
+      if (landlordId) {
+        await escrowService.creditEscrow(
+          landlordId,
+          amount,
+          `Payment#${paymentResult.rows[0].id}`,
+          `Tenant rent payment (${payment_method})`
+        );
+      }
 
       generateReceiptForPayment({ paymentId: paymentResult.rows[0].id, uploadedBy: req.user?.id })
         .catch((err) => console.error('Auto-receipt failed:', err.message));
@@ -132,6 +144,27 @@ exports.updatePaymentStatus = async (req, res) => {
       [status, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Payment not found' });
+
+    // When a payment is confirmed as completed, credit the landlord's escrow once.
+    if (status === 'completed') {
+      const landlordId = await escrowService.getLandlordIdForPayment(req.params.id);
+      if (landlordId) {
+        const already = await pool.query(
+          `SELECT 1 FROM escrow_ledger
+           WHERE landlord_id = $1 AND reference = $2 AND type = 'credit'`,
+          [landlordId, `Payment#${req.params.id}`]
+        );
+        if (already.rows.length === 0) {
+          await escrowService.creditEscrow(
+            landlordId,
+            result.rows[0].amount,
+            `Payment#${req.params.id}`,
+            'Tenant rent payment confirmed'
+          );
+        }
+      }
+    }
+
     res.json(result.rows[0]);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update payment' });

@@ -17,13 +17,21 @@ class _LandlordWalletScreenState extends State<LandlordWalletScreen> {
   final _api = ApiService();
   bool _loading = true;
   double _balance = 0;
+  double _escrowCredits = 0;
+  double _escrowDebits = 0;
   List<Map<String, dynamic>> _payouts = [];
   List<Map<String, dynamic>> _transactions = [];
+  List<Map<String, dynamic>> _escrowLedger = [];
 
   @override
   void initState() {
     super.initState();
     _loadData();
+  }
+
+  double _numOf(dynamic v) {
+    if (v is num) return v.toDouble();
+    return double.tryParse(v?.toString() ?? '') ?? 0;
   }
 
   String _fmtKsh(num v) {
@@ -53,24 +61,35 @@ class _LandlordWalletScreenState extends State<LandlordWalletScreen> {
         _api.get('/payouts/balance'),
         _api.get('/payouts'),
         _api.get('/reports/transactions'),
+        _api.get('/escrow/ledger'),
       ]);
       if (!mounted) return;
       final balRes = results[0];
       final payRes = results[1];
       final txRes = results[2];
+      final escRes = results[3];
 
       Map<String, dynamic> balData = {};
       List<dynamic> payList = [];
       List<dynamic> txList = [];
+      List<dynamic> escList = [];
 
       if (balRes.statusCode == 200) balData = jsonDecode(balRes.body);
       if (payRes.statusCode == 200) payList = jsonDecode(payRes.body);
       if (txRes.statusCode == 200) txList = jsonDecode(txRes.body);
+      if (escRes.statusCode == 200) escList = jsonDecode(escRes.body);
+
+      final escrow = balData['escrow'] is Map<String, dynamic>
+          ? balData['escrow'] as Map<String, dynamic>
+          : null;
 
       setState(() {
         _balance = (balData['balance'] ?? 0).toDouble();
+        _escrowCredits = (escrow?['credits'] ?? 0).toDouble();
+        _escrowDebits = (escrow?['debits'] ?? 0).toDouble();
         _payouts = payList.cast<Map<String, dynamic>>();
         _transactions = txList.cast<Map<String, dynamic>>();
+        _escrowLedger = escList.cast<Map<String, dynamic>>();
         _loading = false;
       });
     } catch (e) {
@@ -97,6 +116,8 @@ class _LandlordWalletScreenState extends State<LandlordWalletScreen> {
                   _buildHeader(),
                   const SizedBox(height: 24),
                   _buildBentoGrid(),
+                  const SizedBox(height: 24),
+                  _buildEscrowLedger(),
                   const SizedBox(height: 24),
                   _buildTransactionHistory(),
                   const SizedBox(height: 24),
@@ -186,6 +207,17 @@ class _LandlordWalletScreenState extends State<LandlordWalletScreen> {
               ],
             ),
           ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              const Icon(Icons.shield_rounded, size: 14, color: AppColors.tertiaryFixed),
+              const SizedBox(width: 6),
+              Text(
+                'Held in escrow · ${_fmtKsh(_balance)} available',
+                style: const TextStyle(fontSize: 12, color: AppColors.primaryFixedDim),
+              ),
+            ],
+          ),
           const SizedBox(height: 24),
           Wrap(
             spacing: 12, runSpacing: 12,
@@ -256,7 +288,7 @@ class _LandlordWalletScreenState extends State<LandlordWalletScreen> {
               _payoutItem(
                 show[i]['description'] ?? show[i]['method'] ?? 'Payout',
                 _fmtDate(show[i]['scheduled_date']),
-                _fmtKsh((show[i]['amount'] ?? 0).toDouble()),
+                _fmtKsh(_numOf(show[i]['amount'])),
                 (show[i]['status'] ?? 'pending').toString().toUpperCase(),
               ),
             ],
@@ -269,6 +301,78 @@ class _LandlordWalletScreenState extends State<LandlordWalletScreen> {
               label: const Text('View Payout Calendar', style: TextStyle(fontWeight: FontWeight.w600)),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEscrowLedger() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceLowest,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.account_balance_wallet_rounded, size: 18, color: AppColors.primary),
+                  SizedBox(width: 8),
+                  Text('Escrow Activity', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, fontFamily: 'Lexend', color: AppColors.primary)),
+                ],
+              ),
+              Text('${_fmtKsh(_escrowCredits)} in · ${_fmtKsh(_escrowDebits)} out',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.onSurfaceVariant)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text('Every tenant payment is held safely here until you withdraw it.',
+              style: TextStyle(fontSize: 12, color: AppColors.onSurfaceVariant)),
+          const SizedBox(height: 16),
+          if (_escrowLedger.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Text('No escrow movements yet', style: TextStyle(fontSize: 13, color: AppColors.onSurfaceVariant)),
+            )
+          else
+            for (final entry in _escrowLedger.take(8)) ...[
+              Row(
+                children: [
+                  Icon(
+                    entry['type'] == 'credit'
+                        ? Icons.add_circle_outline_rounded
+                        : Icons.remove_circle_outline_rounded,
+                    size: 18,
+                    color: entry['type'] == 'credit' ? AppColors.kodiGreen : AppColors.error,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(entry['description'] ?? 'Escrow entry',
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.onSurface),
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                        Text(_fmtDate(entry['created_at']),
+                            style: const TextStyle(fontSize: 11, color: AppColors.onSurfaceVariant)),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    '${entry['type'] == 'credit' ? '+' : '-'} ${_fmtKsh(_numOf(entry['amount']))}',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
+                        color: entry['type'] == 'credit' ? AppColors.kodiGreen : AppColors.error),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+            ],
         ],
       ),
     );
@@ -315,7 +419,7 @@ class _LandlordWalletScreenState extends State<LandlordWalletScreen> {
   }
 
   _TransactionRowData _mapTransaction(Map<String, dynamic> t) {
-    final amount = (t['amount'] ?? 0).toDouble();
+    final amount = _numOf(t['amount']);
     final paymentMethod = (t['payment_method'] ?? '').toString().toLowerCase();
     final isPositive = amount >= 0;
     final icon = paymentMethod.contains('mpesa') || paymentMethod.contains('m-pesa')
@@ -544,31 +648,77 @@ class _LandlordWalletScreenState extends State<LandlordWalletScreen> {
   void _showWithdrawDialog() {
     final amountCtrl = TextEditingController();
     String method = 'M-Pesa';
+    bool submitting = false;
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Withdraw Funds'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: amountCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Amount (KSh)', border: OutlineInputBorder()),
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              initialValue: method,
-              decoration: const InputDecoration(labelText: 'Method', border: OutlineInputBorder()),
-              items: const [DropdownMenuItem(value: 'M-Pesa', child: Text('M-Pesa')), DropdownMenuItem(value: 'Bank Transfer', child: Text('Bank Transfer'))],
-              onChanged: (v) { if (v != null) method = v; },
-            ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Withdraw Funds'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Available in escrow: ${_fmtKsh(_balance)}',
+                  style: const TextStyle(fontSize: 12, color: AppColors.onSurfaceVariant)),
+              const SizedBox(height: 12),
+              TextField(
+                controller: amountCtrl,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Amount (KSh)', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                initialValue: method,
+                decoration: const InputDecoration(labelText: 'Method', border: OutlineInputBorder()),
+                items: const [
+                  DropdownMenuItem(value: 'M-Pesa', child: Text('M-Pesa')),
+                  DropdownMenuItem(value: 'Bank Transfer', child: Text('Bank Transfer')),
+                ],
+                onChanged: (v) { if (v != null) setDialogState(() => method = v); },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            submitting
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20),
+                    child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)))
+                : FilledButton(
+                    onPressed: () async {
+                      final amt = double.tryParse(amountCtrl.text.trim());
+                      if (amt == null || amt <= 0) {
+                        _showSnack('Enter a valid amount');
+                        return;
+                      }
+                      if (amt > _balance) {
+                        _showSnack('Amount exceeds your escrow balance');
+                        return;
+                      }
+                      setDialogState(() => submitting = true);
+                      final res = await _api.post('/payouts', {
+                        'amount': amt,
+                        'method': method == 'M-Pesa' ? 'mpesa' : 'bank_transfer',
+                        'description': 'Withdrawal via $method',
+                      });
+                      if (!ctx.mounted) return;
+                      Navigator.pop(ctx);
+                      if (res.statusCode == 201) {
+                        _showSnack('Withdrawal of ${_fmtKsh(amt)} initiated via $method');
+                        await _loadData();
+                      } else {
+                        String err = 'Could not initiate withdrawal';
+                        try {
+                          final data = jsonDecode(res.body);
+                          if (data['error'] is String) err = data['error'];
+                        } catch (_) {}
+                        _showSnack(err);
+                      }
+                    },
+                    child: const Text('Withdraw'),
+                  ),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          FilledButton(onPressed: () { Navigator.pop(ctx); _showSnack('Withdrawal of KSh ${amountCtrl.text} initiated via $method'); }, child: const Text('Withdraw')),
-        ],
       ),
     );
   }
@@ -618,7 +768,7 @@ class _LandlordWalletScreenState extends State<LandlordWalletScreen> {
                 )
               else
                 for (final p in scheduled) ...[
-                  Text('${_fmtDate(p['scheduled_date'])} - ${p['description'] ?? p['method'] ?? 'Payout'} (${_fmtKsh((p['amount'] ?? 0).toDouble())})', style: const TextStyle(fontSize: 13)),
+                  Text('${_fmtDate(p['scheduled_date'])} - ${p['description'] ?? p['method'] ?? 'Payout'} (${_fmtKsh(_numOf(p['amount']))})', style: const TextStyle(fontSize: 13)),
                   const SizedBox(height: 8),
                 ],
             ],

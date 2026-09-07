@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const escrowService = require('./escrow.service');
 
 async function listPayouts(landlordId) {
   try {
@@ -17,11 +18,24 @@ async function listPayouts(landlordId) {
 
 async function createPayout(landlordId, { amount, method, status, scheduled_date, reference, description }) {
   try {
+    const amountNum = Number(amount);
+
+    // Reserve the funds in escrow (debit) before recording the payout.
+    const debit = await escrowService.createEscrowDebit(
+      landlordId,
+      amountNum,
+      `Payout-${reference || 'pending'}`,
+      description || 'Withdrawal to ' + (method || 'payout method')
+    );
+    if (!debit.success) {
+      return { success: false, error: debit.error };
+    }
+
     const result = await pool.query(
       `INSERT INTO payouts (landlord_id, amount, method, status, scheduled_date, reference, description)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [landlordId, amount, method, status || 'scheduled', scheduled_date || null, reference || null, description || null]
+      [landlordId, amountNum, method, status || 'scheduled', scheduled_date || null, reference || null, description || null]
     );
     return { success: true, data: result.rows[0] };
   } catch (error) {
@@ -31,30 +45,15 @@ async function createPayout(landlordId, { amount, method, status, scheduled_date
 
 async function getBalance(landlordId) {
   try {
-    const paidResult = await pool.query(
-      `SELECT COALESCE(SUM(pay.amount), 0) AS total
-       FROM payments pay
-       JOIN tenancies t ON pay.tenancy_id = t.id
-       JOIN units u ON t.unit_id = u.id
-       JOIN properties p ON u.property_id = p.id
-       WHERE p.landlord_id = $1
-         AND pay.status = 'completed'`,
-      [landlordId]
-    );
-
-    const payoutResult = await pool.query(
-      `SELECT COALESCE(SUM(amount), 0) AS total
-       FROM payouts
-       WHERE landlord_id = $1
-         AND status != 'failed'`,
-      [landlordId]
-    );
-
-    const paidIncoming = Number(paidResult.rows[0].total) || 0;
-    const payoutsOut = Number(payoutResult.rows[0].total) || 0;
-    const balance = Math.round((paidIncoming - payoutsOut) * 100) / 100;
-
-    return { success: true, data: { balance, held: 0 } };
+    const escrow = await escrowService.getEscrowBalance(landlordId);
+    return {
+      success: true,
+      data: {
+        balance: escrow.balance,
+        held: 0,
+        escrow: escrow,
+      },
+    };
   } catch (error) {
     return { success: false, error: error.message };
   }

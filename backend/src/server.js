@@ -99,6 +99,7 @@ app.use('/api/invoices', authMiddleware, require('./routes/invoice.routes'));
 app.use('/api/analytics', authMiddleware, require('./routes/analytics.routes'));
 app.use('/api/reports', authMiddleware, require('./routes/report.routes'));
 app.use('/api/payouts', authMiddleware, require('./routes/payout.routes'));
+app.use('/api/escrow', authMiddleware, require('./routes/escrow.routes'));
 app.use('/api/bills', authMiddleware, require('./routes/bill.routes'));
 app.use('/api/chatbot', authMiddleware, require('./routes/chatbot.routes'));
 app.use('/api/upload', authMiddleware, require('./routes/upload.routes'));

@@ -184,6 +184,13 @@ async function processCallback(callbackData) {
         [tenancy_id, Amount]
       );
 
+      // Credit the landlord's escrow balance for this completed M-Pesa payment.
+      const { getLandlordIdForPayment, creditEscrow } = require('./escrow.service');
+      const landlordId = await getLandlordIdForPayment(paymentId);
+      if (landlordId) {
+        await creditEscrow(landlordId, Amount, `Payment#${paymentId}`, 'M-Pesa rent payment');
+      }
+
       const { generateReceiptForPayment } = require('./document.service');
       generateReceiptForPayment({ paymentId })
         .catch((err) => console.error('M-Pesa auto-receipt failed:', err.message));
