@@ -89,6 +89,7 @@ class _CaretakerReportVacancyScreenState extends State<CaretakerReportVacancyScr
               notes: _notesCtrl.text.trim(),
             ),
           ),
+          result: true,
         );
       } else {
         String message = 'Could not report vacancy (${response.statusCode})';
