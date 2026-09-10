@@ -117,7 +117,7 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
                         onMenuTap: _onMenuTap,
                         onNotifications: () async {
                           await Navigator.push(context, MaterialPageRoute(builder: (_) => const LandlordNotificationsScreen()));
-                          if (context.mounted) _loadOverview();
+                          if (context.mounted) _loadUnreadCount();
                         },
                         onProfileTap: () => _onNavTap(5),
                         onLogout: () => _confirmLogout(context),
